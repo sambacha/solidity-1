@@ -425,6 +425,7 @@ void ASTBoogieConverter::addModifiesSpecs(FunctionDefinition const& _node, bg::P
 	};
 
 	map<Declaration const*, list<ModSpec>> modSpecs; // Modifies specifier for each variable
+	list<ModSpec> balanceModSpecs; // Modifies specifiers for global balances
 	bool canModifyAll = false;
 
 	for (auto docTag: _node.annotation().docTags)
@@ -453,7 +454,10 @@ void ASTBoogieConverter::addModifiesSpecs(FunctionDefinition const& _node, bg::P
 			size_t targetStart = ASTBoogieUtils::DOCTAG_MODIFIES.length() + 1;
 			if (parseExpr(docTag.second.content.substr(targetStart, targetEnd - targetStart + 1), _node, &_node, target))
 			{
-				if (Declaration const* varDecl = getModifiesBase(target.exprSol.get()))
+				auto memAccExpr = dynamic_cast<MemberAccess const*>(target.exprSol.get());
+				if (memAccExpr && memAccExpr->memberName() == ASTBoogieUtils::SOLIDITY_BALANCE)
+					balanceModSpecs.push_back(ModSpec(condExpr, dynamic_pointer_cast<bg::ArrSelExpr const>(target.expr)->getIdx()));
+				else if (Declaration const* varDecl = getModifiesBase(target.exprSol.get()))
 					modSpecs[varDecl].push_back(ModSpec(condExpr, target.expr));
 				else
 					m_context.reportError(&_node, "Invalid target expression for modifies specification");
@@ -464,6 +468,24 @@ void ASTBoogieConverter::addModifiesSpecs(FunctionDefinition const& _node, bg::P
 	if (canModifyAll && !modSpecs.empty())
 		m_context.reportWarning(&_node, "Modifies all was given, other modifies specifications are ignored");
 
+
+	// Global balances
+	if (m_context.modAnalysis() && !canModifyAll)
+	{
+		// Build up expression recursively
+		bg::Expr::Ref expr = bg::Expr::old(m_context.boogieBalance()->getRefTo());
+		for (auto modSpec: balanceModSpecs)
+		{
+			expr = bg::Expr::cond(modSpec.cond,
+					bg::Expr::arrupd(expr, modSpec.target, bg::Expr::arrsel(m_context.boogieBalance()->getRefTo(), modSpec.target)),
+					expr);
+		}
+		expr = bg::Expr::eq(m_context.boogieBalance()->getRefTo(), expr);
+		procDecl->getEnsures().push_back(bg::Specification::spec(expr,
+								ASTBoogieUtils::createAttrs(_node.location(), "Function might modify balances illegally", *m_context.currentScanner())));
+	}
+
+	// State vars
 	if (m_context.modAnalysis() && !_node.isConstructor() && !canModifyAll)
 	{
 		// Linearized base contracts include the current contract as well
