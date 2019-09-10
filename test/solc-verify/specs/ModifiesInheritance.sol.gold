@@ -1,3 +1,4 @@
+solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
 C::f: OK
 C::[implicit_constructor]: OK
 D::correct1: OK

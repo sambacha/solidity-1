@@ -1,3 +1,5 @@
+solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
+test/solc-verify/specs/SimpleMultiBankCorrect.sol:4:1: solc-verify warning: Warning(s) while processing annotation for node
 SimpleMultiBankCorrect::deposit: OK
 SimpleMultiBankCorrect::multiSend: OK
 SimpleMultiBankCorrect::[implicit_constructor]: OK

@@ -197,16 +197,21 @@ def main(tmpDir):
             print(getMessage(line) + ': ' + yellowTxt('SKIPPED'))
             skipped += 1
 
+    # Warnings
+    if warnings > 0 and not args.show_warnings:
+        print(yellowTxt('Use --show-warnings to see %d warning%s.' % (warnings, '' if warnings == 1 else 's')))
+    if 'inconclusive' in outputLines[-1]:
+        print(yellowTxt('Inconclusive results.'))
+    if skipped > 0:
+        print(yellowTxt('Some functions were skipped. Use --verbose to see details.'))
+
+    # Final result
     if (re.match('Boogie program verifier finished with \\d+ verified, 0 errors', outputLines[-1])):
         print(greenTxt('No errors found.'))
-        if 'inconclusive' in outputLines[-1]: print(yellowTxt('Inconclusive results.'))
-        if skipped > 0: print(yellowTxt('Some functions were skipped. Use --verbose to see details.'))
-        if warnings > 0 and not args.show_warnings: print(yellowTxt('Use --show-warnings to see %d warning(s).' % warnings))
         if 'inconclusive' in outputLines[-1] or skipped > 0: return ERROR_PARTIAL
         return ERROR_NO_ERRROR
     else:
         print(redTxt('Errors were found by the verifier.'))
-        if warnings > 0 and not args.show_warnings: print(yellowTxt('Use --show-warnings to see %d warning(s).' % warnings))
         return ERRORS_VERIFICATION
 
 def printVerbose(txt):

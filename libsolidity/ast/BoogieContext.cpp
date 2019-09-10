@@ -336,7 +336,7 @@ void BoogieContext::warnForBalances()
 {
 	if (!m_warnForBalances)
 	{
-		m_errorReporter->warning("Balance modifications due to gas consumption or miner rewards are not modeled.");
+		m_errorReporter->warning("Balance modifications due to gas consumption or miner rewards are not modeled");
 	}
 	m_warnForBalances = true;
 }
