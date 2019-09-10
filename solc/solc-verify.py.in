@@ -154,11 +154,14 @@ def main(tmpDir):
     # Print warnings if requested
     warnings = 0
     for line in compilerOutputStr.split('\n'):
-        if ': Warning: ' in line or ': solc-verify warning: ' in line:
+        # Ignore pre-release warnings
+        if line == 'Warning: This is a pre-release compiler version, please do not use it in production.': continue
+        # Other warnings should be printed
+        if 'Warning: ' in line or 'solc-verify warning: ' in line:
             warnings += 1
             if args.show_warnings:
-                line = line.replace(': Warning: ', ': ' + yellowTxt('Warning') + ': ')
-                line = line.replace(': solc-verify warning: ', ': ' + yellowTxt('solc-verify warning') + ': ')
+                line = line.replace('Warning: ', yellowTxt('Warning') + ': ')
+                line = line.replace('solc-verify warning: ', yellowTxt('solc-verify warning') + ': ')
                 print(line)
 
     # Map results back to .sol file
@@ -198,12 +201,12 @@ def main(tmpDir):
         print(greenTxt('No errors found.'))
         if 'inconclusive' in outputLines[-1]: print(yellowTxt('Inconclusive results.'))
         if skipped > 0: print(yellowTxt('Some functions were skipped. Use --verbose to see details.'))
+        if warnings > 0 and not args.show_warnings: print(yellowTxt('Use --show-warnings to see %d warning(s).' % warnings))
         if 'inconclusive' in outputLines[-1] or skipped > 0: return ERROR_PARTIAL
         return ERROR_NO_ERRROR
     else:
         print(redTxt('Errors were found by the verifier.'))
-        if warnings > 0 and not args.show_warnings:
-            print(yellowTxt('Use --show-warnings to see the warnings for potential false alarms.'))
+        if warnings > 0 and not args.show_warnings: print(yellowTxt('Use --show-warnings to see %d warning(s).' % warnings))
         return ERRORS_VERIFICATION
 
 def printVerbose(txt):

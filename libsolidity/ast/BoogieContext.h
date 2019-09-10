@@ -122,6 +122,8 @@ private:
 
 	int m_nextId = 0;
 
+	bool m_warnForBalances;
+
 public:
 
 	BoogieContext(Encoding encoding,
@@ -149,7 +151,6 @@ public:
 	void setCurrentContract(ContractDefinition const* contract) { m_currentContract = contract; }
 	void printErrors(std::ostream& out);
 
-public:
 	/** Prints the Boogie program to an output stream. */
 	void print(std::ostream& _stream) { m_program.print(_stream); }
 
@@ -164,6 +165,8 @@ public:
 
 	/** Maps a declaration name to a name in Boogie, including extra scoping if needed. */
 	std::string mapDeclName(Declaration const& decl);
+
+	void warnForBalances();
 
 	// Sum function related
 private:

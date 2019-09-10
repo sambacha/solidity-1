@@ -17,6 +17,7 @@ class ASTBoogieExpressionConverter : private ASTConstVisitor
 private:
 
 	BoogieContext& m_context;
+	bool m_insideSpec;
 
 	// Helper variables to pass information between the visit methods
 	boogie::Expr::Ref m_currentExpr;
@@ -87,7 +88,7 @@ public:
 	 * Convert a Solidity Expression into a Boogie expression. As a side effect, the conversion might
 	 * introduce new statements and declarations (included in the result).
 	 */
-	Result convert(Expression const& _node);
+	Result convert(Expression const& _node, bool specification);
 
 	// Only need to handle expressions
 	bool visit(Conditional const& _node) override;

@@ -27,7 +27,7 @@ namespace solidity
 
 bg::Expr::Ref ASTBoogieConverter::convertExpression(Expression const& _node)
 {
-	ASTBoogieExpressionConverter::Result result = ASTBoogieExpressionConverter(m_context).convert(_node);
+	ASTBoogieExpressionConverter::Result result = ASTBoogieExpressionConverter(m_context).convert(_node, false);
 
 	m_localDecls.insert(end(m_localDecls), begin(result.newDecls), end(result.newDecls));
 	for (auto tcc: result.tccs)
@@ -304,7 +304,7 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 			if (typeChecker.checkTypeRequirements(*expr))
 			{
 				// Convert expression to Boogie representation
-				auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr);
+				auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr, true);
 				result.expr = convResult.expr;
 				result.exprStr = exprStr;
 				result.exprSol = expr;
@@ -335,10 +335,6 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 	{
 		m_context.reportError(&_node, "Error(s) while processing annotation for node");
 		return false;
-	}
-	else if (errorList.size() > 0)
-	{
-		m_context.reportWarning(&_node, "Warning(s) while processing annotation for node");
 	}
 	return true;
 }
@@ -483,6 +479,7 @@ void ASTBoogieConverter::addModifiesSpecs(FunctionDefinition const& _node, bg::P
 		expr = bg::Expr::eq(m_context.boogieBalance()->getRefTo(), expr);
 		procDecl->getEnsures().push_back(bg::Specification::spec(expr,
 								ASTBoogieUtils::createAttrs(_node.location(), "Function might modify balances illegally", *m_context.currentScanner())));
+		m_context.warnForBalances();
 	}
 
 	// State vars
