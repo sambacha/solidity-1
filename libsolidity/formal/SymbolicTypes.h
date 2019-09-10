@@ -54,6 +54,7 @@ bool isFunction(solidity::Type::Category _category);
 bool isMapping(solidity::Type::Category _category);
 bool isArray(solidity::Type::Category _category);
 bool isTuple(solidity::Type::Category _category);
+bool isStringLiteral(solidity::Type::Category _category);
 
 /// Returns a new symbolic variable, according to _type.
 /// Also returns whether the type is abstract or not,
@@ -62,6 +63,7 @@ std::pair<bool, std::shared_ptr<SymbolicVariable>> newSymbolicVariable(solidity:
 
 Expression minValue(solidity::IntegerType const& _type);
 Expression maxValue(solidity::IntegerType const& _type);
+Expression zeroValue(solidity::TypePointer const& _type);
 
 void setSymbolicZeroValue(SymbolicVariable const& _variable, EncodingContext& _context);
 void setSymbolicZeroValue(Expression _expr, solidity::TypePointer const& _type, EncodingContext& _context);

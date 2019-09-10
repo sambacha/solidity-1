@@ -109,20 +109,22 @@ BOOST_AUTO_TEST_CASE(division)
 			}
 		}
 	)";
-	CHECK_SUCCESS_NO_WARNINGS(text);
+	CHECK_SUCCESS_OR_WARNING(text, "might happen");
 	text = R"(
 		contract C {
 			function mul(uint256 a, uint256 b) internal pure returns (uint256) {
 				if (a == 0) {
 					return 0;
 				}
+				// TODO remove when SMTChecker sees that this code is the `else` of the `return`.
+				require(a != 0);
 				uint256 c = a * b;
 				require(c / a == b);
 				return c;
 			}
 		}
 	)";
-	CHECK_WARNING(text, "Division by zero");
+	CHECK_SUCCESS_OR_WARNING(text, "might happen");
 	text = R"(
 		contract C {
 			function div(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -210,7 +212,7 @@ BOOST_AUTO_TEST_CASE(compound_assignment_division)
 			uint[] array;
 			function f(uint x, uint p) public {
 				require(x == 2);
-				require(array[p] == 10);
+				array[p] = 10;
 				array[p] /= array[p] / x;
 				assert(array[p] == x);
 				assert(array[p] == 0);
@@ -223,7 +225,7 @@ BOOST_AUTO_TEST_CASE(compound_assignment_division)
 			mapping (uint => uint) map;
 			function f(uint x, uint p) public {
 				require(x == 2);
-				require(map[p] == 10);
+				map[p] = 10;
 				map[p] /= map[p] / x;
 				assert(map[p] == x);
 				assert(map[p] == 0);
@@ -257,8 +259,11 @@ BOOST_AUTO_TEST_CASE(import_base)
 		pragma solidity >=0.0;
 		contract Base {
 			uint x;
-			function f() internal {
+			address a;
+			function f() internal returns (uint) {
+				a = address(this);
 				++x;
+				return 2;
 			}
 		}
 	)"},
@@ -268,7 +273,7 @@ BOOST_AUTO_TEST_CASE(import_base)
 		import "base";
 		contract Der is Base {
 			function g(uint y) public {
-				f();
+				x += f();
 				assert(y > x);
 			}
 		}
@@ -327,6 +332,7 @@ BOOST_AUTO_TEST_CASE(import_library)
 	BOOST_CHECK_EQUAL(asserts, 1);
 
 }
+
 
 BOOST_AUTO_TEST_SUITE_END()
 
