@@ -92,6 +92,7 @@ contract Escrow is Secondary {
      * @param payee The destination address of the funds.
      *
      * @notice modifies _deposits[payee]
+     * @notice modifies address(this).balance
      */
     function deposit(address payee) public onlyPrimary payable {
         uint256 amount = msg.value;
@@ -105,6 +106,8 @@ contract Escrow is Secondary {
      * @param payee The address whose funds will be withdrawn and transferred to.
      *
      * @notice modifies _deposits[payee]
+     * @notice modifies address(this).balance
+     * @notice modifies payee.balance
      */
     function withdraw(address payable payee) public onlyPrimary {
         uint256 payment = _deposits[payee];
@@ -132,6 +135,8 @@ contract ConditionalEscrow is Escrow {
 
     /**
      * @notice modifies _deposits[payee]
+     * @notice modifies address(this).balance
+     * @notice modifies payee.balance
      */
     function withdraw(address payable payee) public {
         require(withdrawalAllowed(payee), "ConditionalEscrow: payee is not allowed to withdraw");
@@ -190,6 +195,7 @@ contract RefundEscrow is ConditionalEscrow {
      * @param refundee The address funds will be sent to if a refund occurs.
      *
      * @notice modifies _deposits[refundee] if __verifier_old_uint(uint(_state)) == uint(State.Active)
+     * @notice modifies address(this).balance
      */
     function deposit(address refundee) public payable {
         require(_state == State.Active, "RefundEscrow: can only deposit while active");
@@ -221,6 +227,8 @@ contract RefundEscrow is ConditionalEscrow {
 
     /**
      * @dev Withdraws the beneficiary's funds.
+     * @notice modifies address(this).balance
+     * @notice modifies _beneficiary.balance
      */
     function beneficiaryWithdraw() public {
         require(_state == State.Closed, "RefundEscrow: beneficiary can only withdraw while closed");
