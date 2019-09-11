@@ -122,7 +122,7 @@ contract Escrow is Secondary {
  * @title ConditionalEscrow
  * @dev Base abstract escrow to only allow withdrawal if a condition is met.
  * @dev Intended usage: See {Escrow}. Same usage guidelines apply here.
- * 
+ *
  * @notice invariant __verifier_sum_uint(_deposits) <= address(this).balance
  */
 contract ConditionalEscrow is Escrow {
