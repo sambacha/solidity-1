@@ -16,8 +16,7 @@ namespace solidity
 {
 
 /**
- * Context class that is used to pass information around the different
- * transformation classes.
+ * Context class that is used to pass information around the different transformation classes.
  */
 class BoogieContext {
 public:

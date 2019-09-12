@@ -44,9 +44,9 @@ ASTBoogieExpressionConverter::ASTBoogieExpressionConverter(BoogieContext& contex
 		m_isLibraryCall(false),
 		m_isLibraryCallStatic(false) {}
 
-ASTBoogieExpressionConverter::Result ASTBoogieExpressionConverter::convert(Expression const& _node, bool specification)
+ASTBoogieExpressionConverter::Result ASTBoogieExpressionConverter::convert(Expression const& _node, bool isSpecification)
 {
-	m_insideSpec = specification;
+	m_insideSpec = isSpecification;
 	m_currentExpr = nullptr;
 	m_currentAddress = nullptr;
 	m_currentMsgValue = nullptr;

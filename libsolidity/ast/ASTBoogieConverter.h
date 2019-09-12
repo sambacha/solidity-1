@@ -24,88 +24,116 @@ private:
 	// Collect local variable declarations (Boogie requires them at the beginning of the function).
 	std::vector<boogie::Decl::Ref> m_localDecls;
 
-	// Current block(s) where statements are appended, stack is needed due to nested blocks
+	// Current block(s) where statements are appended (stack is needed due to nested blocks)
 	std::stack<boogie::Block::Ref> m_currentBlocks;
 
-	// Return statement in Solidity is mapped to an assignment to the return
-	// variables in Boogie, which is described by currentRet
+	// Return statement in Solidity is mapped to an assignment to return variable(s) in Boogie
 	boogie::Expr::Ref m_currentRet;
 	// Current label to jump to when encountering a return. This is needed because modifiers
 	// are inlined and their returns should not jump out of the whole function.
 	std::string m_currentReturnLabel;
 	int m_nextReturnLabelId;
 
+	// Current labels for continue and break statements
 	std::string m_currentContinueLabel;
 	std::string m_currentBreakLabel;
 
 	/**
 	 * Helper method to convert an expression using the dedicated expression converter class,
-	 * it also handles side-effect statements and declarations introduced by the conversion
+	 * it also handles side-effect statements and declarations introduced by the conversion.
+	 * @param _node Solidity expression
+	 * @returns Boogie expression
 	 */
 	boogie::Expr::Ref convertExpression(Expression const& _node);
 
 	/**
-	 * Create default constructor for a contract (it is required when there is no constructor,
-	 * but state variables are initialized when declared)
+	 * Create default constructor for a contract.
+	 * @param _node Contract
 	 */
 	void createImplicitConstructor(ContractDefinition const& _node);
 
 	/**
 	 * Helper method to add the extra preamble that a constructor requires.
-	 * Used by both regular and implicit constructors.
+	 * Used by both regular and default constructors.
 	 */
 	void constructorPreamble();
 
+	/**
+	 * Create the procedure corresponding to receiving ether
+	 * without a call to the fallback (selfdestruct).
+	 * @param _node Contract
+	 */
 	void createEtherReceiveFunc(ContractDefinition const& _node);
 
 	/**
-	 * Helper method to initialize a state variable based on an explicit expression or
-	 * a default value
+	 * Helper method to initialize a state variable based on an explicit
+	 * expression or a default value
+	 * @param _node Variable to be initialized
 	 */
 	void initializeStateVar(VariableDeclaration const& _node);
 
 	/**
-	 * Helper method to parse an expression from a string with a given scope
+	 * Helper method to parse an expression from a string with a given scope.
+	 * @param exprStr Expression as a string
+	 * @param _node Corresponding node (for error reporting)
+	 * @param _scope Scope
+	 * @param result Parsed expression
+	 * @returns True if parsing was successful
 	 */
 	bool parseExpr(std::string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result);
 
 	/**
-	 * Parse expressions from documentation for a given doctag
+	 * Parse expressions from documentation for a given tag.
+	 * @param _node Corresponding node (for error reporting)
+	 * @param _annot Annotations
+	 * @param _scope Scope
+	 * @param _tag Tag
+	 * @returns A list of parsed expressions
 	 */
 	std::vector<BoogieContext::DocTagExpr> getExprsFromDocTags(ASTNode const& _node, DocumentedAnnotation const& _annot,
 			ASTNode const* _scope, std::string _tag);
 
 	/**
-	 * Checks if contract invariants are explicitly requested (for non-public functions)
+	 * Checks if contract invariants are explicitly requested (for non-public functions).
+	 * @param _annot Annotations
 	 */
 	bool includeContractInvars(DocumentedAnnotation const& _annot);
 
 	/**
 	 * Helper method to extract the variable to which the modifies specification corresponds.
 	 * For example, in x[1].m, the base variable is x.
+	 * @param expr Expression where the base is needed
+	 * @returns The base variable
 	 */
 	Declaration const* getModifiesBase(Expression const* expr);
 
-	/*
-	 * Helper method to replace the base variable of an expression, e.g.,
-	 * replacing 'x' in 'x[i].y'.
+	/**
+	 * Helper method to check if a base variable was reached in a modifies specification.
+	 * @param expr Expression
+	 * @returns True if the expression is a base variable
 	 */
-	boogie::Expr::Ref replaceBaseVar(boogie::Expr::Ref expr, boogie::Expr::Ref value);
 	bool isBaseVar(boogie::Expr::Ref expr);
 
+	/*
+	 * Helper method to replace the base variable of an expression with a value, e.g.,
+	 * replacing 'x' in 'x[i].y'.
+	 * @param expr Expression where replacement is needed
+	 * @param value Replacement
+	 * @returns Expression where the base variable was replaced
+	 */
+	boogie::Expr::Ref replaceBaseVar(boogie::Expr::Ref expr, boogie::Expr::Ref value);
+
 	/**
-	 * Helper method to extract and add modifies specifications to a function
+	 * Helper method to extract and add modifies specifications to a function.
+	 * @param _node Solidity function
+	 * @param procDecl Corresponding Boogie procedure
 	 */
 	void addModifiesSpecs(FunctionDefinition const& _node, boogie::ProcDeclRef procDecl);
 
-	/**
-	 * Helper method to recursively process modifiers and then finally the function body
-	 */
+	/** Helper method to recursively inline modifiers and then finally process the function body. */
 	void processFuncModifiersAndBody();
 
-	/**
-	 * Chronological stack of scoppable nodes.
-	 */
+	/** Chronological stack of scopable nodes. */
 	std::stack<ASTNode const*> m_scopes;
 
 	/** Remember the scope of the node before visiting */
@@ -134,15 +162,16 @@ private:
 
 public:
 	/**
-	 * Create a new instance with a given context
+	 * Create a new instance with a given context.
 	 */
 	ASTBoogieConverter(BoogieContext& context);
 
 	/**
-	 * Convert a node and add it to the actual Boogie program
+	 * Convert a node and add it to the actual Boogie program.
 	 */
 	void convert(ASTNode const& _node) { _node.accept(*this); }
 
+	// Top-level nodes
 	bool visit(SourceUnit const& _node) override;
 	bool visit(PragmaDirective const& _node) override;
 	bool visit(ImportDirective const& _node) override;
@@ -163,6 +192,8 @@ public:
 	bool visit(FunctionTypeName const& _node) override;
 	bool visit(Mapping const& _node) override;
 	bool visit(ArrayTypeName const& _node) override;
+
+	// Statements
 	bool visit(InlineAssembly const& _node) override;
 	bool visit(Block const& _node) override;
 	bool visit(PlaceholderStatement const& _node) override;
@@ -177,7 +208,7 @@ public:
 	bool visit(VariableDeclarationStatement const& _node) override;
 	bool visit(ExpressionStatement const& _node) override;
 
-	// Conversion of expressions is implemented by a separate class
+	// Expressions are handled by a separate class
 
 	bool visitNode(ASTNode const&) override;
 

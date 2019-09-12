@@ -11,7 +11,7 @@ namespace solidity
 {
 
 /**
- * Utility class for the Solidity -> Boogie conversion.
+ * Utility class for the Solidity to Boogie conversion.
  */
 class ASTBoogieUtils
 {
@@ -75,15 +75,25 @@ public:
 	static
 	boogie::ProcDeclRef createSendProc(BoogieContext& context);
 
-	/** Data locations as strings. */
+	/** Print data locations as strings. */
 	static
 	std::string dataLocToStr(DataLocation loc);
 
-	/** Gets the Boogie constructor name. */
+	/**
+	 * Gets the Boogie constructor name for a contract.
+	 * @param contract Contract
+	 * @returns Constructor name in the Boogie program
+	 */
 	static
 	std::string getConstructorName(ContractDefinition const* contract);
 
-	/** Creates attributes for original source location with message. */
+	/**
+	 * Creates attributes for source location with message.
+	 * @param loc Source location
+	 * @param message Message
+	 * @param scanner Scanner to translate locations
+	 * @returns Attributes
+	 */
 	static
 	std::vector<boogie::Attr::Ref> createAttrs(langutil::SourceLocation const& loc, std::string const& message, langutil::Scanner const& scanner);
 
@@ -94,54 +104,95 @@ public:
 	};
 
 	/**
-	 * Convert an arithmetic operation (including ops like +=) to an expression (with CC).
-	 * The associatedNode is only used for error reporting.
+	 * Convert a binary arithmetic operation (including ops like +=) to an expression.
+	 * @param context Context
+	 * @param associatedNode Node for error reporting
+	 * @param op Operator
+	 * @param lhs LHS subexpression
+	 * @param rhs RHS subexpression
+	 * @param bits Number of bits for the result
+	 * @param isSigned Is the result signed
+	 * @returns Expression with correctness conditions
 	 */
 	static
-	ExprWithCC encodeArithBinaryOp(BoogieContext& context, ASTNode const* associatedNode, langutil::Token op, boogie::Expr::Ref lhs, boogie::Expr::Ref rhs, unsigned bits, bool isSigned);
+	ExprWithCC encodeArithBinaryOp(BoogieContext& context, ASTNode const* associatedNode, langutil::Token op,
+			boogie::Expr::Ref lhs, boogie::Expr::Ref rhs, unsigned bits, bool isSigned);
 
 	/**
-	 * Convert an arithmetic operation to an expression (with CC).
-	 * The associatedNode is only used for error reporting.
+	 * Convert a unary arithmetic operation (including ops like +=) to an expression.
+	 * @param context Context
+	 * @param associatedNode Node for error reporting
+	 * @param op Operator
+	 * @param subExpr Subexpression
+	 * @param bits Number of bits for the result
+	 * @param isSigned Is the result signed
+	 * @returns Expression with correctness conditions
 	 */
 	static
-	ExprWithCC encodeArithUnaryOp(BoogieContext& context, ASTNode const* associatedNode, langutil::Token op, boogie::Expr::Ref subExpr, unsigned bits, bool isSigned);
+	ExprWithCC encodeArithUnaryOp(BoogieContext& context, ASTNode const* associatedNode, langutil::Token op,
+			boogie::Expr::Ref subExpr, unsigned bits, bool isSigned);
 
-	/** Checks if a type is represented with bitvectors. */
+	/**
+	 * @param type Type
+	 * @returns True if the type can be represented by bitvectors
+	 */
 	static bool isBitPreciseType(TypePointer type);
-	/** Gets the number of bits required to represent type. */
+
+	/**
+	 * @param type Type
+	 * @returns The number of bits to represent the type
+	 */
 	static unsigned getBits(TypePointer type);
-	/** Checks if the type is signed. */
+
+	/**
+	 * @param type Type
+	 * @returns True if the type is signed
+	 */
 	static bool isSigned(TypePointer type);
 
 	/**
-	 * Check if implicit conversion is needed from exprType
-	 * to targetType. If yes, the conversion expression is returned, otherwise expr is
-	 * returned unchanged. For example, if exprType is uint32 and targetType is uint40,
+	 * Check if implicit conversion is needed between types.
+	 * For example, if exprType is uint32 and targetType is uint40,
 	 * then we return an extension of 8 bits to expr.
+	 * @param expr Original expression
+	 * @param exprType Original type
+	 * @param targetType Convert to this type
+	 * @param context Context
+	 * @returns The converted expression if conversion is needed, otherwise the original
 	 */
 	static
 	boogie::Expr::Ref checkImplicitBvConversion(boogie::Expr::Ref expr, TypePointer exprType, TypePointer targetType, BoogieContext& context);
 
-	/** Checks if explicit conversions are possible. */
+	/**
+	 * Check if explicit conversion is needed between types.
+	 * @param expr Original expression
+	 * @param exprType Original type
+	 * @param targetType Convert to this type
+	 * @param context Context
+	 * @returns The converted expression if conversion is needed, otherwise the original
+	 */
 	static
 	boogie::Expr::Ref checkExplicitBvConversion(boogie::Expr::Ref expr, TypePointer exprType, TypePointer targetType, BoogieContext& context);
 
 	/**
-	 * Get the type checking condition for an expression with a given type.
 	 * Depending on the context, the returned TCC can be assumed or asserted.
+	 * @param expr Expression
+	 * @param tp Type
+	 * @returns The type checking condition for an expression with a given type.
 	 */
 	static
 	boogie::Expr::Ref getTCCforExpr(boogie::Expr::Ref expr, TypePointer tp);
 
-	/** Helper method to give a default value for a type. */
+	/**
+	 * @param _type Type
+	 * @param context Context
+	 * @returns The default value for the type
+	 */
 	static
 	boogie::Expr::Ref defaultValue(TypePointer _type, BoogieContext& context);
 
 private:
-	/** Helper structure for getting default value of a type, including
-	 * complex types such as arrays and structs.
-	 */
+	/** Helper structure for getting default value of a type, including complex types such as arrays and structs. */
 	struct DefVal {
 		std::string smt; // Default value as SMT expression (needed for arrays)
 		boogie::Expr::Ref bgExpr; // Default value as Boogie expression
@@ -176,8 +227,14 @@ public:
 
 	/**
 	 * Helper function to make an assignment, handling all conversions and side effects.
-	 * Besides Solidit Assignment expressions, it is used for assigning return parameters,
+	 * Besides Solidity Assignment expressions, it is used for assigning return parameters,
 	 * initial values, etc.
+	 * @param lhs LHS subexpression
+	 * @param rhs RHS subexpression
+	 * @param op Operator (e.g., +=)
+	 * @param assocNode Node for error reporting
+	 * @param context Context
+	 * @returns Assignment
 	 */
 	static
 	AssignResult makeAssign(AssignParam lhs, AssignParam rhs, langutil::Token op, ASTNode const* assocNode, BoogieContext& context);
@@ -214,6 +271,7 @@ private:
 	static
 	std::list<boogie::Stmt::Ref> checkForSums(boogie::Expr::Ref lhs, boogie::Expr::Ref rhs, BoogieContext& context);
 
+	/** Helper method to deep copy a struct. */
 	static
 	void deepCopyStruct(StructDefinition const* structDef,
 				boogie::Expr::Ref lhsBase, boogie::Expr::Ref rhsBase, DataLocation lhsLoc, DataLocation rhsLoc,
@@ -227,11 +285,22 @@ public:
 		std::list<boogie::Stmt::Ref> stmts; // Side effects of packing (filling the pointer array)
 	};
 
-	/** Packs an expression into a local storage pointer. */
+	/**
+	 * Packs an expression into a local storage pointer.
+	 * @param expr Expression to be packed
+	 * @param bgExpr Corresponding Boogie expression
+	 * @param context Context
+	 * @returns Local pointer
+	 */
 	static
 	PackResult packToLocalPtr(Expression const* expr, boogie::Expr::Ref bgExpr, BoogieContext& context);
 
-	/** Unpacks a local storage pointer into an access to storage. */
+	/**
+	 * Unpacks a local storage pointer into an access to storage.
+	 * @param ptrExpr Expression to be unpacked
+	 * @param ptrBgExpr Corresponding Boogie expression
+	 * @param context Context
+	 */
 	static
 	boogie::Expr::Ref unpackLocalPtr(Expression const* ptrExpr, boogie::Expr::Ref ptrBgExpr, BoogieContext& context);
 
