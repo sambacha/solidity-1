@@ -33,6 +33,7 @@
 #include <libyul/optimiser/ExpressionJoiner.h>
 #include <libyul/optimiser/ExpressionInliner.h>
 #include <libyul/optimiser/FullInliner.h>
+#include <libyul/optimiser/ForLoopConditionIntoBody.h>
 #include <libyul/optimiser/ForLoopInitRewriter.h>
 #include <libyul/optimiser/Rematerialiser.h>
 #include <libyul/optimiser/UnusedPruner.h>
@@ -45,6 +46,7 @@
 #include <libyul/optimiser/StructuralSimplifier.h>
 #include <libyul/optimiser/RedundantAssignEliminator.h>
 #include <libyul/optimiser/VarNameCleaner.h>
+#include <libyul/optimiser/LoadResolver.h>
 #include <libyul/optimiser/Metrics.h>
 #include <libyul/backends/evm/ConstantOptimiser.h>
 #include <libyul/AsmAnalysis.h>
@@ -90,8 +92,10 @@ void OptimiserSuite::run(
 	UnusedPruner::runUntilStabilisedOnFullAST(_dialect, ast, reservedIdentifiers);
 	BlockFlattener{}(ast);
 	ControlFlowSimplifier{_dialect}(ast);
-	StructuralSimplifier{_dialect}(ast);
+	LiteralRematerialiser{_dialect}(ast);
+	StructuralSimplifier{}(ast);
 	ControlFlowSimplifier{_dialect}(ast);
+	ForLoopConditionIntoBody{_dialect}(ast);
 	BlockFlattener{}(ast);
 
 	// None of the above can make stack problems worse.
@@ -118,12 +122,14 @@ void OptimiserSuite::run(
 			ExpressionSimplifier::run(_dialect, ast);
 
 			CommonSubexpressionEliminator::run(_dialect, ast);
+			LoadResolver::run(_dialect, ast);
 		}
 
 		{
 			// still in SSA, perform structural simplification
 			ControlFlowSimplifier{_dialect}(ast);
-			StructuralSimplifier{_dialect}(ast);
+			LiteralRematerialiser{_dialect}(ast);
+			StructuralSimplifier{}(ast);
 			ControlFlowSimplifier{_dialect}(ast);
 			BlockFlattener{}(ast);
 			DeadCodeEliminator{_dialect}(ast);
@@ -132,6 +138,7 @@ void OptimiserSuite::run(
 
 		{
 			// simplify again
+			LoadResolver::run(_dialect, ast);
 			CommonSubexpressionEliminator::run(_dialect, ast);
 			UnusedPruner::runUntilStabilisedOnFullAST(_dialect, ast, reservedIdentifiers);
 		}
@@ -161,6 +168,7 @@ void OptimiserSuite::run(
 			RedundantAssignEliminator::run(_dialect, ast);
 			RedundantAssignEliminator::run(_dialect, ast);
 			CommonSubexpressionEliminator::run(_dialect, ast);
+			LoadResolver::run(_dialect, ast);
 		}
 
 		{
@@ -176,8 +184,10 @@ void OptimiserSuite::run(
 			SSATransform::run(ast, dispenser);
 			RedundantAssignEliminator::run(_dialect, ast);
 			RedundantAssignEliminator::run(_dialect, ast);
+			LoadResolver::run(_dialect, ast);
 			ExpressionSimplifier::run(_dialect, ast);
-			StructuralSimplifier{_dialect}(ast);
+			LiteralRematerialiser{_dialect}(ast);
+			StructuralSimplifier{}(ast);
 			BlockFlattener{}(ast);
 			DeadCodeEliminator{_dialect}(ast);
 			ControlFlowSimplifier{_dialect}(ast);
