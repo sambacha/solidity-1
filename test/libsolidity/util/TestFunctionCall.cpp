@@ -126,8 +126,11 @@ string TestFunctionCall::format(
 			{
 				boost::optional<ParameterList> abiParams;
 
-				if (isFailure && !output.empty())
-					abiParams = boost::make_optional(ContractABIUtils::failureParameters(output));
+				if (isFailure)
+				{
+					if (!output.empty())
+						abiParams = boost::make_optional(ContractABIUtils::failureParameters(output));
+				}
 				else
 					abiParams = ContractABIUtils::parametersFromJsonOutputs(
 						_errorReporter,
@@ -137,7 +140,11 @@ string TestFunctionCall::format(
 
 				string bytesOutput = abiParams ?
 					BytesUtils::formatRawBytes(output, abiParams.get(), _linePrefix) :
-					_linePrefix + "[]";
+					BytesUtils::formatRawBytes(
+						output,
+						ContractABIUtils::defaultParameters(ceil(output.size() / 32)),
+						_linePrefix
+					);
 
 				_errorReporter.warning(
 					"The call to \"" + m_call.signature + "\" returned \n" +
