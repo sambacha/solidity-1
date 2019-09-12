@@ -157,6 +157,7 @@ public:
 	void includeTransferFunction();
 	void includeCallFunction();
 	void includeSendFunction();
+
 	boogie::VarDeclRef boogieBalance() const { return m_boogieBalance; }
 	boogie::VarDeclRef boogieThis() const { return m_boogieThis; }
 	boogie::VarDeclRef boogieMsgSender() const { return m_boogieMsgSender; }

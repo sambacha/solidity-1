@@ -83,18 +83,18 @@ BoogieContext::BoogieContext(Encoding encoding,
 	// address type
 	addDecl(addressType());
 	// address.balance
-	m_boogieBalance = bg::Decl::variable("__balance", bg::Decl::arraytype(addressType(), intType(256)));
+	m_boogieBalance = bg::Decl::variable(ASTBoogieUtils::BALANCE.boogie, bg::Decl::arraytype(addressType(), intType(256)));
 	addDecl(m_boogieBalance);
 	// This, sender, value
-	m_boogieThis = bg::Decl::variable("__this", addressType());
-	m_boogieMsgSender = bg::Decl::variable("__msg_sender", addressType());
-	m_boogieMsgValue = bg::Decl::variable("__msg_value", intType(256));
+	m_boogieThis = bg::Decl::variable(ASTBoogieUtils::THIS.boogie, addressType());
+	m_boogieMsgSender = bg::Decl::variable(ASTBoogieUtils::SENDER.boogie, addressType());
+	m_boogieMsgValue = bg::Decl::variable(ASTBoogieUtils::VALUE.boogie, intType(256));
 	// Uninterpreted type for strings
 	addDecl(stringType());
 	// now
-	addDecl(bg::Decl::variable(ASTBoogieUtils::BOOGIE_NOW, intType(256)));
+	addDecl(bg::Decl::variable(ASTBoogieUtils::NOW.boogie, intType(256)));
 	// block number
-	addDecl(bg::Decl::variable(ASTBoogieUtils::BOOGIE_BLOCKNO, intType(256)));
+	addDecl(bg::Decl::variable(ASTBoogieUtils::BLOCKNO.boogie, intType(256)));
 	// overflow
 	if (m_overflow)
 		addDecl(bg::Decl::variable(ASTBoogieUtils::VERIFIER_OVERFLOW, boolType()));
@@ -298,20 +298,31 @@ list<bg::Stmt::Ref> BoogieContext::updateSumVars(bg::Expr::Ref lhsBg, bg::Expr::
 
 string BoogieContext::mapDeclName(Declaration const& decl)
 {
+	std::string name = decl.name();
+
 	// Check for special names
 	if (dynamic_cast<MagicVariableDeclaration const*>(&decl))
 	{
-		if (decl.name() == ASTBoogieUtils::SOLIDITY_ASSERT) return decl.name();
-		if (decl.name() == ASTBoogieUtils::SOLIDITY_REQUIRE) return decl.name();
-		if (decl.name() == ASTBoogieUtils::SOLIDITY_REVERT) return decl.name();
-		if (decl.name() == ASTBoogieUtils::SOLIDITY_THIS) return m_boogieThis->getName();
-		if (decl.name() == ASTBoogieUtils::SOLIDITY_NOW) return ASTBoogieUtils::BOOGIE_NOW;
+		if (name == ASTBoogieUtils::SOLIDITY_ASSERT) return name;
+		if (name == ASTBoogieUtils::SOLIDITY_REQUIRE) return name;
+		if (name == ASTBoogieUtils::SOLIDITY_REVERT) return name;
+
+		if (name == ASTBoogieUtils::BALANCE.solidity) return ASTBoogieUtils::BALANCE.boogie;
+		if (name == ASTBoogieUtils::TRANSFER.solidity) return ASTBoogieUtils::TRANSFER.boogie;
+		if (name == ASTBoogieUtils::SEND.solidity) return ASTBoogieUtils::SEND.boogie;
+		if (name == ASTBoogieUtils::CALL.solidity) return ASTBoogieUtils::CALL.boogie;
+		if (name == ASTBoogieUtils::SUPER.solidity) return ASTBoogieUtils::SUPER.boogie;
+		if (name == ASTBoogieUtils::THIS.solidity) return ASTBoogieUtils::THIS.boogie;
+		if (name == ASTBoogieUtils::SENDER.solidity) return ASTBoogieUtils::SENDER.boogie;
+		if (name == ASTBoogieUtils::VALUE.solidity) return ASTBoogieUtils::VALUE.boogie;
+		if (name == ASTBoogieUtils::NOW.solidity) return ASTBoogieUtils::NOW.boogie;
+		if (name == ASTBoogieUtils::BLOCKNO.solidity) return ASTBoogieUtils::BLOCKNO.boogie;
 	}
 
 	// ID is important to append, since (1) even fully qualified names can be
 	// same for state variables and local variables in functions, (2) return
 	// variables might have no name (whereas Boogie requires a name)
-	string name = decl.name() + "#" + to_string(decl.id());
+	name = name + "#" + to_string(decl.id());
 
 	// Check if the current declaration is enclosed by any of the
 	// extra scopes, if yes, add extra ID

@@ -17,22 +17,28 @@ class ASTBoogieUtils
 {
 public:
 
+	struct SolidityID {
+		std::string solidity;
+		std::string boogie;
+	};
+
 	// Identifiers related to the 'address' type
-	static std::string const SOLIDITY_BALANCE;
-	static std::string const SOLIDITY_TRANSFER;
-	static std::string const BOOGIE_TRANSFER;
-	static std::string const SOLIDITY_SEND;
-	static std::string const BOOGIE_SEND;
-	static std::string const SOLIDITY_CALL;
-	static std::string const BOOGIE_CALL;
+	static SolidityID const BALANCE;
+	static SolidityID const TRANSFER;
+	static SolidityID const SEND;
+	static SolidityID const CALL;
 
 	// Contract related identifiers
-	static std::string const SOLIDITY_SUPER;
-	static std::string const SOLIDITY_THIS;
+	static SolidityID const SUPER;
+	static SolidityID const THIS;
 
 	// Identifiers related to 'msg'
-	static std::string const SOLIDITY_SENDER;
-	static std::string const SOLIDITY_VALUE;
+	static SolidityID const SENDER;
+	static SolidityID const VALUE;
+
+	// Other special identifiers
+	static SolidityID const NOW;
+	static SolidityID const BLOCKNO;
 
 	// Error handling
 	static std::string const SOLIDITY_ASSERT;
@@ -44,13 +50,9 @@ public:
 	static std::string const VERIFIER_IDX;
 	static std::string const VERIFIER_OLD;
 	static std::string const VERIFIER_EQ;
+	static std::string const VERIFIER_OVERFLOW;
 	static std::string const BOOGIE_CONSTRUCTOR;
 	static std::string const BOOGIE_ZERO_ADDRESS;
-	static std::string const SOLIDITY_NOW;
-	static std::string const BOOGIE_NOW;
-	static std::string const SOLIDITY_NUMBER;
-	static std::string const BOOGIE_BLOCKNO;
-	static std::string const VERIFIER_OVERFLOW;
 
 	// Return this expression as an identifier when something cannot be evaluated
 	static std::string const ERR_EXPR;

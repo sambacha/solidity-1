@@ -19,32 +19,27 @@ namespace dev
 {
 namespace solidity
 {
-string const ASTBoogieUtils::SOLIDITY_BALANCE = "balance";
-string const ASTBoogieUtils::SOLIDITY_TRANSFER = "transfer";
-string const ASTBoogieUtils::BOOGIE_TRANSFER = "__transfer";
-string const ASTBoogieUtils::SOLIDITY_SEND = "send";
-string const ASTBoogieUtils::BOOGIE_SEND = "__send";
-string const ASTBoogieUtils::SOLIDITY_CALL = "call";
-string const ASTBoogieUtils::BOOGIE_CALL = "__call";
-string const ASTBoogieUtils::SOLIDITY_SUPER = "super";
 
-string const ASTBoogieUtils::SOLIDITY_SENDER = "sender";
-string const ASTBoogieUtils::SOLIDITY_VALUE = "value";
+ASTBoogieUtils::SolidityID const ASTBoogieUtils::BALANCE = { "balance", "__balance" };
+ASTBoogieUtils::SolidityID const ASTBoogieUtils::TRANSFER = { "transfer", "__transfer" };
+ASTBoogieUtils::SolidityID const ASTBoogieUtils::SEND = { "send", "__send" };
+ASTBoogieUtils::SolidityID const ASTBoogieUtils::CALL = { "call", "__call" };
+ASTBoogieUtils::SolidityID const ASTBoogieUtils::SUPER = { "super", "__super" };
+ASTBoogieUtils::SolidityID const ASTBoogieUtils::THIS = { "this", "__this" };
+ASTBoogieUtils::SolidityID const ASTBoogieUtils::SENDER = { "sender", "__msg_sender" };
+ASTBoogieUtils::SolidityID const ASTBoogieUtils::VALUE = { "value", "__msg_value" };
+ASTBoogieUtils::SolidityID const ASTBoogieUtils::NOW = { "now", "__now" };
+ASTBoogieUtils::SolidityID const ASTBoogieUtils::BLOCKNO = { "number", "__block_number" };
 
 string const ASTBoogieUtils::SOLIDITY_ASSERT = "assert";
 string const ASTBoogieUtils::SOLIDITY_REQUIRE = "require";
 string const ASTBoogieUtils::SOLIDITY_REVERT = "revert";
 
-string const ASTBoogieUtils::SOLIDITY_THIS = "this";
 string const ASTBoogieUtils::VERIFIER_SUM = "__verifier_sum";
 string const ASTBoogieUtils::VERIFIER_IDX = "__verifier_idx";
 string const ASTBoogieUtils::VERIFIER_OLD = "__verifier_old";
 string const ASTBoogieUtils::VERIFIER_EQ = "__verifier_eq";
 string const ASTBoogieUtils::BOOGIE_CONSTRUCTOR = "__constructor";
-string const ASTBoogieUtils::SOLIDITY_NOW = "now";
-string const ASTBoogieUtils::BOOGIE_NOW = "__now";
-string const ASTBoogieUtils::SOLIDITY_NUMBER = "number";
-string const ASTBoogieUtils::BOOGIE_BLOCKNO = "__block__number";
 string const ASTBoogieUtils::VERIFIER_OVERFLOW = "__verifier_overflow";
 
 string const ASTBoogieUtils::ERR_EXPR = "__ERROR";
@@ -116,7 +111,7 @@ bg::ProcDeclRef ASTBoogieUtils::createTransferProc(BoogieContext& context)
 			bg::Expr::arrupd(context.boogieBalance()->getRefTo(), context.boogieMsgSender()->getRefTo(), subSenderBalance.expr)));
 	transferImpl->addStmt(bg::Stmt::comment("TODO: call fallback, exception handling"));
 
-	bg::ProcDeclRef transfer = bg::Decl::procedure(BOOGIE_TRANSFER, transferParams, {}, {}, {transferImpl});
+	bg::ProcDeclRef transfer = bg::Decl::procedure(TRANSFER.boogie, transferParams, {}, {}, {transferImpl});
 
 	transfer->addAttrs({
 		bg::Attr::attr("inline", 1),
@@ -186,7 +181,7 @@ bg::ProcDeclRef ASTBoogieUtils::createCallProc(BoogieContext& context)
 	callBlock->addStmt(bg::Stmt::comment("TODO: call fallback"));
 	callBlock->addStmt(bg::Stmt::ifelse(bg::Expr::id("*"), thenBlock, elseBlock));
 
-	bg::ProcDeclRef callProc = bg::Decl::procedure(BOOGIE_CALL, callParams, callReturns, {}, {callBlock});
+	bg::ProcDeclRef callProc = bg::Decl::procedure(CALL.boogie, callParams, callReturns, {}, {callBlock});
 	callProc->addAttr(bg::Attr::attr("inline", 1));
 	callProc->addAttr(bg::Attr::attr("message", "call"));
 	return callProc;
@@ -271,7 +266,7 @@ bg::ProcDeclRef ASTBoogieUtils::createSendProc(BoogieContext& context)
 		bg::Stmt::ifelse(bg::Expr::id("*"), thenBlock, elseBlock)
 	});
 
-	bg::ProcDeclRef sendProc = bg::Decl::procedure(BOOGIE_SEND, sendParams, sendReturns, {}, {transferBlock});
+	bg::ProcDeclRef sendProc = bg::Decl::procedure(SEND.boogie, sendParams, sendReturns, {}, {transferBlock});
 
 	sendProc->addAttrs({
 		bg::Attr::attr("inline", 1),

@@ -464,7 +464,7 @@ void ASTBoogieConverter::addModifiesSpecs(FunctionDefinition const& _node, bg::P
 			if (parseExpr(docTag.second.content.substr(targetStart, targetEnd - targetStart + 1), _node, &_node, target))
 			{
 				auto memAccExpr = dynamic_cast<MemberAccess const*>(target.exprSol.get());
-				if (memAccExpr && memAccExpr->memberName() == ASTBoogieUtils::SOLIDITY_BALANCE)
+				if (memAccExpr && memAccExpr->memberName() == ASTBoogieUtils::BALANCE.solidity)
 					balanceModSpecs.push_back(ModSpec(condExpr, dynamic_pointer_cast<bg::ArrSelExpr const>(target.expr)->getIdx()));
 				else if (Declaration const* varDecl = getModifiesBase(target.exprSol.get()))
 					modSpecs[varDecl].push_back(ModSpec(condExpr, target.expr));

@@ -465,7 +465,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 		{
 			// Check for implicit conversions
 			if (funcType->parameterTypes().size() > i && funcType->parameterTypes()[i] != arg->annotation().type &&
-					funcName != ASTBoogieUtils::BOOGIE_CALL &&
+					funcName != ASTBoogieUtils::CALL.boogie &&
 					!boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_OLD) &&
 					!boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_SUM))
 			{
@@ -484,7 +484,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 		}
 
 		// Do not add argument for call
-		if (funcName != ASTBoogieUtils::BOOGIE_CALL)
+		if (funcName != ASTBoogieUtils::CALL.boogie)
 		{
 			allArgs.push_back(m_currentExpr);
 			regularArgs.push_back(m_currentExpr);
@@ -556,7 +556,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	if (msgValue != defaultMsgValue) functionCallReduceBalance(msgValue);
 
 	// External calls require the invariants to hold
-	if (funcName == ASTBoogieUtils::BOOGIE_CALL)
+	if (funcName == ASTBoogieUtils::CALL.boogie)
 	{
 		for (auto invar: m_context.currentContractInvars())
 		{
@@ -622,7 +622,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	}
 
 	// Assume invariants after external call
-	if (funcName == ASTBoogieUtils::BOOGIE_CALL)
+	if (funcName == ASTBoogieUtils::CALL.boogie)
 	{
 		for (auto invar: m_context.currentContractInvars())
 		{
@@ -634,7 +634,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 
 	// The call function is special as it indicates failure in a return value and in this case
 	// we must undo reducing our balance
-	if (funcName == ASTBoogieUtils::BOOGIE_CALL && msgValue != defaultMsgValue)
+	if (funcName == ASTBoogieUtils::CALL.boogie && msgValue != defaultMsgValue)
 		functionCallRevertBalance(msgValue);
 
 	return false;
@@ -943,7 +943,7 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 		auto refDecl = id->annotation().referencedDeclaration;
 		// 'super'
 		if (dynamic_cast<MagicVariableDeclaration const*>(refDecl) &&
-				refDecl->name() == ASTBoogieUtils::SOLIDITY_SUPER)
+				refDecl->name() == ASTBoogieUtils::SUPER.solidity)
 			m_currentAddress = m_context.boogieThis()->getRefTo();
 		// current contract name
 		if (refDecl == m_context.currentContract())
@@ -963,7 +963,7 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 
 	// address.balance / this.balance
 	bool isAddress = typeCategory == Type::Category::Address;
-	if (isAddress && _node.memberName() == ASTBoogieUtils::SOLIDITY_BALANCE)
+	if (isAddress && _node.memberName() == ASTBoogieUtils::BALANCE.solidity)
 	{
 		m_currentExpr = bg::Expr::arrsel(m_context.boogieBalance()->getRefTo(), expr);
 		addTCC(m_currentExpr, tp_uint256);
@@ -972,36 +972,36 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 		return false;
 	}
 	// address.transfer()
-	if (isAddress && _node.memberName() == ASTBoogieUtils::SOLIDITY_TRANSFER)
+	if (isAddress && _node.memberName() == ASTBoogieUtils::TRANSFER.solidity)
 	{
 		m_context.includeTransferFunction();
-		m_currentExpr = bg::Expr::id(ASTBoogieUtils::BOOGIE_TRANSFER);
+		m_currentExpr = bg::Expr::id(ASTBoogieUtils::TRANSFER.boogie);
 		return false;
 	}
 	// address.send()
-	if (isAddress && _node.memberName() == ASTBoogieUtils::SOLIDITY_SEND)
+	if (isAddress && _node.memberName() == ASTBoogieUtils::SEND.solidity)
 	{
 		m_context.includeSendFunction();
-		m_currentExpr = bg::Expr::id(ASTBoogieUtils::BOOGIE_SEND);
+		m_currentExpr = bg::Expr::id(ASTBoogieUtils::SEND.boogie);
 		return false;
 	}
 	// address.call()
-	if (isAddress && _node.memberName() == ASTBoogieUtils::SOLIDITY_CALL)
+	if (isAddress && _node.memberName() == ASTBoogieUtils::CALL.solidity)
 	{
 		m_context.includeCallFunction();
-		m_currentExpr = bg::Expr::id(ASTBoogieUtils::BOOGIE_CALL);
+		m_currentExpr = bg::Expr::id(ASTBoogieUtils::CALL.boogie);
 		return false;
 	}
 	// msg.sender
 	auto magicType = dynamic_cast<MagicType const*>(type);
-	bool isMessage = magicType != nullptr && magicType->kind() == MagicType::Kind::Message;
-	if (isMessage && _node.memberName() == ASTBoogieUtils::SOLIDITY_SENDER)
+	bool isMessage = magicType && magicType->kind() == MagicType::Kind::Message;
+	if (isMessage && _node.memberName() == ASTBoogieUtils::SENDER.solidity)
 	{
 		m_currentExpr = m_context.boogieMsgSender()->getRefTo();
 		return false;
 	}
 	// msg.value
-	if (isMessage && _node.memberName() == ASTBoogieUtils::SOLIDITY_VALUE)
+	if (isMessage && _node.memberName() == ASTBoogieUtils::VALUE.solidity)
 	{
 		m_currentExpr = m_context.boogieMsgValue()->getRefTo();
 		TypePointer tp_uint256 = TypeProvider::integer(256, IntegerType::Modifier::Unsigned);
@@ -1011,9 +1011,9 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 	// block
 	bool isBlock = magicType != nullptr && magicType->kind() == MagicType::Kind::Block;
 	// block.number
-	if (isBlock && _node.memberName() == ASTBoogieUtils::SOLIDITY_NUMBER)
+	if (isBlock && _node.memberName() == ASTBoogieUtils::BLOCKNO.solidity)
 	{
-		m_currentExpr = bg::Expr::id(ASTBoogieUtils::BOOGIE_BLOCKNO);
+		m_currentExpr = bg::Expr::id(ASTBoogieUtils::BLOCKNO.boogie);
 		return false;
 	}
 	// array.length
