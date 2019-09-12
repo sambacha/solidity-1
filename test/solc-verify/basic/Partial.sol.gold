@@ -1,5 +1,7 @@
+test/solc-verify/basic/Partial.sol:9:5: solc-verify warning: Errors while translating function body, will be skipped
+solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
 Partial::[fallback]: OK
 Partial::[implicit_constructor]: OK
 Partial::unsupported: SKIPPED
-No errors found.
 Some functions were skipped. Use --verbose to see details.
+No errors found.

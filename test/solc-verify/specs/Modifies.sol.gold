@@ -1,3 +1,4 @@
+solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
 Simple::[constructor]: OK
 Simple::changeOwner: OK
 Simple::changeOwnerIncorrect: ERROR

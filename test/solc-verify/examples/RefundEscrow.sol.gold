@@ -1,3 +1,18 @@
+test/solc-verify/examples/RefundEscrow.sol:46:9: solc-verify warning: Ignored emit statement
+test/solc-verify/examples/RefundEscrow.sol:73:9: solc-verify warning: Ignored emit statement
+test/solc-verify/examples/RefundEscrow.sol:101:9: solc-verify warning: Ignored emit statement
+test/solc-verify/examples/RefundEscrow.sol:117:9: solc-verify warning: Ignored emit statement
+test/solc-verify/examples/RefundEscrow.sol:46:9: solc-verify warning: Ignored emit statement
+test/solc-verify/examples/RefundEscrow.sol:214:9: solc-verify warning: Ignored emit statement
+test/solc-verify/examples/RefundEscrow.sol:225:9: solc-verify warning: Ignored emit statement
+solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
+test/solc-verify/examples/RefundEscrow.sol:36:5: solc-verify warning: Ignored event definition
+test/solc-verify/examples/RefundEscrow.sol:81:5: solc-verify warning: Ignored event definition
+test/solc-verify/examples/RefundEscrow.sol:82:5: solc-verify warning: Ignored event definition
+test/solc-verify/examples/RefundEscrow.sol:46:9: solc-verify warning: Ignored emit statement
+test/solc-verify/examples/RefundEscrow.sol:46:9: solc-verify warning: Ignored emit statement
+test/solc-verify/examples/RefundEscrow.sol:163:5: solc-verify warning: Ignored event definition
+test/solc-verify/examples/RefundEscrow.sol:164:5: solc-verify warning: Ignored event definition
 SafeMath::[implicit_constructor]: OK
 Secondary::primary: OK
 Secondary::transferPrimary: OK

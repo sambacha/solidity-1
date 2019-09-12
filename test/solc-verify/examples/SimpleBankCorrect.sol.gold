@@ -1,3 +1,5 @@
+solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
+test/solc-verify/examples/SimpleBankCorrect.sol:6:1: solc-verify warning: Warning(s) while processing annotation for node
 SimpleBank::deposit: OK
 SimpleBank::withdraw: OK
 SimpleBank::[implicit_constructor]: OK

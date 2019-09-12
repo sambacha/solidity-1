@@ -17,6 +17,7 @@ class ASTBoogieExpressionConverter : private ASTConstVisitor
 private:
 
 	BoogieContext& m_context;
+	bool m_insideSpec; // Indicates if a specification annotation is being parsed
 
 	// Helper variables to pass information between the visit methods
 	boogie::Expr::Ref m_currentExpr;
@@ -26,22 +27,24 @@ private:
 	bool m_isLibraryCall;
 	bool m_isLibraryCallStatic;
 
-	// Converting expressions might result in new statements and declarations
-	// due to differences between Solidity and Boogie
-	std::vector<boogie::Stmt::Ref> m_newStatements;
-	std::list<boogie::Decl::Ref> m_newDecls;
-	// Type checking conditions
-	std::list<boogie::Expr::Ref> m_tccs;
-	// Overflow conditions
-	std::list<boogie::Expr::Ref> m_ocs;
+	// As a side effect, converting an expression can yield extra stuff
+	// due to the differences between Solidity and Boogie expressions
+	std::vector<boogie::Stmt::Ref> m_newStatements; // New statements
+	std::list<boogie::Decl::Ref> m_newDecls; // New declarations
+	std::list<boogie::Expr::Ref> m_tccs; // Type checking conditions
+	std::list<boogie::Expr::Ref> m_ocs; // Overflow conditions
 
-	// Helper method to add a type checking condition for an expression with a given type
+	/**
+	 * Helper method to add a type checking condition for an expression with a given type.
+	 * @param expr Boogie expression
+	 * @param tp Type of the expression
+	 */
 	void addTCC(boogie::Expr::Ref expr, TypePointer tp);
 
-	// Helper method to add a side effect (statement)
+	/** Helper method to add a side effect (statement) */
 	void addSideEffect(boogie::Stmt::Ref stmt);
 
-	// Helper method to add a side effects (statement)
+	/** Helper method to add side effects (statements) */
 	void addSideEffects(std::vector<boogie::Stmt::Ref> const& stmts) { for (auto stmt: stmts) addSideEffect(stmt); }
 
 	// Helper methods for the different scenarios for function calls
@@ -79,15 +82,16 @@ public:
 	};
 
 	/**
-	 * Create a new instance with a given context and an optional location used for reporting errors.
+	 * Create a new instance with a given context.
 	 */
 	ASTBoogieExpressionConverter(BoogieContext& context);
 
 	/**
-	 * Convert a Solidity Expression into a Boogie expression. As a side effect, the conversion might
-	 * introduce new statements and declarations (included in the result).
+	 * Convert a Solidity Expression into a Boogie expression.
+	 * @param specification Indicates if a specification annotation is converted
+	 * @returns Converted expression and side effects
 	 */
-	Result convert(Expression const& _node);
+	Result convert(Expression const& _node, bool isSpecification);
 
 	// Only need to handle expressions
 	bool visit(Conditional const& _node) override;

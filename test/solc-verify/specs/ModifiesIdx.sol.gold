@@ -1,3 +1,4 @@
+solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
 ModifiesIdx::f: OK
 ModifiesIdx::g: OK
 ModifiesIdx::g_incorrect: ERROR

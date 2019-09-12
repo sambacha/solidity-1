@@ -13,7 +13,7 @@ contract ModTccs {
         assert(z >= y);
     }
 
-    function h(uint32[] memory arr) public {
+    function h(uint32[] memory arr) public pure {
         require(arr[0] < 10 && arr[1] < 10);
         uint32 z;
         z = arr[0] + arr[1];

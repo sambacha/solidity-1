@@ -75,7 +75,8 @@ BoogieContext::BoogieContext(Encoding encoding,
 		m_modAnalysis(modAnalysis), m_errorReporter(errorReporter),
 		m_currentScanner(nullptr), m_scopes(scopes), m_evmVersion(evmVersion),
 		m_currentContractInvars(), m_currentSumSpecs(), m_builtinFunctions(),
-		m_transferIncluded(false), m_callIncluded(false), m_sendIncluded(false)
+		m_transferIncluded(false), m_callIncluded(false), m_sendIncluded(false),
+		m_warnForBalances(false)
 {
 	// Initialize global declarations
 	addGlobalComment("Global declarations and definitions");
@@ -329,6 +330,15 @@ string BoogieContext::mapDeclName(Declaration const& decl)
 	}
 
 	return name;
+}
+
+void BoogieContext::warnForBalances()
+{
+	if (!m_warnForBalances)
+	{
+		m_errorReporter->warning("Balance modifications due to gas consumption or miner rewards are not modeled");
+	}
+	m_warnForBalances = true;
 }
 
 bg::Expr::Ref BoogieContext::getStringLiteral(string str)

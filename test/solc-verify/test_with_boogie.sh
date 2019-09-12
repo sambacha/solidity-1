@@ -126,6 +126,7 @@ for filename in $(find $SOLCVERIFY_TESTS -name '*.sol' | sort); do
     if [ -f "$filename.flags" ]; then
         flags=$(<"$filename.flags")
     fi
+    flags="$flags --show-warnings"
     # Run the test
 	solcverify_check "$filename" "$flags" "$filename.gold"
 done

@@ -22,10 +22,10 @@ contract ModifiesStructs {
     }
 
     /// @notice modifies s.x
-    /// @notice modifies s if msg.value > 0
-    function f2() public payable {
+    /// @notice modifies s if v > 0
+    function f2(uint v) public {
         s.x = 1;
-        if (msg.value > 0) s.t.z = 5;
+        if (v > 0) s.t.z = 5;
     }
 
     /// @notice modifies ss[msg.sender].t.z

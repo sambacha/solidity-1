@@ -36,6 +36,7 @@ void ASTBoogieExpressionConverter::addSideEffect(bg::Stmt::Ref stmt)
 
 ASTBoogieExpressionConverter::ASTBoogieExpressionConverter(BoogieContext& context) :
 		m_context(context),
+		m_insideSpec(false),
 		m_currentExpr(nullptr),
 		m_currentAddress(nullptr),
 		m_currentMsgValue(nullptr),
@@ -43,8 +44,9 @@ ASTBoogieExpressionConverter::ASTBoogieExpressionConverter(BoogieContext& contex
 		m_isLibraryCall(false),
 		m_isLibraryCallStatic(false) {}
 
-ASTBoogieExpressionConverter::Result ASTBoogieExpressionConverter::convert(Expression const& _node)
+ASTBoogieExpressionConverter::Result ASTBoogieExpressionConverter::convert(Expression const& _node, bool isSpecification)
 {
+	m_insideSpec = isSpecification;
 	m_currentExpr = nullptr;
 	m_currentAddress = nullptr;
 	m_currentMsgValue = nullptr;
@@ -965,6 +967,8 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 	{
 		m_currentExpr = bg::Expr::arrsel(m_context.boogieBalance()->getRefTo(), expr);
 		addTCC(m_currentExpr, tp_uint256);
+		if (m_insideSpec)
+			m_context.warnForBalances();
 		return false;
 	}
 	// address.transfer()

@@ -1,3 +1,4 @@
+test/solc-verify/specs/SumStructs.sol:2:1: Warning: Experimental features are turned on. Do not use experimental features on live deployments.
 C::addToX: OK
 C::addToZ: OK
 C::setT: OK

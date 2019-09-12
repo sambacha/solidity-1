@@ -1,3 +1,4 @@
+solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
 ModifiesStructs::f1: OK
 ModifiesStructs::f2: OK
 ModifiesStructs::f3: OK
