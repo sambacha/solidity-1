@@ -10,3 +10,4 @@ fo
 compilability
 errorstring
 keyserver
+hist
