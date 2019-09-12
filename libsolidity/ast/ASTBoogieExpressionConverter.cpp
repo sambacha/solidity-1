@@ -249,7 +249,7 @@ bool ASTBoogieExpressionConverter::visit(UnaryOperation const& _node)
 		break;
 	default:
 		m_context.reportError(&_node, string("Unsupported unary operator: ") + TokenTraits::toString(_node.getOperator()));
-		m_currentExpr = bg::Expr::id(ASTBoogieUtils::ERR_EXPR);
+		m_currentExpr = bg::Expr::error();
 		break;
 	}
 
@@ -327,7 +327,7 @@ bool ASTBoogieExpressionConverter::visit(BinaryOperation const& _node)
 
 	default:
 		m_context.reportError(&_node, string("Unsupported binary operator ") + TokenTraits::toString(_node.getOperator()));
-		m_currentExpr = bg::Expr::id(ASTBoogieUtils::ERR_EXPR);
+		m_currentExpr = bg::Expr::error();
 		break;
 	}
 
@@ -430,7 +430,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	else
 	{
 		m_context.reportError(&_node, "Only identifiers are supported as function calls");
-		funcName = ASTBoogieUtils::ERR_EXPR;
+		return false;
 	}
 
 	// Process arguments recursively
@@ -706,7 +706,7 @@ void ASTBoogieExpressionConverter::functionCallConversion(FunctionCall const& _n
 	else
 	{
 		m_context.reportError(&_node, "Unsupported type conversion");
-		m_currentExpr = bg::Expr::id(ASTBoogieUtils::ERR_EXPR);
+		m_currentExpr = bg::Expr::error();
 	}
 }
 
@@ -918,7 +918,7 @@ bool ASTBoogieExpressionConverter::visit(NewExpression const& _node)
 	}
 
 	m_context.reportError(&_node, "Unsupported new expression");
-	m_currentExpr = bg::Expr::id(ASTBoogieUtils::ERR_EXPR);
+	m_currentExpr = bg::Expr::error();
 	return false;
 }
 
@@ -941,6 +941,9 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 	// Get expression recursively
 	_node.expression().accept(*this);
 	bg::Expr::Ref expr = m_currentExpr;
+	if (m_currentExpr->isError())
+		return false;
+
 	// The current expression gives the address on which something is done
 	m_currentAddress = m_currentExpr;
 	// Check for explicit scopings and replace with 'this'
@@ -1075,7 +1078,7 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 	if (_node.annotation().referencedDeclaration == nullptr)
 	{
 		m_context.reportError(&_node, "Member without corresponding declaration: " + _node.memberName());
-		m_currentExpr = bg::Expr::id(ASTBoogieUtils::ERR_EXPR);
+		m_currentExpr = bg::Expr::error();
 		return false;
 	}
 	m_currentExpr = bg::Expr::id(m_context.mapDeclName(*_node.annotation().referencedDeclaration));
@@ -1125,7 +1128,7 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 		else
 		{
 			m_context.reportError(&_node, "Member access unsupported for location " + ASTBoogieUtils::dataLocToStr(structType->location()));
-			m_currentExpr = bg::Expr::id(ASTBoogieUtils::ERR_EXPR);
+			m_currentExpr = bg::Expr::error();
 		}
 		return false;
 	}
@@ -1222,7 +1225,7 @@ bool ASTBoogieExpressionConverter::visit(Identifier const& _node)
 	if (!_node.annotation().referencedDeclaration)
 	{
 		m_context.reportError(&_node, "Identifier '" + _node.name() + "' has no matching declaration");
-		m_currentExpr = bg::Expr::id(ASTBoogieUtils::ERR_EXPR);
+		m_currentExpr = bg::Expr::error();
 		return false;
 	}
 	auto decl = _node.annotation().referencedDeclaration;
@@ -1255,7 +1258,7 @@ bool ASTBoogieExpressionConverter::visit(Identifier const& _node)
 bool ASTBoogieExpressionConverter::visit(ElementaryTypeNameExpression const& _node)
 {
 	m_context.reportError(&_node, "Unhandled node: ElementaryTypeNameExpression");
-	m_currentExpr = bg::Expr::id(ASTBoogieUtils::ERR_EXPR);
+	m_currentExpr = bg::Expr::error();
 	return false;
 }
 
@@ -1294,7 +1297,7 @@ bool ASTBoogieExpressionConverter::visit(Literal const& _node)
 		// Report unsupported
 		string tpStr = type->toString();
 		m_context.reportError(&_node, "Unsupported literal for type " + tpStr.substr(0, tpStr.find(' ')));
-		m_currentExpr = bg::Expr::id(ASTBoogieUtils::ERR_EXPR);
+		m_currentExpr = bg::Expr::error();
 		break;
 	}
 	}

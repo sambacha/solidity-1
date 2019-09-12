@@ -45,8 +45,6 @@ string const ASTBoogieUtils::VERIFIER_EQ = "__verifier_eq";
 string const ASTBoogieUtils::BOOGIE_CONSTRUCTOR = "__constructor";
 string const ASTBoogieUtils::VERIFIER_OVERFLOW = "__verifier_overflow";
 
-string const ASTBoogieUtils::ERR_EXPR = "__ERROR";
-
 string const ASTBoogieUtils::DOCTAG_CONTRACT_INVAR = "invariant";
 string const ASTBoogieUtils::DOCTAG_CONTRACT_INVARS_INCLUDE = "{contractInvariants}";
 string const ASTBoogieUtils::DOCTAG_LOOP_INVAR = "invariant";
@@ -349,13 +347,13 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithBinaryOp(BoogieContext& co
 			else
 			{
 				context.reportError(associatedNode, "Exponentiation is not supported in 'int' encoding");
-				result = bg::Expr::id(ERR_EXPR);
+				result = bg::Expr::error();
 			}
 			break;
 		}
 		default:
 			context.reportError(associatedNode, string("Unsupported binary operator in 'int' encoding ") + TokenTraits::toString(op));
-			result = bg::Expr::id(ERR_EXPR);
+			result = bg::Expr::error();
 		}
 		break;
 	case BoogieContext::Encoding::BV:
@@ -439,13 +437,13 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithBinaryOp(BoogieContext& co
 			else
 			{
 				context.reportError(associatedNode, "Exponentiation is not supported in 'bv' encoding");
-				result = bg::Expr::id(ERR_EXPR);
+				result = bg::Expr::error();
 			}
 			break;
 		}
 		default:
 			context.reportError(associatedNode, string("Unsupported binary operator in 'bv' encoding ") + TokenTraits::toString(op));
-			result = bg::Expr::id(ERR_EXPR);
+			result = bg::Expr::error();
 		}
 		break;
 	}
@@ -539,13 +537,13 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithBinaryOp(BoogieContext& co
 			else
 			{
 				context.reportError(associatedNode, "Exponentiation is not supported in 'mod' encoding");
-				result = bg::Expr::id(ERR_EXPR);
+				result = bg::Expr::error();
 			}
 			break;
 		}
 		default:
 			context.reportError(associatedNode, string("Unsupported binary operator in 'mod' encoding ") + TokenTraits::toString(op));
-			result = bg::Expr::id(ERR_EXPR);
+			result = bg::Expr::error();
 		}
 		break;
 	}
@@ -571,7 +569,7 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithUnaryOp(BoogieContext& con
 		case Token::Sub: result = bg::Expr::neg(subExpr); break;
 		default:
 			context.reportError(associatedNode, string("Unsupported unary operator in 'int' encoding ") + TokenTraits::toString(op));
-			result = bg::Expr::id(ERR_EXPR);
+			result = bg::Expr::error();
 			break;
 		}
 		break;
@@ -585,7 +583,7 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithUnaryOp(BoogieContext& con
 			case Token::BitNot: result = context.bvNot(bits, subExpr); break;
 			default:
 				context.reportError(associatedNode, string("Unsupported unary operator in 'bv' encoding ") + TokenTraits::toString(op));
-				result = bg::Expr::id(ERR_EXPR);
+				result = bg::Expr::error();
 				break;
 			}
 		}
@@ -616,7 +614,7 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithUnaryOp(BoogieContext& con
 		}
 		default:
 			context.reportError(associatedNode, string("Unsupported unary operator in 'mod' encoding ") + TokenTraits::toString(op));
-			result = bg::Expr::id(ERR_EXPR);
+			result = bg::Expr::error();
 			break;
 		}
 		break;

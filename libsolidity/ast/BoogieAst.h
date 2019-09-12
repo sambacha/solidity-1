@@ -37,6 +37,10 @@ public:
 	virtual ~Expr() {}
 	virtual void print(std::ostream& os) const = 0;
 	std::string tostring() const;
+
+	/** Special expression to denote errors */
+	static Ref error();
+
 	static Ref exists(std::vector<Binding> const&, Ref e);
 	static Ref forall(std::vector<Binding> const&, Ref e);
 	static Ref and_(Ref l, Ref r);
@@ -81,12 +85,22 @@ public:
 	static Ref tuple(std::vector<Ref> const& e);
 
 	static Ref selectToUpdate(Ref sel, Ref value);
+
+	virtual
+	bool isError() const { return false; }
 };
 
 struct Binding
 {
 	Expr::Ref id;
 	TypeDeclRef type;
+};
+
+class ErrorExpr : public Expr
+{
+public:
+	bool isError() const override { return true; }
+	void print(std::ostream& os) const override;
 };
 
 class BinExpr : public Expr

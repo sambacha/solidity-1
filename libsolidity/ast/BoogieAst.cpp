@@ -20,6 +20,11 @@ std::string Expr::tostring() const
 	return ss.str();
 }
 
+Expr::Ref Expr::error()
+{
+	return std::make_shared<ErrorExpr const>();
+}
+
 Expr::Ref Expr::exists(std::vector<Binding> const& vars, Ref e)
 {
 	return std::make_shared<QuantExpr const>(QuantExpr::Exists, vars, e);
@@ -564,6 +569,11 @@ template<class T, class C>
 void print_set(std::ostream& os, std::set<T,C> const& ts)
 {
 	print_set<T,C>(os, ts, "", "", "");
+}
+
+void ErrorExpr::print(std::ostream& os) const
+{
+	os << "ERROR";
 }
 
 void BinExpr::print(std::ostream& os) const

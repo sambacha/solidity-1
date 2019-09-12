@@ -191,7 +191,7 @@ bg::Expr::Ref BoogieContext::getSumVar(boogie::Expr::Ref bgExpr, Expression cons
 	if (!intType)
 	{
 		reportError(expr, "Argument of sum must be an array, mapping or member access to integers");
-		return bg::Expr::id(ASTBoogieUtils::ERR_EXPR);
+		return bg::Expr::error();
 	}
 
 	SumPath path = {"", {}};

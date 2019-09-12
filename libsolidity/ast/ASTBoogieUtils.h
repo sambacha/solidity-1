@@ -59,9 +59,6 @@ public:
 	static std::string const BOOGIE_CONSTRUCTOR;
 	static std::string const BOOGIE_ZERO_ADDRESS;
 
-	// Return this expression as an identifier when something cannot be evaluated
-	static std::string const ERR_EXPR;
-
 	// Specification annotations
 	static std::string const DOCTAG_CONTRACT_INVAR;
 	static std::string const DOCTAG_LOOP_INVAR;
