@@ -433,13 +433,11 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 		funcName = ASTBoogieUtils::ERR_EXPR;
 	}
 
-	if (m_isGetter && _node.arguments().size() > 0)
-		m_context.reportError(&_node, "Getter arguments are not supported");
-
 	// Process arguments recursively
 	vector<bg::Expr::Ref> allArgs;
 	vector<bg::Expr::Ref> regularArgs;
-	// First, pass extra arguments
+
+	// First, collect any extra arguments
 	if (!m_isLibraryCall)
 		allArgs.push_back(m_currentAddress); // this
 	// msg.sender is by default this, except for internal calls
@@ -517,6 +515,14 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	{
 		solAssert(_node.arguments().size() <= 1, "Revert should have at most one argument");
 		addSideEffect(bg::Stmt::assume(bg::Expr::lit(false)));
+		return false;
+	}
+
+	// Keccak256
+	if (funcName == ASTBoogieUtils::SOLIDITY_KECCAK256)
+	{
+		solAssert(regularArgs.size() == 1, "Keccak256 should have exactly one argument");
+		m_currentExpr = m_context.keccak256(regularArgs[0]);
 		return false;
 	}
 

@@ -47,6 +47,9 @@ public:
 	static std::string const SOLIDITY_REQUIRE;
 	static std::string const SOLIDITY_REVERT;
 
+	// Special functions
+	static std::string const SOLIDITY_KECCAK256;
+
 	// Other identifiers
 	static std::string const VERIFIER_SUM;
 	static std::string const VERIFIER_IDX;

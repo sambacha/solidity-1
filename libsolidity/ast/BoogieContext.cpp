@@ -303,10 +303,13 @@ string BoogieContext::mapDeclName(Declaration const& decl)
 	// Check for special names
 	if (dynamic_cast<MagicVariableDeclaration const*>(&decl))
 	{
+		// Special identifiers with the same name in Solidity and Boogie
 		if (name == ASTBoogieUtils::SOLIDITY_ASSERT) return name;
 		if (name == ASTBoogieUtils::SOLIDITY_REQUIRE) return name;
 		if (name == ASTBoogieUtils::SOLIDITY_REVERT) return name;
+		if (name == ASTBoogieUtils::SOLIDITY_KECCAK256) return name;
 
+		// Special identifiers with a different name in Solidity and Boogie
 		if (name == ASTBoogieUtils::BALANCE.solidity) return ASTBoogieUtils::BALANCE.boogie;
 		if (name == ASTBoogieUtils::TRANSFER.solidity) return ASTBoogieUtils::TRANSFER.boogie;
 		if (name == ASTBoogieUtils::SEND.solidity) return ASTBoogieUtils::SEND.boogie;
@@ -970,6 +973,48 @@ bg::Expr::Ref BoogieContext::bvUnaryOp(std::string name, unsigned bits, bg::Expr
 
 	return bg::Expr::fn(fnName, expr);
 }
+
+bg::Expr::Ref BoogieContext::keccak256(bg::Expr::Ref arg)
+{
+	std::string fnName = ASTBoogieUtils::SOLIDITY_KECCAK256;
+
+	// Get it if already there
+	if (m_builtinFunctions.find(fnName) == m_builtinFunctions.end())
+	{
+		// Appropriate types
+		FunctionType const* keccakType = nullptr;
+		GlobalContext globals;
+		auto declarations = globals.declarations();
+		for (auto const& decl: declarations)
+		{
+			auto declType = decl->type();
+			keccakType = dynamic_cast<FunctionType const*>(declType);
+			if (keccakType)
+			{
+				FunctionType::Kind kind = keccakType->kind();
+				if (kind == FunctionType::Kind::KECCAK256)
+					break;
+			}
+		}
+
+		bg::TypeDeclRef argType = toBoogieType(keccakType->parameterTypes().front(), nullptr);
+		bg::TypeDeclRef returnType = toBoogieType(keccakType->returnParameterTypes().front(), nullptr);
+
+		// Boogie declaration
+		bg::FuncDeclRef fnDecl = bg::Decl::function(
+			fnName, // Name
+			{ { bg::Expr::id(""), argType } }, // Arguments
+			returnType, // Return type
+			nullptr // Body = null
+		);
+
+		// Add it
+		addBuiltinFunction(fnDecl);
+	}
+
+	return bg::Expr::fn(fnName, arg);
+}
+
 
 }
 }

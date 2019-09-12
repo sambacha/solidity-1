@@ -261,6 +261,8 @@ public:
 	boogie::Expr::Ref bvBinaryOp(std::string name, unsigned bits, boogie::Expr::Ref lhs, boogie::Expr::Ref rhs, boogie::TypeDeclRef resultType = nullptr);
 	boogie::Expr::Ref bvUnaryOp(std::string name, unsigned bits, boogie::Expr::Ref expr);
 
+	// Keccak function (uninterpreted)
+	boogie::Expr::Ref keccak256(boogie::Expr::Ref arg);
 };
 
 }
