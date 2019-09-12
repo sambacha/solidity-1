@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libsolidity/ast/BoogieAst.h>
-#include <libsolidity/ast/BoogieContext.h>
+#include <libsolidity/ast/Types.h>
 #include <liblangutil/Scanner.h>
 #include <string>
 
@@ -9,6 +9,8 @@ namespace dev
 {
 namespace solidity
 {
+
+class BoogieContext;
 
 /**
  * Utility class for the Solidity to Boogie conversion.

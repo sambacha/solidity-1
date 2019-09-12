@@ -2,6 +2,7 @@
 #include <boost/regex.hpp>
 #include <libsolidity/ast/ASTBoogieUtils.h>
 #include <libsolidity/ast/AST.h>
+#include <libsolidity/ast/BoogieContext.h>
 #include <libsolidity/ast/Types.h>
 #include <libsolidity/ast/TypeProvider.h>
 #include <liblangutil/SourceLocation.h>
