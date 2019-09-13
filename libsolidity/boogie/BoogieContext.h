@@ -6,8 +6,8 @@
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/analysis/GlobalContext.h>
 #include <libsolidity/analysis/DeclarationContainer.h>
-#include <libsolidity/ast/ASTBoogieStats.h>
-#include <libsolidity/ast/BoogieAst.h>
+#include <libsolidity/boogie/ASTBoogieStats.h>
+#include <libsolidity/boogie/BoogieAst.h>
 #include <set>
 
 namespace dev
