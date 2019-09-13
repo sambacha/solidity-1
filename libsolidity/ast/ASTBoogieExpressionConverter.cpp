@@ -534,6 +534,14 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 		return false;
 	}
 
+	// RIPEMD160
+	if (funcName == ASTBoogieUtils::SOLIDITY_RIPEMD160)
+	{
+		solAssert(regularArgs.size() == 1, "RIPMD should have exactly one argument");
+		m_currentExpr = m_context.ripemd160(regularArgs[0]);
+		return false;
+	}
+
 	// Sum function
 	if (boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_SUM))
 	{

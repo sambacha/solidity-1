@@ -177,6 +177,9 @@ private:
 	 */
 	void getPath(boogie::Expr::Ref expr, SumPath& path, ASTNode const* errors = nullptr);
 	bool pathsEqual(SumPath const& p1, SumPath const& p2);
+
+	boogie::Expr::Ref hashFunction(std::string name, FunctionType::Kind kind, boogie::Expr::Ref arg);
+
 public:
 	/** Gets the sum shadow variable for a given expression. If it does not exist, it is created. */
 	boogie::Expr::Ref getSumVar(boogie::Expr::Ref bgExpr, Expression const* expr, TypePointer type);
@@ -264,8 +267,12 @@ public:
 	// Keccak function (uninterpreted)
 	boogie::Expr::Ref keccak256(boogie::Expr::Ref arg);
 
-	// SHA226 function (uninterpreted)
+	// SHA256 function (uninterpreted)
 	boogie::Expr::Ref sha256(boogie::Expr::Ref arg);
+
+	// RIPMD160 function (uninterpreted)
+	boogie::Expr::Ref ripemd160(boogie::Expr::Ref arg);
+
 };
 
 }

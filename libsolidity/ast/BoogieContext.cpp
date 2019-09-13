@@ -309,6 +309,7 @@ string BoogieContext::mapDeclName(Declaration const& decl)
 		if (name == ASTBoogieUtils::SOLIDITY_REVERT) return name;
 		if (name == ASTBoogieUtils::SOLIDITY_KECCAK256) return name;
 		if (name == ASTBoogieUtils::SOLIDITY_SHA256) return name;
+		if (name == ASTBoogieUtils::SOLIDITY_RIPEMD160) return name;
 
 		// Special identifiers with a different name in Solidity and Boogie
 		if (name == ASTBoogieUtils::BALANCE.solidity) return ASTBoogieUtils::BALANCE.boogie;
@@ -975,31 +976,30 @@ bg::Expr::Ref BoogieContext::bvUnaryOp(std::string name, unsigned bits, bg::Expr
 	return bg::Expr::fn(fnName, expr);
 }
 
-bg::Expr::Ref BoogieContext::keccak256(bg::Expr::Ref arg)
-{
-	std::string fnName = ASTBoogieUtils::SOLIDITY_KECCAK256;
 
+boogie::Expr::Ref BoogieContext::hashFunction(std::string fnName, FunctionType::Kind fnKind, boogie::Expr::Ref arg)
+{
 	// Get it if already there
 	if (m_builtinFunctions.find(fnName) == m_builtinFunctions.end())
 	{
 		// Appropriate types
-		FunctionType const* keccakType = nullptr;
+		FunctionType const* fnType = nullptr;
 		GlobalContext globals;
 		auto declarations = globals.declarations();
 		for (auto const& decl: declarations)
 		{
 			auto declType = decl->type();
-			keccakType = dynamic_cast<FunctionType const*>(declType);
-			if (keccakType)
+			fnType = dynamic_cast<FunctionType const*>(declType);
+			if (fnType)
 			{
-				FunctionType::Kind kind = keccakType->kind();
-				if (kind == FunctionType::Kind::KECCAK256)
+				FunctionType::Kind kind = fnType->kind();
+				if (kind == fnKind)
 					break;
 			}
 		}
 
-		bg::TypeDeclRef argType = toBoogieType(keccakType->parameterTypes().front(), nullptr);
-		bg::TypeDeclRef returnType = toBoogieType(keccakType->returnParameterTypes().front(), nullptr);
+		bg::TypeDeclRef argType = toBoogieType(fnType->parameterTypes().front(), nullptr);
+		bg::TypeDeclRef returnType = toBoogieType(fnType->returnParameterTypes().front(), nullptr);
 
 		// Boogie declaration
 		bg::FuncDeclRef fnDecl = bg::Decl::function(
@@ -1016,45 +1016,19 @@ bg::Expr::Ref BoogieContext::keccak256(bg::Expr::Ref arg)
 	return bg::Expr::fn(fnName, arg);
 }
 
+bg::Expr::Ref BoogieContext::keccak256(bg::Expr::Ref arg)
+{
+	return hashFunction(ASTBoogieUtils::SOLIDITY_KECCAK256, FunctionType::Kind::KECCAK256, arg);
+}
+
 bg::Expr::Ref BoogieContext::sha256(bg::Expr::Ref arg)
 {
-	std::string fnName = ASTBoogieUtils::SOLIDITY_SHA256;
+	return hashFunction(ASTBoogieUtils::SOLIDITY_SHA256, FunctionType::Kind::SHA256, arg);
+}
 
-	// Get it if already there
-	if (m_builtinFunctions.find(fnName) == m_builtinFunctions.end())
-	{
-		// Appropriate types
-		FunctionType const* shaType = nullptr;
-		GlobalContext globals;
-		auto declarations = globals.declarations();
-		for (auto const& decl: declarations)
-		{
-			auto declType = decl->type();
-			shaType = dynamic_cast<FunctionType const*>(declType);
-			if (shaType)
-			{
-				FunctionType::Kind kind = shaType->kind();
-				if (kind == FunctionType::Kind::SHA256)
-					break;
-			}
-		}
-
-		bg::TypeDeclRef argType = toBoogieType(shaType->parameterTypes().front(), nullptr);
-		bg::TypeDeclRef returnType = toBoogieType(shaType->returnParameterTypes().front(), nullptr);
-
-		// Boogie declaration
-		bg::FuncDeclRef fnDecl = bg::Decl::function(
-			fnName, // Name
-			{ { bg::Expr::id(""), argType } }, // Arguments
-			returnType, // Return type
-			nullptr // Body = null
-		);
-
-		// Add it
-		addBuiltinFunction(fnDecl);
-	}
-
-	return bg::Expr::fn(fnName, arg);
+bg::Expr::Ref BoogieContext::ripemd160(bg::Expr::Ref arg)
+{
+	return hashFunction(ASTBoogieUtils::SOLIDITY_RIPEMD160, FunctionType::Kind::RIPEMD160, arg);
 }
 
 }
