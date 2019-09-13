@@ -542,6 +542,14 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 		return false;
 	}
 
+	// ECrecover
+	if (funcName == ASTBoogieUtils::SOLIDITY_ECRECOVER)
+	{
+		solAssert(regularArgs.size() == 4, "ECRECOVER should have exactly 4 arguments");
+		m_currentExpr = m_context.ecrecover(regularArgs[0], regularArgs[1], regularArgs[2], regularArgs[3]);
+		return false;
+	}
+
 	// Sum function
 	if (boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_SUM))
 	{

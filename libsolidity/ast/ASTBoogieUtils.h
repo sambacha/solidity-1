@@ -51,6 +51,7 @@ public:
 	static std::string const SOLIDITY_KECCAK256;
 	static std::string const SOLIDITY_SHA256;
 	static std::string const SOLIDITY_RIPEMD160;
+	static std::string const SOLIDITY_ECRECOVER;
 
 	// Other identifiers
 	static std::string const VERIFIER_SUM;

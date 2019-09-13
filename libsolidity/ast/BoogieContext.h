@@ -273,6 +273,9 @@ public:
 	// RIPMD160 function (uninterpreted)
 	boogie::Expr::Ref ripemd160(boogie::Expr::Ref arg);
 
+	// Ecrecover function (uninterpreted)
+	boogie::Expr::Ref ecrecover(boogie::Expr::Ref hash, boogie::Expr::Ref v, boogie::Expr::Ref r, boogie::Expr::Ref s);
+
 };
 
 }
