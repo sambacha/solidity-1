@@ -48,12 +48,12 @@ set(sources
 	ast/TypeProvider.cpp
 	ast/TypeProvider.h
 	boogie/ASTBoogieConverter.cpp
-  boogie/ASTBoogieExpressionConverter.cpp
-  boogie/ASTBoogieStats.cpp
-  boogie/ASTBoogieUtils.cpp
-  boogie/BoogieAst.cpp
-  boogie/BoogieContext.cpp
-  codegen/ABIFunctions.cpp
+	boogie/ASTBoogieExpressionConverter.cpp
+	boogie/ASTBoogieStats.cpp
+	boogie/ASTBoogieUtils.cpp
+	boogie/BoogieAst.cpp
+	boogie/BoogieContext.cpp
+	codegen/ABIFunctions.cpp
 	codegen/ABIFunctions.h
 	codegen/ArrayUtils.cpp
 	codegen/ArrayUtils.h
