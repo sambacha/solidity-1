@@ -37,6 +37,7 @@ string const ASTBoogieUtils::SOLIDITY_REQUIRE = "require";
 string const ASTBoogieUtils::SOLIDITY_REVERT = "revert";
 
 string const ASTBoogieUtils::SOLIDITY_KECCAK256 = "keccak256";
+string const ASTBoogieUtils::SOLIDITY_SHA256 = "sha256";
 
 string const ASTBoogieUtils::VERIFIER_SUM = "__verifier_sum";
 string const ASTBoogieUtils::VERIFIER_IDX = "__verifier_idx";

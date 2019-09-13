@@ -526,6 +526,14 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 		return false;
 	}
 
+	// SHA256
+	if (funcName == ASTBoogieUtils::SOLIDITY_SHA256)
+	{
+		solAssert(regularArgs.size() == 1, "SHA256 should have exactly one argument");
+		m_currentExpr = m_context.sha256(regularArgs[0]);
+		return false;
+	}
+
 	// Sum function
 	if (boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_SUM))
 	{

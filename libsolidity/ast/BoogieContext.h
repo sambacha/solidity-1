@@ -263,6 +263,9 @@ public:
 
 	// Keccak function (uninterpreted)
 	boogie::Expr::Ref keccak256(boogie::Expr::Ref arg);
+
+	// SHA226 function (uninterpreted)
+	boogie::Expr::Ref sha256(boogie::Expr::Ref arg);
 };
 
 }

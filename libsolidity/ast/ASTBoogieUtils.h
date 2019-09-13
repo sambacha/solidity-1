@@ -49,6 +49,7 @@ public:
 
 	// Special functions
 	static std::string const SOLIDITY_KECCAK256;
+	static std::string const SOLIDITY_SHA256;
 
 	// Other identifiers
 	static std::string const VERIFIER_SUM;
