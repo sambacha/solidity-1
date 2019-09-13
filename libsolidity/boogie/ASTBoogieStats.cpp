@@ -1,6 +1,6 @@
 #include <boost/algorithm/string/predicate.hpp>
-#include <libsolidity/ast/ASTBoogieStats.h>
-#include <libsolidity/ast/ASTBoogieUtils.h>
+#include <libsolidity/boogie/ASTBoogieStats.h>
+#include <libsolidity/boogie/ASTBoogieUtils.h>
 
 using namespace dev;
 using namespace dev::solidity;

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <libsolidity/ast/ASTVisitor.h>
-#include <libsolidity/ast/BoogieAst.h>
-#include <libsolidity/ast/BoogieContext.h>
+#include <libsolidity/boogie/BoogieAst.h>
+#include <libsolidity/boogie/BoogieContext.h>
 
 namespace dev
 {

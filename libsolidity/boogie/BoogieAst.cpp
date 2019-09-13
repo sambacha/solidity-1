@@ -1,7 +1,7 @@
 //
 // This file is distributed under the MIT License. See SMACK-LICENSE for details.
 //
-#include <libsolidity/ast/BoogieAst.h>
+#include <libsolidity/boogie/BoogieAst.h>
 #include <liblangutil/Exceptions.h>
 #include <sstream>
 #include <iostream>

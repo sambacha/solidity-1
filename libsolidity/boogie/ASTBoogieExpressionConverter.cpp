@@ -1,6 +1,6 @@
 #include <boost/algorithm/string/predicate.hpp>
-#include <libsolidity/ast/ASTBoogieExpressionConverter.h>
-#include <libsolidity/ast/ASTBoogieUtils.h>
+#include <libsolidity/boogie/ASTBoogieExpressionConverter.h>
+#include <libsolidity/boogie/ASTBoogieUtils.h>
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/ast/TypeProvider.h>
 #include <liblangutil/Exceptions.h>

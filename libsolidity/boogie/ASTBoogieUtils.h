@@ -1,7 +1,7 @@
 #pragma once
 
-#include <libsolidity/ast/BoogieAst.h>
 #include <libsolidity/ast/Types.h>
+#include <libsolidity/boogie/BoogieAst.h>
 #include <liblangutil/Scanner.h>
 #include <string>
 

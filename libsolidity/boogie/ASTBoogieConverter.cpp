@@ -3,9 +3,9 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <libsolidity/analysis/NameAndTypeResolver.h>
 #include <libsolidity/analysis/TypeChecker.h>
-#include <libsolidity/ast/ASTBoogieConverter.h>
-#include <libsolidity/ast/ASTBoogieExpressionConverter.h>
-#include <libsolidity/ast/ASTBoogieUtils.h>
+#include <libsolidity/boogie/ASTBoogieConverter.h>
+#include <libsolidity/boogie/ASTBoogieExpressionConverter.h>
+#include <libsolidity/boogie/ASTBoogieUtils.h>
 #include <libsolidity/ast/TypeProvider.h>
 #include <libsolidity/parsing/Parser.h>
 #include <liblangutil/SourceReferenceFormatter.h>

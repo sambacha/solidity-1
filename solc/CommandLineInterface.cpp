@@ -29,9 +29,9 @@
 #include <libsolidity/parsing/Parser.h>
 #include <libsolidity/ast/ASTPrinter.h>
 #include <libsolidity/ast/ASTJsonConverter.h>
-#include <libsolidity/ast/ASTBoogieConverter.h>
-#include <libsolidity/ast/ASTBoogieStats.h>
-#include <libsolidity/ast/BoogieContext.h>
+#include <libsolidity/boogie/ASTBoogieConverter.h>
+#include <libsolidity/boogie/ASTBoogieStats.h>
+#include <libsolidity/boogie/BoogieContext.h>
 #include <libsolidity/analysis/GlobalContext.h>
 #include <libsolidity/analysis/NameAndTypeResolver.h>
 #include <libsolidity/interface/CompilerStack.h>
