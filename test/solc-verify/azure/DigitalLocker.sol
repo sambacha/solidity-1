@@ -128,7 +128,7 @@ contract DigitalLocker
         IntendedPurpose = "";
         State = StateType.AvailableToShare;
     }
-    
+
     function RevokeAccessFromThirdParty() public
     {
         if (Owner != msg.sender)

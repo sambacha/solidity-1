@@ -5,7 +5,7 @@ contract BasicProvenance
 
     //Set of States
     enum StateType { Created, InTransit, Completed}
-    
+
     //List of properties
     StateType public  State;
     address public  InitiatingCounterparty;
@@ -13,7 +13,7 @@ contract BasicProvenance
     address public  PreviousCounterparty;
     address public  SupplyChainOwner;
     address public  SupplyChainObserver;
-    
+
     constructor(address supplyChainOwner, address supplyChainObserver) public
     {
         InitiatingCounterparty = msg.sender;

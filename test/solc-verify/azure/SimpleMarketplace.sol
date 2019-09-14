@@ -2,7 +2,7 @@ pragma solidity >=0.4.25 <0.6.0;
 
 contract SimpleMarketplace
 {
-    enum StateType { 
+    enum StateType {
       ItemAvailable,
       OfferPlaced,
       Accepted
@@ -35,7 +35,7 @@ contract SimpleMarketplace
         {
             revert();
         }
-        
+
         if (InstanceOwner == msg.sender)
         {
             revert();

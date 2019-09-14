@@ -4,7 +4,7 @@ contract RoomThermostat
 {
     //Set of States
     enum StateType { Created, InUse}
-    
+
     //List of properties
     StateType public State;
     address public Installer;
@@ -12,7 +12,7 @@ contract RoomThermostat
     int public TargetTemperature;
     enum ModeEnum {Off, Cool, Heat, Auto}
     ModeEnum public  Mode;
-    
+
     constructor(address thermostatInstaller, address thermostatUser) public
     {
         Installer = thermostatInstaller;

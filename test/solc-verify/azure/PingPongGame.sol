@@ -20,7 +20,7 @@ contract Starter
         State = StateType.GameProvisioned;
     }
 
-    function StartPingPong(int pingPongTimes) public 
+    function StartPingPong(int pingPongTimes) public
     {
         PingPongTimes = pingPongTimes;
 
@@ -30,7 +30,7 @@ contract Starter
         player.Ping(pingPongTimes);
     }
 
-    function Pong(int _currentPingPongTimes) public 
+    function Pong(int _currentPingPongTimes) public
     {
         int currentPingPongTimes = _currentPingPongTimes;
         currentPingPongTimes = currentPingPongTimes - 1;
@@ -70,7 +70,7 @@ contract Player
         State = StateType.PingpongPlayerCreated;
     }
 
-    function Ping(int _currentPingPongTimes) public 
+    function Ping(int _currentPingPongTimes) public
     {
         int currentPingPongTimes = _currentPingPongTimes;
         currentPingPongTimes = currentPingPongTimes - 1;

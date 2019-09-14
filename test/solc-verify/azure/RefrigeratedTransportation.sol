@@ -45,7 +45,7 @@ contract RefrigeratedTransportation
 
     function IngestTelemetry(int humidity, int temperature, int timestamp) public
     {
-        // Separately check for states and sender 
+        // Separately check for states and sender
         // to avoid not checking for state when the sender is the device
         // because of the logical OR
         if ( State == StateType.Completed )
