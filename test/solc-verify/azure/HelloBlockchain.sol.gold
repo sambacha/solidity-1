@@ -1,0 +1,6 @@
+test/solc-verify/azure/HelloBlockchain.sol:13:5: solc-verify warning: Unhandled default value, constructor verification might fail
+test/solc-verify/azure/HelloBlockchain.sol:14:5: solc-verify warning: Unhandled default value, constructor verification might fail
+HelloBlockchain::[constructor]: OK
+HelloBlockchain::SendRequest: OK
+HelloBlockchain::SendResponse: OK
+No errors found.

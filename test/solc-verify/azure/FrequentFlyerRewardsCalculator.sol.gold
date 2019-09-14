@@ -1,0 +1,4 @@
+FrequentFlyerRewardsCalculator::[constructor]: OK
+FrequentFlyerRewardsCalculator::AddMiles: OK
+FrequentFlyerRewardsCalculator::GetMiles: OK
+No errors found.

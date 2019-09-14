@@ -1,0 +1,13 @@
+test/solc-verify/azure/AssetTransfer.sol:7:5: solc-verify warning: Unhandled default value, constructor verification might fail
+AssetTransfer::[constructor]: OK
+AssetTransfer::Terminate: OK
+AssetTransfer::Modify: OK
+AssetTransfer::MakeOffer: OK
+AssetTransfer::AcceptOffer: OK
+AssetTransfer::Reject: OK
+AssetTransfer::Accept: OK
+AssetTransfer::ModifyOffer: OK
+AssetTransfer::RescindOffer: OK
+AssetTransfer::MarkAppraised: OK
+AssetTransfer::MarkInspected: OK
+No errors found.
