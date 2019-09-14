@@ -21,6 +21,7 @@ contract Partial {
         x = 1;
         y = 2;
         unsupported();
-        assert(x == y);
+        assert(x == y); // Should hold
+        assert(x != y); // Should fail
     }
 }
