@@ -16,6 +16,7 @@ contract Partial {
 
     /// @notice modifies x
     /// @notice modifies y
+    /// @notice modifies address(this).balance
     function() external payable {
         x = 1;
         y = 2;
