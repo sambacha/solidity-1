@@ -638,8 +638,12 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 	case Type::Category::Mapping:
 	{
 		auto mapType = dynamic_cast<MappingType const*>(tp);
-		return bg::Decl::arraytype(toBoogieType(mapType->keyType(), _associatedNode),
-				toBoogieType(mapType->valueType(), _associatedNode));
+		auto keyType = mapType->keyType();
+		if (tp->dataStoredIn(DataLocation::Storage))
+			keyType = TypeProvider::withLocationIfReference(DataLocation::Storage, keyType);
+		auto valueType = mapType->valueType();
+		return bg::Decl::arraytype(toBoogieType(keyType, _associatedNode),
+				toBoogieType(valueType, _associatedNode));
 	}
 	case Type::Category::FixedBytes:
 	{
