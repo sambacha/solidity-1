@@ -1,0 +1,4 @@
+DefectiveComponentCounter::[constructor]: OK
+DefectiveComponentCounter::ComputeTotal: OK
+DefectiveComponentCounter::GetDefectiveComponentsCount: OK
+No errors found.

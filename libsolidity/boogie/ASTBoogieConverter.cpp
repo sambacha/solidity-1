@@ -946,6 +946,14 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	if (!Error::containsOnlyWarnings(errorList))
 		procDecl->addAttr(bg::Attr::attr("skipped"));
 
+	// Havoc state vars for skipped/unimplemented functions
+	if (!Error::containsOnlyWarnings(errorList) || !_node.isImplemented())
+	{
+		for (auto contract: m_context.currentContract()->annotation().linearizedBaseContracts)
+			for (auto sv: ASTNode::filteredNodes<VariableDeclaration>(contract->subNodes()))
+				procDecl->getModifies().push_back(m_context.mapDeclName(*sv));
+	}
+
 	string funcType = _node.visibility() == Declaration::Visibility::External ? "" : " : " + _node.type()->toString();
 	m_context.addGlobalComment("\nFunction: " + _node.name() + funcType);
 	m_context.addDecl(procDecl);

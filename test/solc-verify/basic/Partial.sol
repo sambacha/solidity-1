@@ -14,12 +14,15 @@ contract Partial {
         }
     }
 
+    // Last postcondition should fail
     /// @notice modifies x
     /// @notice modifies y
+    /// @notice modifies address(this).balance
+    /// @notice postcondition x != y
     function() external payable {
         x = 1;
         y = 2;
         unsupported();
-        assert(x == y);
+        assert(x == y); // Should hold
     }
 }

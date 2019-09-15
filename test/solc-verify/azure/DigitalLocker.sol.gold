@@ -1,0 +1,19 @@
+test/solc-verify/azure/DigitalLocker.sol:8:5: solc-verify warning: Unhandled default value, constructor verification might fail
+test/solc-verify/azure/DigitalLocker.sol:9:5: solc-verify warning: Unhandled default value, constructor verification might fail
+test/solc-verify/azure/DigitalLocker.sol:11:5: solc-verify warning: Unhandled default value, constructor verification might fail
+test/solc-verify/azure/DigitalLocker.sol:12:5: solc-verify warning: Unhandled default value, constructor verification might fail
+test/solc-verify/azure/DigitalLocker.sol:14:5: solc-verify warning: Unhandled default value, constructor verification might fail
+test/solc-verify/azure/DigitalLocker.sol:15:5: solc-verify warning: Unhandled default value, constructor verification might fail
+test/solc-verify/azure/DigitalLocker.sol:16:5: solc-verify warning: Unhandled default value, constructor verification might fail
+DigitalLocker::[constructor]: OK
+DigitalLocker::BeginReviewProcess: OK
+DigitalLocker::RejectApplication: OK
+DigitalLocker::UploadDocuments: OK
+DigitalLocker::ShareWithThirdParty: OK
+DigitalLocker::AcceptSharingRequest: OK
+DigitalLocker::RejectSharingRequest: OK
+DigitalLocker::RequestLockerAccess: OK
+DigitalLocker::ReleaseLockerAccess: OK
+DigitalLocker::RevokeAccessFromThirdParty: OK
+DigitalLocker::Terminate: OK
+No errors found.

@@ -1,0 +1,6 @@
+test/solc-verify/azure/SimpleMarketplace.sol:12:5: solc-verify warning: Unhandled default value, constructor verification might fail
+SimpleMarketplace::[constructor]: OK
+SimpleMarketplace::MakeOffer: OK
+SimpleMarketplace::Reject: OK
+SimpleMarketplace::AcceptOffer: OK
+No errors found.

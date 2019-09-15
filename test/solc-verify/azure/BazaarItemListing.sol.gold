@@ -1,0 +1,10 @@
+test/solc-verify/azure/BazaarItemListing.sol:12:5: solc-verify warning: Unhandled default value, constructor verification might fail
+test/solc-verify/azure/BazaarItemListing.sol:68:5: solc-verify warning: Unhandled default value, constructor verification might fail
+ItemListing::[constructor]: OK
+ItemListing::BuyItem: OK
+Bazaar::[constructor]: OK
+Bazaar::HasBalance: OK
+Bazaar::UpdateBalance: OK
+Bazaar::ChangeBalance: OK
+Bazaar::ListItem: OK
+No errors found.
