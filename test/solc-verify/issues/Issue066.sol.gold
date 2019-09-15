@@ -1,0 +1,6 @@
+test/solc-verify/issues/Issue066.sol:4:2: solc-verify warning: Unhandled default value, constructor verification might fail
+test/solc-verify/issues/Issue066.sol:5:2: solc-verify warning: Unhandled default value, constructor verification might fail
+test/solc-verify/issues/Issue066.sol:6:5: solc-verify warning: Unhandled default value, constructor verification might fail
+C::f: OK
+C::[implicit_constructor]: OK
+No errors found.

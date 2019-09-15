@@ -891,11 +891,15 @@ ASTBoogieUtils::Value ASTBoogieUtils::defaultValueInternal(TypePointer type, Boo
 	case Type::Category::Array:
 	{
 		ArrayType const* arrayType = dynamic_cast<ArrayType const*>(type);
+		if (arrayType->isString())
+			return {"", nullptr};
 		if (arrayType->dataStoredIn(DataLocation::Storage))
 		{
 			auto keyType = context.intType(256);
 			auto valType = context.toBoogieType(arrayType->baseType(), nullptr);
 			auto baseDefVal = defaultValueInternal(arrayType->baseType(), context);
+			if (!baseDefVal.bgExpr)
+				return {"", nullptr};
 			string smtType = "(Array " + keyType->getSmtType() + " " + valType->getSmtType() + ")";
 			string smtExpr = "((as const " + smtType + ") " + baseDefVal.smt + ")";
 			bg::FuncDeclRef arrConstr = context.getArrayConstructor(valType);

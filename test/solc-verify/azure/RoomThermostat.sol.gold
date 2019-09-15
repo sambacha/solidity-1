@@ -1,0 +1,5 @@
+RoomThermostat::[constructor]: OK
+RoomThermostat::StartThermostat: OK
+RoomThermostat::SetTargetTemperature: OK
+RoomThermostat::SetMode: OK
+No errors found.
