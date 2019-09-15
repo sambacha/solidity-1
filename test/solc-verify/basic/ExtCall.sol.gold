@@ -1,0 +1,6 @@
+C::incr: OK
+C::test: ERROR
+ - test/solc-verify/basic/ExtCall.sol:20:13: Assertion might not hold.
+C::[implicit_constructor]: OK
+C::[receive_ether_selfdestruct]: OK
+Errors were found by the verifier.

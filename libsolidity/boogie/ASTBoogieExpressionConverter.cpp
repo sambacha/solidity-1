@@ -651,9 +651,18 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 		m_currentExpr = bg::Expr::tuple(returnVars);
 	}
 
-	// Assume invariants after external call
+	// Havoc variables and assume invariants after external call
 	if (funcName == ASTBoogieUtils::CALL.boogie)
 	{
+		auto okDataTuple = dynamic_pointer_cast<bg::TupleExpr const>(m_currentExpr);
+		solAssert(okDataTuple, "");
+
+		bg::Block::Ref havoc = bg::Block::block();
+		for (auto contract: m_context.currentContract()->annotation().linearizedBaseContracts)
+			for (auto sv: ASTNode::filteredNodes<VariableDeclaration>(contract->subNodes()))
+				havoc->addStmt(bg::Stmt::havoc(m_context.mapDeclName(*sv)));
+		addSideEffect(bg::Stmt::ifelse(okDataTuple->elements()[0], havoc));
+
 		for (auto invar: m_context.currentContractInvars())
 		{
 			for (auto tcc: invar.tccs)
