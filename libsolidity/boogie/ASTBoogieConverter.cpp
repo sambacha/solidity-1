@@ -951,9 +951,7 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	{
 		for (auto contract: m_context.currentContract()->annotation().linearizedBaseContracts)
 			for (auto sv: ASTNode::filteredNodes<VariableDeclaration>(contract->subNodes()))
-				// Havoc all variables of the current contract, and nonprivate variables of base contracts
-				if (contract == m_context.currentContract() || sv->visibility() != Declaration::Visibility::Private)
-					procDecl->getModifies().push_back(m_context.mapDeclName(*sv));
+				procDecl->getModifies().push_back(m_context.mapDeclName(*sv));
 	}
 
 	string funcType = _node.visibility() == Declaration::Visibility::External ? "" : " : " + _node.type()->toString();
