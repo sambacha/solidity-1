@@ -73,7 +73,6 @@ private:
 	ASTBoogieStats m_stats;
 	boogie::Program m_program; // Result of the conversion is a single Boogie program (top-level node)
 
-	std::map<std::string, boogie::Decl::Ref> m_stringLiterals;
 	std::map<std::string, boogie::Decl::Ref> m_addressLiterals;
 
 	boogie::VarDeclRef m_boogieBalance;
@@ -206,7 +205,6 @@ public:
 	boogie::TypeDeclRef toBoogieType(TypePointer tp, ASTNode const* _associatedNode);
 	boogie::TypeDeclRef addressType() const;
 	boogie::TypeDeclRef boolType() const;
-	boogie::TypeDeclRef stringType() const;
 	boogie::TypeDeclRef intType(unsigned size) const;
 	boogie::TypeDeclRef localPtrType();
 	boogie::TypeDeclRef errType() const { return boogie::Decl::elementarytype("__ERROR_UNSUPPORTED_TYPE"); }

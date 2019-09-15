@@ -89,8 +89,6 @@ BoogieContext::BoogieContext(Encoding encoding,
 	m_boogieThis = bg::Decl::variable(ASTBoogieUtils::THIS.boogie, addressType());
 	m_boogieMsgSender = bg::Decl::variable(ASTBoogieUtils::SENDER.boogie, addressType());
 	m_boogieMsgValue = bg::Decl::variable(ASTBoogieUtils::VALUE.boogie, intType(256));
-	// Uninterpreted type for strings
-	addDecl(stringType());
 	// now
 	addDecl(bg::Decl::variable(ASTBoogieUtils::NOW.boogie, intType(256)));
 	// block number
@@ -358,15 +356,9 @@ void BoogieContext::warnForBalances()
 	m_warnForBalances = true;
 }
 
-bg::Expr::Ref BoogieContext::getStringLiteral(string str)
+bg::Expr::Ref BoogieContext::getStringLiteral(string literal)
 {
-	if (m_stringLiterals.find(str) == m_stringLiterals.end())
-	{
-		auto strConst = bg::Decl::constant("str" + toString(nextId()), stringType(), true);
-		m_stringLiterals[str] = strConst;
-		addDecl(strConst);
-	}
-	return m_stringLiterals[str]->getRefTo();
+	return ASTBoogieUtils::stringValue(*this, literal);
 }
 
 bg::Expr::Ref BoogieContext::getAddressLiteral(string addr)
@@ -438,11 +430,6 @@ bg::TypeDeclRef BoogieContext::addressType() const
 bg::TypeDeclRef BoogieContext::boolType() const
 {
 	return bg::Decl::elementarytype("bool");
-}
-
-bg::TypeDeclRef BoogieContext::stringType() const
-{
-	return bg::Decl::customtype("string_t");
 }
 
 bg::TypeDeclRef BoogieContext::intType(unsigned size) const
@@ -551,7 +538,7 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 	case Type::Category::Address:
 		return addressType();
 	case Type::Category::StringLiteral:
-		return stringType();
+		return toBoogieType(TypeProvider::stringStorage(), _associatedNode);
 	case Type::Category::Bool:
 		return boolType();
 	case Type::Category::RationalNumber:
@@ -573,8 +560,6 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 	case Type::Category::Array:
 	{
 		auto arrType = dynamic_cast<ArrayType const*>(tp);
-		if (arrType->isString())
-			return stringType();
 
 		Type const* baseType = arrType->baseType();
 		bg::TypeDeclRef baseTypeBoogie = toBoogieType(baseType, _associatedNode);
@@ -638,8 +623,12 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 	case Type::Category::Mapping:
 	{
 		auto mapType = dynamic_cast<MappingType const*>(tp);
-		return bg::Decl::arraytype(toBoogieType(mapType->keyType(), _associatedNode),
-				toBoogieType(mapType->valueType(), _associatedNode));
+		auto keyType = mapType->keyType();
+		if (tp->dataStoredIn(DataLocation::Storage))
+			keyType = TypeProvider::withLocationIfReference(DataLocation::Storage, keyType);
+		auto valueType = mapType->valueType();
+		return bg::Decl::arraytype(toBoogieType(keyType, _associatedNode),
+				toBoogieType(valueType, _associatedNode));
 	}
 	case Type::Category::FixedBytes:
 	{

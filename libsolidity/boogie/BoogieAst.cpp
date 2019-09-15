@@ -200,6 +200,11 @@ Expr::Ref Expr::neg(Ref e)
 	return std::make_shared<NegExpr const>(e);
 }
 
+Expr::Ref Expr::arrconst(TypeDeclRef arrType, Ref val)
+{
+	return std::make_shared<ArrConstExpr const>(arrType, val);
+}
+
 Expr::Ref Expr::arrsel(Ref b, Ref i)
 {
 	return std::make_shared<ArrSelExpr const>(b, i);
@@ -697,6 +702,11 @@ void QuantExpr::print(std::ostream& os) const
 	}
 	print_seq(os, vars, ", ");
 	os << " :: " << expr << ")";
+}
+
+void ArrConstExpr::print(std::ostream& os) const
+{
+	os << "((as const " << arrType << ") " << val << ")";
 }
 
 void ArrSelExpr::print(std::ostream& os) const

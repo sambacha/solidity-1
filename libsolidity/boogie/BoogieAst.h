@@ -77,6 +77,7 @@ public:
 	static Ref neq(Ref l, Ref r);
 	static Ref not_(Ref e);
 	static Ref neg(Ref e);
+	static Ref arrconst(TypeDeclRef arrType, Ref val);
 	static Ref arrsel(Ref b, Ref i);
 	static Ref arrupd(Ref b, Ref i, Ref v);
 	static Ref dtsel(Ref b, std::string mem, FuncDeclRef constr, DataTypeDeclRef dt);
@@ -235,6 +236,14 @@ protected:
 public:
 	UpdExpr(Ref base, Ref val) : base(base), val(val) {}
 	Ref getBase() const { return base; }
+};
+
+class ArrConstExpr : public Expr {
+	TypeDeclRef arrType;
+	Ref val;
+public:
+	ArrConstExpr(TypeDeclRef arrType, Ref val) : arrType(arrType), val(val) {}
+	void print(std::ostream& os) const override;
 };
 
 class ArrSelExpr : public SelExpr {
