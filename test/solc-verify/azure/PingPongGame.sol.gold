@@ -1,5 +1,3 @@
-test/solc-verify/azure/PingPongGame.sol:9:5: solc-verify warning: Unhandled default value, constructor verification might fail
-test/solc-verify/azure/PingPongGame.sol:64:5: solc-verify warning: Unhandled default value, constructor verification might fail
 Starter::[constructor]: OK
 Starter::StartPingPong: OK
 Starter::Pong: OK
