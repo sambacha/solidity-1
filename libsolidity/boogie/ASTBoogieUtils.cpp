@@ -981,7 +981,7 @@ void ASTBoogieUtils::makeAssignInternal(AssignParam lhs, AssignParam rhs, langut
 		return;
 	}
 
-	if (auto lhsArrayType = dynamic_cast<ArrayType const*>(lhs.type))
+	if (dynamic_cast<ArrayType const*>(lhs.type))
 	{
 		if (dynamic_cast<ArrayType const*>(rhs.type) || dynamic_cast<StringLiteralType const*>(rhs.type))
 			makeArrayAssign(lhs, rhs, assocNode, context, result);
