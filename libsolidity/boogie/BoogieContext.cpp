@@ -522,11 +522,8 @@ std::string BoogieContext::cleanupTypeName(std::string typeName)
 void BoogieContext::ensureArrayDeclarations(boogie::TypeDeclRef valueType)
 {
 	auto valueTypeName = valueType->getName();
-	auto valueTypeNameFind = m_arrConstrs.find(valueTypeName);
-	if (valueTypeNameFind != m_arrConstrs.end()) {
+	if (m_arrConstrs.find(valueTypeName) != m_arrConstrs.end())
 		return;
-	}
-
 	solAssert(m_arrDataTypes.find(valueTypeName) == m_arrDataTypes.end(), "Should have been declared in parallel");
 
 	// Have to declare a new one, clean up the name
