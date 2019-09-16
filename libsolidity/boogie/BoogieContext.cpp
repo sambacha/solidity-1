@@ -632,7 +632,7 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 		auto baseType = arrType->baseType();
 		auto baseTypeDecl = toBoogieType(baseType, _associatedNode);
 		string baseName = baseTypeDecl->getName();
-		
+
 		// Storage arrays are simply the data structures
 		if (arrType->location() == DataLocation::Storage)
 			return getArrayDatatype(baseTypeDecl);
