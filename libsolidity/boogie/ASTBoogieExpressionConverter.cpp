@@ -454,12 +454,39 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	if (m_isLibraryCall && !m_isLibraryCallStatic)
 		allArgs.push_back(m_currentAddress); // Non-static library calls require extra argument
 
-	for (unsigned i = 0; i < _node.arguments().size(); ++i)
+	// Try to determine function type (for conversions and named args)
+	auto funcType = dynamic_cast<FunctionType const*>(_node.expression().annotation().type);
+	if (auto typeType = dynamic_cast<TypeType const*>(_node.expression().annotation().type))
+		if (auto structType = dynamic_cast<StructType const*>(typeType->actualType()))
+			funcType = structType->constructorType();
+
+	// By default assume that arguments are ordered (positional call)
+	vector<ASTPointer<Expression const>> reorderedArgs = _node.arguments();
+	// But reorder for named arguments
+	if (!_node.names().empty())
 	{
-		auto arg = _node.arguments()[i];
+		solAssert(funcType, "Cannot determine function type for named arguments");
+		reorderedArgs.clear();
+		for (auto paramName: funcType->parameterNames())
+		{
+			for (size_t i = 0; i < _node.names().size(); ++i)
+			{
+				if (paramName == *_node.names()[i])
+				{
+					reorderedArgs.push_back(_node.arguments()[i]);
+					break;
+				}
+			}
+		}
+		solAssert(reorderedArgs.size() == _node.arguments().size(), "Mismatch in named arguments");
+	}
+
+	for (unsigned i = 0; i < reorderedArgs.size(); ++i)
+	{
+		auto arg = reorderedArgs[i];
 		arg->accept(*this);
 
-		if (auto funcType = dynamic_cast<FunctionType const*>(_node.expression().annotation().type))
+		if (funcType)
 		{
 			// Check for implicit conversions
 			if (funcType->parameterTypes().size() > i && funcType->parameterTypes()[i] != arg->annotation().type &&
@@ -483,18 +510,17 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 
 		// Do not add argument for call
 		if (funcName != ASTBoogieUtils::CALL.boogie)
-		{
-			allArgs.push_back(m_currentExpr);
 			regularArgs.push_back(m_currentExpr);
-		}
 	}
+
+	allArgs.insert(allArgs.end(), regularArgs.begin(), regularArgs.end());
 
 	// Check for calls to special functions
 
 	// Assert is a separate statement in Boogie (instead of a function call)
 	if (funcName == ASTBoogieUtils::SOLIDITY_ASSERT)
 	{
-		solAssert(_node.arguments().size() == 1, "Assert should have exactly one argument");
+		solAssert(reorderedArgs.size() == 1, "Assert should have exactly one argument");
 		// Parameter of assert is the first (and only) normal argument
 		addSideEffect(bg::Stmt::assert_(regularArgs[0], ASTBoogieUtils::createAttrs(_node.location(), "Assertion might not hold.", *m_context.currentScanner())));
 		return false;
@@ -503,7 +529,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	// Require is mapped to assume statement in Boogie (instead of a function call)
 	if (funcName == ASTBoogieUtils::SOLIDITY_REQUIRE)
 	{
-		solAssert(1 <= _node.arguments().size() && _node.arguments().size() <=2, "Require should have one or two argument(s)");
+		solAssert(1 <= reorderedArgs.size() && reorderedArgs.size() <=2, "Require should have one or two argument(s)");
 		// Parameter of assume is the first normal argument (second is optional message omitted in Boogie)
 		addSideEffect(bg::Stmt::assume(regularArgs[0]));
 		return false;
@@ -513,7 +539,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	// Its argument is an optional message, omitted in Boogie
 	if (funcName == ASTBoogieUtils::SOLIDITY_REVERT)
 	{
-		solAssert(_node.arguments().size() <= 1, "Revert should have at most one argument");
+		solAssert(reorderedArgs.size() <= 1, "Revert should have at most one argument");
 		addSideEffect(bg::Stmt::assume(bg::Expr::lit(false)));
 		return false;
 	}
