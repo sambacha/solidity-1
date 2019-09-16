@@ -512,6 +512,55 @@ bg::TypeDeclRef BoogieContext::getStructType(StructDefinition const* structDef, 
 	return errType();
 }
 
+std::string BoogieContext::cleanupTypeName(std::string typeName)
+{
+	boost::replace_all(typeName, "[", "_k_");
+	boost::replace_all(typeName, "]", "_v_");
+	return typeName;
+}
+
+void BoogieContext::ensureArrayDeclarations(boogie::TypeDeclRef valueType)
+{
+	auto valueTypeName = valueType->getName();
+	auto valueTypeNameFind = m_arrConstrs.find(valueTypeName);
+	if (valueTypeNameFind != m_arrConstrs.end()) {
+		return;
+	}
+
+	solAssert(m_arrDataTypes.find(valueTypeName) == m_arrDataTypes.end(), "Should have been declared in parallel");
+
+	// Have to declare a new one, clean up the name
+	string valueTypeNameNoSpec = cleanupTypeName(valueTypeName);
+
+	// Datatype: [int]T + length
+	vector<bg::Binding> members = {
+			{ bg::Expr::id("arr"), bg::Decl::arraytype(intType(256), valueType) },
+			{ bg::Expr::id("length"), intType(256) }
+	};
+	boogie::DataTypeDeclRef datatypeDecl =  bg::Decl::datatype(valueTypeNameNoSpec + "_arr_type", members);
+	m_arrDataTypes[valueTypeName] = datatypeDecl;
+	addDecl(datatypeDecl);
+
+	// Constructor for
+	string name = valueTypeNameNoSpec + "_arr#constr";
+	boogie::FuncDeclRef arrayConstructor = bg::Decl::function(name, members, datatypeDecl, nullptr,
+			{ bg::Attr::attr("constructor") });
+	m_arrConstrs[valueTypeName] = arrayConstructor;
+	addDecl(arrayConstructor);
+}
+
+boogie::FuncDeclRef BoogieContext::getArrayConstructor(boogie::TypeDeclRef valueType)
+{
+	ensureArrayDeclarations(valueType);
+	return m_arrConstrs[valueType->getName()];
+}
+
+boogie::DataTypeDeclRef BoogieContext::getArrayDatatype(boogie::TypeDeclRef valueType)
+{
+	ensureArrayDeclarations(valueType);
+	return m_arrDataTypes[valueType->getName()];
+}
+
 bg::FuncDeclRef BoogieContext::defaultArray(bg::TypeDeclRef keyType, bg::TypeDeclRef valueType, string valueSmt)
 {
 	string funcName = "default_" + keyType->getName() + "_" + valueType->getName();
@@ -527,6 +576,26 @@ bg::FuncDeclRef BoogieContext::defaultArray(bg::TypeDeclRef keyType, bg::TypeDec
 		m_defaultArrays[funcName] = funcDecl;
 	}
 	return m_defaultArrays[funcName];
+}
+
+boogie::Expr::Ref BoogieContext::getMemArray(boogie::Expr::Ref arrPtrExpr, boogie::TypeDeclRef type)
+{
+
+	return boogie::Expr::arrsel(m_memArrs[type->getName()]->getRefTo(), arrPtrExpr);
+}
+
+boogie::Expr::Ref BoogieContext::getArrayLength(boogie::Expr::Ref arrayExpr, boogie::TypeDeclRef type)
+{
+	auto arrayConstructor = getArrayConstructor(type);
+	auto arrayDataType = getArrayDatatype(type);
+	return boogie::Expr::dtsel(arrayExpr, "length", arrayConstructor, arrayDataType);
+}
+
+boogie::Expr::Ref BoogieContext::getInnerArray(boogie::Expr::Ref arrayExpr, boogie::TypeDeclRef type)
+{
+	auto arrayConstructor = getArrayConstructor(type);
+	auto arrayDataType = getArrayDatatype(type);
+	return boogie::Expr::dtsel(arrayExpr, "arr", arrayConstructor, arrayDataType);
 }
 
 bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _associatedNode)
@@ -560,38 +629,13 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 	case Type::Category::Array:
 	{
 		auto arrType = dynamic_cast<ArrayType const*>(tp);
-
-		Type const* baseType = arrType->baseType();
-		bg::TypeDeclRef baseTypeBoogie = toBoogieType(baseType, _associatedNode);
-
-		string baseName = baseTypeBoogie->getName();
-		string baseNameNoSpec = baseName;
-		boost::replace_all(baseNameNoSpec, "[", "_k_");
-		boost::replace_all(baseNameNoSpec, "]", "_v_");
-
-		// Declare datatype and constructor if needed
-		if (m_arrDataTypes.find(baseName) == m_arrDataTypes.end())
-		{
-			// Datatype: [int]T + length
-			vector<bg::Binding> members = {
-					{bg::Expr::id("arr"), bg::Decl::arraytype(intType(256), baseTypeBoogie)},
-				{bg::Expr::id("length"), intType(256)}};
-			m_arrDataTypes[baseName] = bg::Decl::datatype(baseNameNoSpec + "_arr_type", members);
-
-			addDecl(m_arrDataTypes[baseName]);
-
-			// Constructor for datatype
-			vector<bg::Attr::Ref> attrs;
-			attrs.push_back(bg::Attr::attr("constructor"));
-			string name = baseNameNoSpec + "_arr#constr";
-			m_arrConstrs[baseName] = bg::Decl::function(name, members,
-					m_arrDataTypes[baseName], nullptr, attrs);
-			addDecl(m_arrConstrs[baseName]);
-		}
-
+		auto baseType = arrType->baseType();
+		auto baseTypeDecl = toBoogieType(baseType, _associatedNode);
+		string baseName = baseTypeDecl->getName();
+		
 		// Storage arrays are simply the data structures
 		if (arrType->location() == DataLocation::Storage)
-			return m_arrDataTypes[baseName];
+			return getArrayDatatype(baseTypeDecl);
 		// Memory arrays have an extra layer of indirection
 		// TODO: for precision, calldata arrays could be translated to different
 		// mappings than memory
@@ -600,14 +644,14 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 			if (m_memArrPtrTypes.find(baseName) == m_memArrPtrTypes.end())
 			{
 				// Pointer type
+				std::string baseNameNoSpec = cleanupTypeName(baseName);
 				m_memArrPtrTypes[baseName] = bg::Decl::customtype(baseNameNoSpec + "_arr_ptr");
 				addDecl(m_memArrPtrTypes[baseName]);
 
 				// The actual storage
+				auto arrayDataType = getArrayDatatype(baseTypeDecl);
 				m_memArrs[baseName] = bg::Decl::variable("mem_arr_" + baseNameNoSpec,
-						bg::Decl::arraytype(
-								m_memArrPtrTypes[baseName],
-								m_arrDataTypes[baseName]));
+						bg::Decl::arraytype(m_memArrPtrTypes[baseName], arrayDataType));
 				addDecl(m_memArrs[baseName]);
 			}
 			return m_memArrPtrTypes[baseName];

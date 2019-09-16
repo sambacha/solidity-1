@@ -1,6 +1,4 @@
-test/solc-verify/basic/SHA256.sol:12:3: solc-verify warning: Errors while translating function body, will be skipped
 SHA256::hashTwice: OK
+SHA256::[fallback]: OK
 SHA256::[implicit_constructor]: OK
-SHA256::[fallback]: SKIPPED
-Some functions were skipped. Use --verbose to see details.
 No errors found.

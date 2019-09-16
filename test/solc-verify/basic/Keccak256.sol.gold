@@ -1,6 +1,4 @@
-test/solc-verify/basic/Keccak256.sol:12:3: solc-verify warning: Errors while translating function body, will be skipped
 Keccak256::hashTwice: OK
+Keccak256::[fallback]: OK
 Keccak256::[implicit_constructor]: OK
-Keccak256::[fallback]: SKIPPED
-Some functions were skipped. Use --verbose to see details.
 No errors found.
