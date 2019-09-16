@@ -891,8 +891,6 @@ ASTBoogieUtils::Value ASTBoogieUtils::defaultValueInternal(TypePointer type, Boo
 	case Type::Category::Array:
 	{
 		ArrayType const* arrayType = dynamic_cast<ArrayType const*>(type);
-		if (arrayType->isString())
-			return {"", nullptr};
 		if (arrayType->dataStoredIn(DataLocation::Storage))
 		{
 			auto keyType = context.intType(256);
