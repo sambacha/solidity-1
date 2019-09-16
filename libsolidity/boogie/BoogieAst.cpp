@@ -8,15 +8,29 @@
 #include <set>
 #include <cassert>
 #include <boost/algorithm/string/predicate.hpp>
+#include <liblangutil/Exceptions.h>
 
 namespace boogie {
 
 unsigned Decl::uniqueId = 0;
 
-std::string Expr::tostring() const
+void Expr::printSMT2(std::ostream& out) const
+{
+	// By default print Boogie, override if differences
+	print(out);
+}
+
+std::string Expr::toString() const
 {
 	std::stringstream ss;
 	print(ss);
+	return ss.str();
+}
+
+std::string Expr::toSMT2() const
+{
+	std::stringstream ss;
+	printSMT2(ss);
 	return ss.str();
 }
 
@@ -671,6 +685,11 @@ void IntLit::print(std::ostream& os) const
 void BvLit::print(std::ostream& os) const
 {
 	os << val << "bv" << width;
+}
+
+void BvLit::printSMT2(std::ostream& os) const
+{
+	os << "(_ bv" << val << " " << width << ")";
 }
 
 void FPLit::print(std::ostream& os) const

@@ -36,7 +36,12 @@ public:
 
 	virtual ~Expr() {}
 	virtual void print(std::ostream& os) const = 0;
-	std::string tostring() const;
+	virtual void printSMT2(std::ostream& os) const;
+
+	std::string toString() const;
+	std::string toSMT2() const;
+
+	virtual bool isError() const { return false; }
 
 	/** Special expression to denote errors */
 	static Ref error();
@@ -86,9 +91,6 @@ public:
 	static Ref tuple(std::vector<Ref> const& e);
 
 	static Ref selectToUpdate(Ref sel, Ref value);
-
-	virtual
-	bool isError() const { return false; }
 };
 
 struct Binding
@@ -173,6 +175,7 @@ public:
 	}
 	std::string getVal() const { return val; }
 	void print(std::ostream& os) const override;
+	void printSMT2(std::ostream& os) const override;
 };
 
 class FPLit : public Expr {

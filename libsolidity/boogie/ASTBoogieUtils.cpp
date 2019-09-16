@@ -837,7 +837,7 @@ ASTBoogieUtils::Value ASTBoogieUtils::defaultValueInternal(TypePointer type, Boo
 	{
 		// 0
 		auto lit = context.intLit(0, ASTBoogieUtils::getBits(type));
-		return {lit->tostring(), lit};
+		return {lit->toSMT2(), lit};
 	}
 	case Type::Category::Address:
 	case Type::Category::Contract:
@@ -845,19 +845,19 @@ ASTBoogieUtils::Value ASTBoogieUtils::defaultValueInternal(TypePointer type, Boo
 	{
 		// 0
 		auto lit = context.intLit(0, 256);
-		return {lit->tostring(), lit};
+		return {lit->toSMT2(), lit};
 	}
 	case Type::Category::Bool:
 	{
 		// False
 		auto lit = bg::Expr::lit(false);
-		return {lit->tostring(), lit};
+		return {lit->toSMT2(), lit};
 	}
 	case Type::Category::FixedBytes:
 	{
 		auto fbType = dynamic_cast<FixedBytesType const*>(type);
 		auto lit = context.intLit(0, fbType->numBytes() * 8);
-		return {lit->tostring(), lit};
+		return {lit->toSMT2(), lit};
 	}
 	case Type::Category::Struct:
 	{
@@ -910,7 +910,7 @@ ASTBoogieUtils::Value ASTBoogieUtils::defaultValueInternal(TypePointer type, Boo
 			args.push_back(arrLength);
 			auto bgExpr = bg::Expr::fn(arrConstr->getName(), args);
 			// SMT expression is constructed afterwards (not to be included in the const array function)
-			smtExpr = "(|" + arrConstr->getName() + "| " + smtExpr + " " + arrLength->tostring() + ")";
+			smtExpr = "(|" + arrConstr->getName() + "| " + smtExpr + " " + arrLength->toString() + ")";
 			return {smtExpr, bgExpr};
 		}
 		break;
