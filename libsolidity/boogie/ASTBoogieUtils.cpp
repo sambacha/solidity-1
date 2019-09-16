@@ -918,7 +918,10 @@ ASTBoogieUtils::Value ASTBoogieUtils::defaultValueInternal(TypePointer type, Boo
 	case Type::Category::Mapping:
 	{
 		MappingType const* mappingType = dynamic_cast<MappingType const*>(type);
-		auto keyType = context.toBoogieType(mappingType->keyType(), nullptr);
+		auto mappingTypeKey = mappingType->keyType();
+		if (mappingType->dataStoredIn(DataLocation::Storage))
+			mappingTypeKey = TypeProvider::withLocationIfReference(DataLocation::Storage, mappingTypeKey);
+		auto keyType = context.toBoogieType(mappingTypeKey, nullptr);
 		auto valType = context.toBoogieType(mappingType->valueType(), nullptr);
 		auto mapType = context.toBoogieType(type, nullptr);
 
