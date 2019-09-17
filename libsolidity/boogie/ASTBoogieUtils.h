@@ -199,8 +199,9 @@ public:
 	boogie::Expr::Ref defaultValue(TypePointer _type, BoogieContext& context);
 
 	/**
-	 * @param const Context
-	 * @return The value corresponding to the string literal
+	 * @param context Context
+	 * @param literal String literal
+	 * @returns The value corresponding to the string literal
 	 */
 	static
 	boogie::Expr::Ref stringValue(BoogieContext& context, std::string literal);

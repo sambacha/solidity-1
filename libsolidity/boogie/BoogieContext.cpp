@@ -577,7 +577,6 @@ bg::FuncDeclRef BoogieContext::defaultArray(bg::TypeDeclRef keyType, bg::TypeDec
 
 boogie::Expr::Ref BoogieContext::getMemArray(boogie::Expr::Ref arrPtrExpr, boogie::TypeDeclRef type)
 {
-
 	return boogie::Expr::arrsel(m_memArrs[type->getName()]->getRefTo(), arrPtrExpr);
 }
 
