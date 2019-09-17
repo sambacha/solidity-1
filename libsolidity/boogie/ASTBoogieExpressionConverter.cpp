@@ -934,19 +934,21 @@ void ASTBoogieExpressionConverter::functionCallPushPop(MemberAccess const* memAc
 		m_newDecls.insert(m_newDecls.end(), res.newDecls.begin(), res.newDecls.end());
 		for (auto stmt: res.newStmts)
 			addSideEffect(stmt);
+		addSideEffect(bg::Stmt::assume(ASTBoogieUtils::getTCCforExpr(len, TypeProvider::integer(256, IntegerType::Modifier::Unsigned))));
 		lenUpd = ASTBoogieUtils::encodeArithBinaryOp(m_context, &_node, Token::Add, len, m_context.intLit(1, 256), 256, false);
 	}
 	else
 	{
 		solAssert(_node.arguments().size() == 0, "Pop must take no arguments");
+		addSideEffect(bg::Stmt::assume(ASTBoogieUtils::getTCCforExpr(len, TypeProvider::integer(256, IntegerType::Modifier::Unsigned))));
 		lenUpd = ASTBoogieUtils::encodeArithBinaryOp(m_context, &_node, Token::Sub, len, m_context.intLit(1, 256), 256, false);
 	}
-	addSideEffect(bg::Stmt::assign(len, lenUpd.expr));
 	if (m_context.encoding() == BoogieContext::Encoding::MOD)
 	{
 		addSideEffect(bg::Stmt::comment("Implicit assumption that length cannot overflow"));
 		addSideEffect(bg::Stmt::assume(lenUpd.cc));
 	}
+	addSideEffect(bg::Stmt::assign(len, lenUpd.expr));
 	if (memAccExpr->memberName() == "pop")
 	{
 		// Reset the removed element (updating the sum)
