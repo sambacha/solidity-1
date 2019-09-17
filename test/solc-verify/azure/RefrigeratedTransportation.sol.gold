@@ -1,4 +1,3 @@
-test/solc-verify/azure/RefrigeratedTransportation.sol:25:5: solc-verify warning: Unhandled default value, constructor verification might fail
 RefrigeratedTransportation::[constructor]: OK
 RefrigeratedTransportation::IngestTelemetry: OK
 RefrigeratedTransportation::TransferResponsibility: OK

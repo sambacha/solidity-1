@@ -198,14 +198,27 @@ public:
 	static
 	boogie::Expr::Ref defaultValue(TypePointer _type, BoogieContext& context);
 
+	/**
+	 * @param context Context
+	 * @param literal String literal
+	 * @returns The value corresponding to the string literal
+	 */
+	static
+	boogie::Expr::Ref stringValue(BoogieContext& context, std::string literal);
+
 private:
-	/** Helper structure for getting default value of a type, including complex types such as arrays and structs. */
-	struct DefVal {
+
+	/**
+	 * Helper structure for a value of a type, including complex types such as arrays
+	 * and structs.
+	 */
+	struct Value {
 		std::string smt; // Default value as SMT expression (needed for arrays)
 		boogie::Expr::Ref bgExpr; // Default value as Boogie expression
 	};
+
 	static
-	DefVal defaultValueInternal(TypePointer _type, BoogieContext& context);
+	Value defaultValueInternal(TypePointer _type, BoogieContext& context);
 
 public:
 	/** Allocates a new memory struct. */

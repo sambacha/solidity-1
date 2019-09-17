@@ -1,6 +1,4 @@
-test/solc-verify/basic/RIPMD160.sol:12:3: solc-verify warning: Errors while translating function body, will be skipped
 RIPMD160::hashTwice: OK
+RIPMD160::[fallback]: OK
 RIPMD160::[implicit_constructor]: OK
-RIPMD160::[fallback]: SKIPPED
-Some functions were skipped. Use --verbose to see details.
 No errors found.

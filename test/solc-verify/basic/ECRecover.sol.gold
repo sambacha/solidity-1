@@ -1,6 +1,4 @@
-test/solc-verify/basic/ECRecover.sol:12:3: solc-verify warning: Errors while translating function body, will be skipped
 ECRecover::verifyTwice: OK
+ECRecover::[fallback]: OK
 ECRecover::[implicit_constructor]: OK
-ECRecover::[fallback]: SKIPPED
-Some functions were skipped. Use --verbose to see details.
 No errors found.

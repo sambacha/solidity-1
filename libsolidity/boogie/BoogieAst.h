@@ -36,7 +36,12 @@ public:
 
 	virtual ~Expr() {}
 	virtual void print(std::ostream& os) const = 0;
-	std::string tostring() const;
+	virtual void printSMT2(std::ostream& os) const;
+
+	std::string toString() const;
+	std::string toSMT2() const;
+
+	virtual bool isError() const { return false; }
 
 	/** Special expression to denote errors */
 	static Ref error();
@@ -77,6 +82,7 @@ public:
 	static Ref neq(Ref l, Ref r);
 	static Ref not_(Ref e);
 	static Ref neg(Ref e);
+	static Ref arrconst(TypeDeclRef arrType, Ref val);
 	static Ref arrsel(Ref b, Ref i);
 	static Ref arrupd(Ref b, Ref i, Ref v);
 	static Ref dtsel(Ref b, std::string mem, FuncDeclRef constr, DataTypeDeclRef dt);
@@ -85,9 +91,6 @@ public:
 	static Ref tuple(std::vector<Ref> const& e);
 
 	static Ref selectToUpdate(Ref sel, Ref value);
-
-	virtual
-	bool isError() const { return false; }
 };
 
 struct Binding
@@ -172,6 +175,7 @@ public:
 	}
 	std::string getVal() const { return val; }
 	void print(std::ostream& os) const override;
+	void printSMT2(std::ostream& os) const override;
 };
 
 class FPLit : public Expr {
@@ -235,6 +239,14 @@ protected:
 public:
 	UpdExpr(Ref base, Ref val) : base(base), val(val) {}
 	Ref getBase() const { return base; }
+};
+
+class ArrConstExpr : public Expr {
+	TypeDeclRef arrType;
+	Ref val;
+public:
+	ArrConstExpr(TypeDeclRef arrType, Ref val) : arrType(arrType), val(val) {}
+	void print(std::ostream& os) const override;
 };
 
 class ArrSelExpr : public SelExpr {

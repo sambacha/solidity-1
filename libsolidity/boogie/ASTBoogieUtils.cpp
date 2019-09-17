@@ -800,7 +800,36 @@ bg::Expr::Ref ASTBoogieUtils::defaultValue(TypePointer type, BoogieContext& cont
 	return defaultValueInternal(type, context).bgExpr;
 }
 
-ASTBoogieUtils::DefVal ASTBoogieUtils::defaultValueInternal(TypePointer type, BoogieContext& context)
+bg::Expr::Ref ASTBoogieUtils::stringValue(BoogieContext& context, std::string literal)
+{
+	auto keyType = context.intType(256);
+	auto valType = context.intType(8);
+	auto baseDefVal = defaultValueInternal(TypeProvider::byte(), context);
+
+	string smtType = "(Array " + keyType->getSmtType() + " " + valType->getSmtType() + ")";
+	string smtExpr = "((as const " + smtType + ") " + baseDefVal.smt + ")";
+
+	bg::FuncDeclRef arrConstr = context.getArrayConstructor(valType);
+	auto arrLength = context.intLit(literal.size(), 256);
+
+	bg::FuncDeclRef arrayValue0 = context.defaultArray(keyType, valType, smtExpr);
+	std::string arrayValue0Name = arrayValue0->getName();
+
+	auto innerArr = bg::Expr::fn(arrayValue0Name, vector<bg::Expr::Ref>());
+	for (size_t i = 0; i < literal.size(); ++ i)
+	{
+		auto iExpr = context.intLit(i, 256);
+		auto cExpr = context.intLit(literal[i], 8);
+		innerArr = bg::Expr::arrupd(innerArr, iExpr, cExpr);
+	}
+
+	// Construct the array with array setup
+	auto bgExpr = bg::Expr::fn(arrConstr->getName(), {innerArr, arrLength});
+
+	return bgExpr;
+}
+
+ASTBoogieUtils::Value ASTBoogieUtils::defaultValueInternal(TypePointer type, BoogieContext& context)
 {
 	switch (type->category()) // TODO: bitvectors
 	{
@@ -808,7 +837,7 @@ ASTBoogieUtils::DefVal ASTBoogieUtils::defaultValueInternal(TypePointer type, Bo
 	{
 		// 0
 		auto lit = context.intLit(0, ASTBoogieUtils::getBits(type));
-		return {lit->tostring(), lit};
+		return {lit->toSMT2(), lit};
 	}
 	case Type::Category::Address:
 	case Type::Category::Contract:
@@ -816,19 +845,19 @@ ASTBoogieUtils::DefVal ASTBoogieUtils::defaultValueInternal(TypePointer type, Bo
 	{
 		// 0
 		auto lit = context.intLit(0, 256);
-		return {lit->tostring(), lit};
+		return {lit->toSMT2(), lit};
 	}
 	case Type::Category::Bool:
 	{
 		// False
 		auto lit = bg::Expr::lit(false);
-		return {lit->tostring(), lit};
+		return {lit->toSMT2(), lit};
 	}
 	case Type::Category::FixedBytes:
 	{
 		auto fbType = dynamic_cast<FixedBytesType const*>(type);
 		auto lit = context.intLit(0, fbType->numBytes() * 8);
-		return {lit->tostring(), lit};
+		return {lit->toSMT2(), lit};
 	}
 	case Type::Category::Struct:
 	{
@@ -842,7 +871,7 @@ ASTBoogieUtils::DefVal ASTBoogieUtils::defaultValueInternal(TypePointer type, Bo
 			vector<string> memberDefValSmts;
 			for (auto& member: members)
 			{
-				DefVal memberDefaultValue = defaultValueInternal(member.type, context);
+				Value memberDefaultValue = defaultValueInternal(member.type, context);
 				if (memberDefaultValue.bgExpr == nullptr)
 					return {"", nullptr};
 				memberDefValExprs.push_back(memberDefaultValue.bgExpr);
@@ -862,8 +891,6 @@ ASTBoogieUtils::DefVal ASTBoogieUtils::defaultValueInternal(TypePointer type, Bo
 	case Type::Category::Array:
 	{
 		ArrayType const* arrayType = dynamic_cast<ArrayType const*>(type);
-		if (arrayType->isString())
-			return {"", nullptr};
 		if (arrayType->dataStoredIn(DataLocation::Storage))
 		{
 			auto keyType = context.intType(256);
@@ -881,7 +908,7 @@ ASTBoogieUtils::DefVal ASTBoogieUtils::defaultValueInternal(TypePointer type, Bo
 			args.push_back(arrLength);
 			auto bgExpr = bg::Expr::fn(arrConstr->getName(), args);
 			// SMT expression is constructed afterwards (not to be included in the const array function)
-			smtExpr = "(|" + arrConstr->getName() + "| " + smtExpr + " " + arrLength->tostring() + ")";
+			smtExpr = "(|" + arrConstr->getName() + "| " + smtExpr + " " + arrLength->toString() + ")";
 			return {smtExpr, bgExpr};
 		}
 		break;
@@ -954,14 +981,9 @@ void ASTBoogieUtils::makeAssignInternal(AssignParam lhs, AssignParam rhs, langut
 		return;
 	}
 
-	if (auto lhsArrayType = dynamic_cast<ArrayType const*>(lhs.type))
+	if (dynamic_cast<ArrayType const*>(lhs.type))
 	{
-		if (lhsArrayType->isString())
-		{
-			makeBasicAssign(lhs, rhs, op, assocNode, context, result);
-			return;
-		}
-		if (dynamic_cast<ArrayType const*>(rhs.type))
+		if (dynamic_cast<ArrayType const*>(rhs.type) || dynamic_cast<StringLiteralType const*>(rhs.type))
 			makeArrayAssign(lhs, rhs, assocNode, context, result);
 		else
 			context.reportError(assocNode, "LHS is array but RHS is not");
@@ -1133,18 +1155,20 @@ void ASTBoogieUtils::makeStructAssign(AssignParam lhs, AssignParam rhs, ASTNode 
 
 void ASTBoogieUtils::makeArrayAssign(AssignParam lhs, AssignParam rhs, ASTNode const* assocNode, BoogieContext& context, AssignResult& result)
 {
+	// We can have arrays on LHS but RHS can be a string literal
 	auto lhsType = dynamic_cast<ArrayType const*>(lhs.type);
-	auto rhsType = dynamic_cast<ArrayType const*>(rhs.type);
+	auto rhsTypeArray = dynamic_cast<ArrayType const*>(rhs.type);
+	auto rhsTypeStringLiteral = dynamic_cast<StringLiteralType const*>(rhs.type);
 	solAssert(lhsType, "Expected array type for LHS");
-	solAssert(rhsType, "Expected array type for RHS");
-	if (lhsType->isString())
+	solAssert(rhsTypeArray || rhsTypeStringLiteral, "Expected array type for RHS");
+
+	DataLocation lhsLocation = lhsType->location();
+	DataLocation rhsLocation = rhsTypeArray ? rhsTypeArray->location() : DataLocation::Storage;
+
+	// Check if locations are compatible
+	if (lhsLocation != rhsLocation)
 	{
-		makeBasicAssign(lhs, rhs, Token::Assign, assocNode, context, result);
-		return;
-	}
-	if (lhsType->location() != rhsType->location())
-	{
-		if (lhsType->location() == DataLocation::Memory)
+		if (lhsLocation == DataLocation::Memory)
 		{
 			// Create new
 			auto varDecl = newArray(context.toBoogieType(lhsType, assocNode), context);
@@ -1152,9 +1176,10 @@ void ASTBoogieUtils::makeArrayAssign(AssignParam lhs, AssignParam rhs, ASTNode c
 			result.newStmts.push_back(bg::Stmt::assign(lhs.bgExpr, varDecl->getRefTo()));
 			lhs.bgExpr = context.getMemArray(lhs.bgExpr, context.toBoogieType(lhsType->baseType(), assocNode));
 		}
-		if (rhsType->location() == DataLocation::Memory || rhsType->location() == DataLocation::CallData)
-			rhs.bgExpr = context.getMemArray(rhs.bgExpr, context.toBoogieType(rhsType->baseType(), assocNode));
+		if (rhsLocation == DataLocation::Memory || rhsLocation == DataLocation::CallData)
+			rhs.bgExpr = context.getMemArray(rhs.bgExpr, context.toBoogieType(rhsTypeArray->baseType(), assocNode));
 	}
+
 	makeBasicAssign(lhs, rhs, Token::Assign, assocNode, context, result);
 }
 
@@ -1281,34 +1306,26 @@ void ASTBoogieUtils::deepCopyStruct(StructDefinition const* structDef,
 		else if (memberTypeCat == Type::Category::Array)
 		{
 			auto arrType = dynamic_cast<ArrayType const*>(memberType);
-			if (arrType->isString())
-				makeBasicAssign(
-						AssignParam{lhsSel, arrType, nullptr},
-						AssignParam{rhsSel, arrType, nullptr},
-						Token::Assign, assocNode, context, result);
-			else
+			if (lhsLoc == DataLocation::Memory)
 			{
-				if (lhsLoc == DataLocation::Memory)
-				{
-					// Create new
-					auto varDecl = ASTBoogieUtils::newArray(
-							context.toBoogieType(TypeProvider::withLocation(arrType, DataLocation::Memory, false), assocNode),
-							context);
-					result.newDecls.push_back(varDecl);
-					// Update member to point to new
-					makeBasicAssign(
-							AssignParam{lhsSel, memberType, nullptr},
-							AssignParam{varDecl->getRefTo(), memberType, nullptr},
-							Token::Assign, assocNode, context, result);
-				}
-				if (rhsLoc == DataLocation::Memory || rhsLoc == DataLocation::CallData)
-					rhsSel = context.getMemArray(rhsSel, context.toBoogieType(arrType->baseType(), assocNode));
-
+				// Create new
+				auto varDecl = ASTBoogieUtils::newArray(
+						context.toBoogieType(TypeProvider::withLocation(arrType, DataLocation::Memory, false), assocNode),
+						context);
+				result.newDecls.push_back(varDecl);
+				// Update member to point to new
 				makeBasicAssign(
 						AssignParam{lhsSel, memberType, nullptr},
-						AssignParam{rhsSel, memberType, nullptr},
+						AssignParam{varDecl->getRefTo(), memberType, nullptr},
 						Token::Assign, assocNode, context, result);
 			}
+			if (rhsLoc == DataLocation::Memory || rhsLoc == DataLocation::CallData)
+				rhsSel = context.getMemArray(rhsSel, context.toBoogieType(arrType->baseType(), assocNode));
+
+			makeBasicAssign(
+					AssignParam{lhsSel, memberType, nullptr},
+					AssignParam{rhsSel, memberType, nullptr},
+					Token::Assign, assocNode, context, result);
 		}
 		// For other types make the copy by updating the LHS with RHS
 		else

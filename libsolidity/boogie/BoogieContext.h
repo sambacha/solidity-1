@@ -73,7 +73,6 @@ private:
 	ASTBoogieStats m_stats;
 	boogie::Program m_program; // Result of the conversion is a single Boogie program (top-level node)
 
-	std::map<std::string, boogie::Decl::Ref> m_stringLiterals;
 	std::map<std::string, boogie::Decl::Ref> m_addressLiterals;
 
 	boogie::VarDeclRef m_boogieBalance;
@@ -206,7 +205,6 @@ public:
 	boogie::TypeDeclRef toBoogieType(TypePointer tp, ASTNode const* _associatedNode);
 	boogie::TypeDeclRef addressType() const;
 	boogie::TypeDeclRef boolType() const;
-	boogie::TypeDeclRef stringType() const;
 	boogie::TypeDeclRef intType(unsigned size) const;
 	boogie::TypeDeclRef localPtrType();
 	boogie::TypeDeclRef errType() const { return boogie::Decl::elementarytype("__ERROR_UNSUPPORTED_TYPE"); }
@@ -214,10 +212,20 @@ public:
 	boogie::FuncDeclRef getStructConstructor(StructDefinition const* structDef);
 	boogie::TypeDeclRef getStructType(StructDefinition const* structDef, DataLocation loc);
 
-	boogie::FuncDeclRef getArrayConstructor(boogie::TypeDeclRef type) { return m_arrConstrs[type->getName()]; }
-	boogie::Expr::Ref getMemArray(boogie::Expr::Ref arrPtrExpr, boogie::TypeDeclRef type) { return boogie::Expr::arrsel(m_memArrs[type->getName()]->getRefTo(), arrPtrExpr); }
-	boogie::Expr::Ref getArrayLength(boogie::Expr::Ref arrayExpr, boogie::TypeDeclRef type) { return boogie::Expr::dtsel(arrayExpr, "length", m_arrConstrs[type->getName()], m_arrDataTypes[type->getName()]); }
-	boogie::Expr::Ref getInnerArray(boogie::Expr::Ref arrayExpr, boogie::TypeDeclRef type) { return boogie::Expr::dtsel(arrayExpr, "arr", m_arrConstrs[type->getName()], m_arrDataTypes[type->getName()]); }
+	/**
+	 * Ensures that the declarations of constructor and default values are declared for arrays
+	 * of the type valueType[].
+	 */
+	void ensureArrayDeclarations(boogie::TypeDeclRef valueType);
+	boogie::FuncDeclRef getArrayConstructor(boogie::TypeDeclRef valueType);
+	boogie::DataTypeDeclRef getArrayDatatype(boogie::TypeDeclRef valueType);
+
+	/** Clean a type name so that it is a valid ID */
+	static std::string cleanupTypeName(std::string typeName);
+
+	boogie::Expr::Ref getMemArray(boogie::Expr::Ref arrPtrExpr, boogie::TypeDeclRef type);
+	boogie::Expr::Ref getArrayLength(boogie::Expr::Ref arrayExpr, boogie::TypeDeclRef type);
+	boogie::Expr::Ref getInnerArray(boogie::Expr::Ref arrayExpr, boogie::TypeDeclRef type);
 
 	boogie::FuncDeclRef defaultArray(boogie::TypeDeclRef keyType, boogie::TypeDeclRef valueType, std::string valueSmt);
 
