@@ -1202,7 +1202,13 @@ bool ASTBoogieExpressionConverter::visit(IndexAccess const& _node)
 	bg::Expr::Ref baseExpr = m_currentExpr;
 
 	Expression const* index = _node.indexExpression();
-	index->accept(*this); // TODO: can this be a nullptr?
+	if (!index)
+	{
+		m_context.reportError(&_node, "Unsupported index expression (empty index)");
+		m_currentExpr = bg::Expr::error();
+		return false;
+	}
+	index->accept(*this);
 	bg::Expr::Ref indexExpr = m_currentExpr;
 
 	TypePointer baseType = base.annotation().type;

@@ -955,6 +955,8 @@ bg::Decl::Ref ASTBoogieUtils::newArray(bg::TypeDeclRef type, BoogieContext& cont
 ASTBoogieUtils::AssignResult ASTBoogieUtils::makeAssign(AssignParam lhs, AssignParam rhs, langutil::Token op,
 		ASTNode const* assocNode, BoogieContext& context)
 {
+	if (lhs.bgExpr->isError() || rhs.bgExpr->isError())
+		return AssignResult{};
 	AssignResult res;
 	makeAssignInternal(lhs, rhs, op, assocNode, context, res);
 	return res;
