@@ -21,16 +21,7 @@ bool ASTBoogieStats::hasDocTag(DocumentedAnnotation const& _annot, std::string _
 
 bool ASTBoogieStats::visit(ContractDefinition const& _node)
 {
-	for (auto cn: _node.annotation().linearizedBaseContracts)
-	{
-		for (auto structDef: cn->definedStructs())
-		{
-			if (m_contractsForStructs.find(structDef) == m_contractsForStructs.end())
-				m_contractsForStructs[structDef] = {};
-
-			m_contractsForStructs[structDef].push_back(&_node);
-		}
-	}
+	m_allContracts.push_back(&_node);
 	return true;
 }
 

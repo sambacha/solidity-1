@@ -438,7 +438,9 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	vector<bg::Expr::Ref> regularArgs;
 
 	// First, collect any extra arguments
-	if (!m_isLibraryCall)
+	if (m_isLibraryCall)
+		allArgs.push_back(m_context.boogieThis()->getRefTo());
+	else
 		allArgs.push_back(m_currentAddress); // this
 	// msg.sender is by default this, except for internal calls
 	auto sender = m_context.boogieThis()->getRefTo();
@@ -451,8 +453,27 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	bg::Expr::Ref defaultMsgValue = internal ? m_context.boogieMsgValue()->getRefTo() : m_context.intLit(0, 256);
 	bg::Expr::Ref msgValue = m_currentMsgValue ? m_currentMsgValue : defaultMsgValue;
 	allArgs.push_back(msgValue); // msg.value
+	// Non-static library calls require extra argument
 	if (m_isLibraryCall && !m_isLibraryCallStatic)
-		allArgs.push_back(m_currentAddress); // Non-static library calls require extra argument
+	{
+		// Non-static call on a storage struct: struct has to be passed as local storage pointer
+		if (auto memAccExpr = dynamic_cast<MemberAccess const*>(&_node.expression()))
+		{
+			if (auto structType = dynamic_cast<StructType const*>(memAccExpr->expression().annotation().type))
+			{
+				if (structType->dataStoredIn(DataLocation::Storage))
+				{
+					auto res = ASTBoogieUtils::packToLocalPtr(&memAccExpr->expression(), m_currentAddress, m_context);
+					m_newDecls.push_back(res.ptr);
+					for (auto stmt: res.stmts)
+						addSideEffect(stmt);
+					m_currentAddress = res.ptr->getRefTo();
+				}
+			}
+		}
+
+		allArgs.push_back(m_currentAddress);
+	}
 
 	// Try to determine function type (for conversions and named args)
 	auto funcType = dynamic_cast<FunctionType const*>(_node.expression().annotation().type);

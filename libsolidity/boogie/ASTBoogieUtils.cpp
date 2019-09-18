@@ -1394,7 +1394,7 @@ void ASTBoogieUtils::packInternal(Expression const* expr, bg::Expr::Ref bgExpr, 
 		auto ptr = context.freshTempVar(context.localPtrType());
 		// Collect all variables from all contracts that can see the struct
 		vector<VariableDeclaration const*> vars;
-		for (auto contr: context.stats().contractsForStruct(&structType->structDefinition()))
+		for (auto contr: context.stats().allContracts())
 		{
 			auto subVars = ASTNode::filteredNodes<VariableDeclaration>(contr->subNodes());
 			vars.insert(vars.end(), subVars.begin(), subVars.end());
@@ -1502,7 +1502,7 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 		solAssert(structType, "Expected struct type when unpacking");
 		// Collect all variables from all contracts that can see the struct
 		vector<VariableDeclaration const*> vars;
-		for (auto contr: context.stats().contractsForStruct(&structType->structDefinition()))
+		for (auto contr: context.stats().allContracts())
 		{
 			auto subVars = ASTNode::filteredNodes<VariableDeclaration>(contr->subNodes());
 			vars.insert(vars.end(), subVars.begin(), subVars.end());
