@@ -65,7 +65,7 @@ contract Secondary {
      * @dev Transfers contract to a new primary.
      * @param recipient The address of new primary.
      *
-     * @notice modifies _primary if msg.sender == __verifier_old_address(_primary)
+     * @notice modifies _primary if msg.sender == _primary
      */
     function transferPrimary(address recipient) public onlyPrimary {
         require(recipient != address(0), "Secondary: new primary is the zero address");
@@ -194,7 +194,7 @@ contract RefundEscrow is ConditionalEscrow {
      * @dev Stores funds that may later be refunded.
      * @param refundee The address funds will be sent to if a refund occurs.
      *
-     * @notice modifies _deposits[refundee] if __verifier_old_uint(uint(_state)) == uint(State.Active)
+     * @notice modifies _deposits[refundee] if uint(_state) == uint(State.Active)
      * @notice modifies address(this).balance
      */
     function deposit(address refundee) public payable {
@@ -206,7 +206,7 @@ contract RefundEscrow is ConditionalEscrow {
      * @dev Allows for the beneficiary to withdraw their funds, rejecting
      * further deposits.
      *
-     * @notice modifies _state if (__verifier_old_uint(uint(_state)) == uint(State.Active) && msg.sender == _primary)
+     * @notice modifies _state if (uint(_state) == uint(State.Active) && msg.sender == _primary)
      */
     function close() public onlyPrimary {
         require(_state == State.Active, "RefundEscrow: can only close while active");
@@ -217,7 +217,7 @@ contract RefundEscrow is ConditionalEscrow {
     /**
      * @dev Allows for refunds to take place, rejecting further deposits.
      *
-     * @notice modifies _state if (__verifier_old_uint(uint(_state)) == uint(State.Active) && msg.sender == _primary)
+     * @notice modifies _state if (uint(_state) == uint(State.Active) && msg.sender == _primary)
      */
     function enableRefunds() public onlyPrimary {
         require(_state == State.Active, "RefundEscrow: can only enable refunds while active");

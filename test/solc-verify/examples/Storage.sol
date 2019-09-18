@@ -17,7 +17,7 @@ contract Storage {
     }
 
     // Only owner can change the owner
-    /// @notice modifies owner if msg.sender == __verifier_old_address(owner)
+    /// @notice modifies owner if msg.sender == owner
     function changeOwner(address newOwner) public {
         require(msg.sender == owner);
         owner = newOwner;
@@ -27,7 +27,7 @@ contract Storage {
         return record.set;
     }
 
-    /// @notice modifies records[msg.sender] if !__verifier_old_bool(records[msg.sender].set)
+    /// @notice modifies records[msg.sender] if !records[msg.sender].set
     /// @notice postcondition records[msg.sender].set
     /// @notice postcondition records[msg.sender].data == data
     function set(int data) public {
@@ -36,7 +36,7 @@ contract Storage {
         records[msg.sender] = rec;
     }
 
-    /// @notice modifies records[msg.sender].data if __verifier_old_bool(records[msg.sender].set)
+    /// @notice modifies records[msg.sender].data if records[msg.sender].set
     /// @notice postcondition records[msg.sender].data == data
     function update(int data) public {
         Record storage rec = records[msg.sender];

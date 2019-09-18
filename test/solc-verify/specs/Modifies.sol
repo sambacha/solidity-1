@@ -9,20 +9,20 @@ contract Simple {
         owner = msg.sender;
     }
 
-    /** @notice modifies owner if msg.sender == __verifier_old_address(owner)  */
+    /** @notice modifies owner if msg.sender == owner  */
     function changeOwner(address newOwner) public {
         require(msg.sender == owner);
         owner = newOwner;
     }
 
-    /** @notice modifies owner if msg.sender == __verifier_old_address(owner)  */
+    /** @notice modifies owner if msg.sender == owner  */
     function changeOwnerIncorrect(address newOwner) public {
         owner = newOwner;
     }
 
     /**
     * @notice modifies xs[msg.sender]
-    * @notice modifies counter if msg.sender == __verifier_old_address(owner)
+    * @notice modifies counter if msg.sender == owner
     * @notice postcondition msg.sender != owner || counter == __verifier_old_int(counter) + 1
     */
     function setCorrect(int x) public {

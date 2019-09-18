@@ -456,7 +456,7 @@ void ASTBoogieConverter::addModifiesSpecs(FunctionDefinition const& _node, bg::P
 				// Parse the condition
 				BoogieContext::DocTagExpr cond;
 				if (parseExpr(docTag.second.content.substr(condStart + ASTBoogieUtils::DOCTAG_MODIFIES_COND.length()), _node, &_node, cond))
-					condExpr = cond.expr;
+					condExpr = bg::Expr::old(cond.expr);
 			}
 			// Parse the target (identifier/selector)
 			BoogieContext::DocTagExpr target;
