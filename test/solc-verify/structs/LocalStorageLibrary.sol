@@ -2,7 +2,14 @@ pragma solidity >=0.5.0;
 
 library L {
     struct S { uint a; }
-    function mul(S storage self, uint x) internal returns (uint) {
+    // public --> specified
+    /// @notice postcondition self.a == __verifier_old_uint(self.a) * x
+    function mul(S storage self, uint x) public returns (uint) {
+        return self.a *= x;
+    }
+
+    // internal --> inlined
+    function mul2(S storage self, uint x) internal returns (uint) {
         return self.a *= x;
     }
 }
@@ -18,5 +25,13 @@ contract LocalStorageLibrary {
         x.a = 3;
         L.mul(x, 4); // Static call
         assert(x.a == 12);
+
+        x.a = 4;
+        x.mul2(5); // Non-static call
+        assert(x.a == 20);
+
+        x.a = 6;
+        L.mul2(x, 7); // Static call
+        assert(x.a == 42);
     }
 }
