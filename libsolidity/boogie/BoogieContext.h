@@ -83,6 +83,8 @@ private:
 	std::map<StructDefinition const*,boogie::TypeDeclRef> m_memStructTypes;
 	std::map<StructDefinition const*,boogie::TypeDeclRef> m_storStructTypes;
 	std::map<StructDefinition const*,boogie::FuncDeclRef> m_storStructConstrs;
+	// Arrays S[] for each storage struct where local pointers can point by default
+	std::map<StructDefinition const*,boogie::VarDeclRef> m_defaultStorageContexts;
 
 	std::map<std::string,boogie::DataTypeDeclRef> m_arrDataTypes;
 	std::map<std::string,boogie::FuncDeclRef> m_arrConstrs;
@@ -211,6 +213,13 @@ public:
 
 	boogie::FuncDeclRef getStructConstructor(StructDefinition const* structDef);
 	boogie::TypeDeclRef getStructType(StructDefinition const* structDef, DataLocation loc);
+
+	/**
+	 * @param type Struct type
+	 * @returns Default array of strorage structs of given type where local
+	 * pointers can point
+	 */
+	boogie::VarDeclRef getDefaultStorageContext(StructType const* type);
 
 	/**
 	 * Ensures that the declarations of constructor and default values are declared for arrays

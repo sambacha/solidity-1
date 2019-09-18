@@ -1508,19 +1508,20 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 			vars.insert(vars.end(), subVars.begin(), subVars.end());
 		}
 
-		bg::Expr::Ref unpackedExpr = nullptr;
+		// Default context (if no state var to unpack to)
+		bg::Expr::Ref unpackedExpr = bg::Expr::arrsel(
+			context.getDefaultStorageContext(structType)->getRefTo(),
+			bg::Expr::arrsel(ptrBgExpr, context.intLit(1, 256))
+		);
 		for (unsigned i = 0; i < vars.size(); ++i)
 		{
 			auto subExpr = unpackInternal(ptrExpr, ptrBgExpr, vars[i], depth+1,
 					bg::Expr::arrsel(bg::Expr::id(context.mapDeclName(*vars[i])), context.boogieThis()->getRefTo()), context);
 			if (subExpr)
 			{
-				if (!unpackedExpr)
-					unpackedExpr = subExpr;
-				else
-					unpackedExpr = bg::Expr::cond(
-							bg::Expr::eq(bg::Expr::arrsel(ptrBgExpr, context.intLit(depth, 256)), context.intLit(i, 256)),
-							subExpr, unpackedExpr);
+				unpackedExpr = bg::Expr::cond(
+						bg::Expr::eq(bg::Expr::arrsel(ptrBgExpr, context.intLit(depth, 256)), context.intLit(i, 256)),
+						subExpr, unpackedExpr);
 			}
 		}
 		if (!unpackedExpr)

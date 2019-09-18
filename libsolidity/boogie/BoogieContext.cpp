@@ -512,6 +512,19 @@ bg::TypeDeclRef BoogieContext::getStructType(StructDefinition const* structDef, 
 	return errType();
 }
 
+bg::VarDeclRef BoogieContext::getDefaultStorageContext(StructType const* type) {
+	auto structDef = &type->structDefinition();
+	if (m_defaultStorageContexts.find(structDef) == m_defaultStorageContexts.end())
+	{
+		auto varDecl = bg::Decl::variable(
+				structDef->name() + toString(structDef->id()) + "default_context",
+				bg::Decl::arraytype(intType(256), getStructType(structDef, DataLocation::Storage)));
+		m_defaultStorageContexts[structDef] = varDecl;
+		addDecl(varDecl);
+	}
+	return m_defaultStorageContexts[structDef];
+}
+
 std::string BoogieContext::cleanupTypeName(std::string typeName)
 {
 	boost::replace_all(typeName, "[", "_k_");
