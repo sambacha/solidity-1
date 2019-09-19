@@ -404,7 +404,7 @@ bool ASTBoogieConverter::isBaseVar(bg::Expr::Ref expr)
 		// Base is reached when it is a variable indexed with 'this'
 		auto idxAsId = dynamic_pointer_cast<bg::VarExpr const>(exprArrSel->getIdx());
 		if (dynamic_pointer_cast<bg::VarExpr const>(exprArrSel->getBase()) &&
-				idxAsId->name() == m_context.boogieThis()->getName())
+				idxAsId && idxAsId->name() == m_context.boogieThis()->getName())
 		{
 			return true;
 		}
@@ -466,8 +466,13 @@ void ASTBoogieConverter::addModifiesSpecs(FunctionDefinition const& _node, bg::P
 				auto memAccExpr = dynamic_cast<MemberAccess const*>(target.exprSol.get());
 				if (memAccExpr && memAccExpr->memberName() == ASTBoogieUtils::BALANCE.solidity)
 					balanceModSpecs.push_back(ModSpec(condExpr, dynamic_pointer_cast<bg::ArrSelExpr const>(target.expr)->getIdx()));
-				else if (Declaration const* varDecl = getModifiesBase(target.exprSol.get()))
-					modSpecs[varDecl].push_back(ModSpec(condExpr, target.expr));
+				else if (auto varDecl = dynamic_cast<VariableDeclaration const*>(getModifiesBase(target.exprSol.get())))
+				{
+					if (varDecl->isStateVariable())
+						modSpecs[varDecl].push_back(ModSpec(condExpr, target.expr));
+					else
+						m_context.reportWarning(&_node, "Modifies specification for non-state variable '" + varDecl->name() + "' ignored");
+				}
 				else
 					m_context.reportError(&_node, "Invalid target expression for modifies specification");
 			}
