@@ -927,9 +927,12 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 		procDecl->getEnsures().push_back(bg::Specification::spec(post.expr,
 							ASTBoogieUtils::createAttrs(_node.location(), "Postcondition '" + post.exprStr + "' might not hold at end of function.", *m_context.currentScanner())));
 		for (auto tcc: post.tccs)
+		{
+			procDecl->getRequires().push_back(bg::Specification::spec(tcc,
+									ASTBoogieUtils::createAttrs(_node.location(), "Variables in postcondition '" + post.exprStr + "' might be out of range when entering function.", *m_context.currentScanner())));
 			procDecl->getEnsures().push_back(bg::Specification::spec(tcc,
 						ASTBoogieUtils::createAttrs(_node.location(), "Variables in postcondition '" + post.exprStr + "' might be out of range at end of function.", *m_context.currentScanner())));
-
+		}
 		for (auto oc: post.ocs)
 			procDecl->getEnsures().push_back(bg::Specification::spec(oc,
 							ASTBoogieUtils::createAttrs(_node.location(), "Overflow in computation of postcondition '" + post.exprStr + "' at end of function.", *m_context.currentScanner())));

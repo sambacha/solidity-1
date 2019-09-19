@@ -873,7 +873,7 @@ void ASTBoogieExpressionConverter::functionCallOld(FunctionCall const& _node, ve
 {
 	solAssert(args.size() == 1, "Verifier old function must have exactly one argument");
 	m_currentExpr = bg::Expr::old(args[0]);
-	addTCC(m_currentExpr, _node.annotation().type);
+	addTCC(args[0], _node.arguments()[0]->annotation().type);
 }
 
 void ASTBoogieExpressionConverter::functionCallEq(FunctionCall const& _node, vector<bg::Expr::Ref> const& args)
