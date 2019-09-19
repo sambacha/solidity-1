@@ -1095,7 +1095,6 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 	if (isMessage && _node.memberName() == ASTBoogieUtils::VALUE.solidity)
 	{
 		m_currentExpr = m_context.boogieMsgValue()->getRefTo();
-		TypePointer tp_uint256 = TypeProvider::integer(256, IntegerType::Modifier::Unsigned);
 		addTCC(m_currentExpr, tp_uint256);
 		return false;
 	}
@@ -1105,6 +1104,7 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 	if (isBlock && _node.memberName() == ASTBoogieUtils::BLOCKNO.solidity)
 	{
 		m_currentExpr = bg::Expr::id(ASTBoogieUtils::BLOCKNO.boogie);
+		addTCC(m_currentExpr, tp_uint256);
 		return false;
 	}
 	// array.length
@@ -1206,6 +1206,7 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 					m_context.mapDeclName(*_node.annotation().referencedDeclaration),
 					m_context.getStructConstructor(&structType->structDefinition()),
 					dynamic_pointer_cast<bg::DataTypeDecl>(m_context.getStructType(&structType->structDefinition(), structType->location())));
+			addTCC(m_currentExpr, _node.annotation().type);
 		}
 		else
 		{
