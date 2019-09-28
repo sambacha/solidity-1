@@ -792,7 +792,10 @@ void ASTBoogieExpressionConverter::functionCallConversion(FunctionCall const& _n
 
 void ASTBoogieExpressionConverter::functionCallNewStruct(StructDefinition const* structDef, vector<bg::Expr::Ref> const& args)
 {
-	auto varDecl = ASTBoogieUtils::newStruct(structDef, m_context);
+	auto result = ASTBoogieUtils::newStruct(structDef, m_context);
+	auto varDecl = result.newDecl;
+	for (auto stmt: result.newStmts)
+		addSideEffect(stmt);
 	m_newDecls.push_back(varDecl);
 	// Initialize each member
 	for (size_t i = 0; i < structDef->members().size() && i < args.size(); ++i)
