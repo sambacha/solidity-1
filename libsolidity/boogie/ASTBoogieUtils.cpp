@@ -1335,6 +1335,9 @@ void ASTBoogieUtils::deepCopyStruct(StructDefinition const* structDef,
 						AssignParam{lhsSel, memberType, nullptr},
 						AssignParam{allocRes.newDecl->getRefTo(), memberType, nullptr},
 						Token::Assign, assocNode, context, result);
+				// The LHS becomes the global memory array, RHS should be copied here
+				lhsSel = context.getMemArray(varDecl->getRefTo(),
+						context.toBoogieType(arrType->baseType(), assocNode));
 			}
 			if (rhsLoc == DataLocation::Memory || rhsLoc == DataLocation::CallData)
 				rhsSel = context.getMemArray(rhsSel, context.toBoogieType(arrType->baseType(), assocNode));
