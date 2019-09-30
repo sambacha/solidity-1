@@ -77,6 +77,14 @@ bool ASTBoogieExpressionConverter::visit(Conditional const& _node)
 	_node.falseExpression().accept(*this);
 	bg::Expr::Ref falseExpr = m_currentExpr;
 
+	if (m_context.isBvEncoding() && ASTBoogieUtils::isBitPreciseType(_node.annotation().type))
+	{
+		trueExpr = ASTBoogieUtils::checkImplicitBvConversion(
+				trueExpr, _node.trueExpression().annotation().type, _node.annotation().type, m_context);
+		falseExpr = ASTBoogieUtils::checkImplicitBvConversion(
+				falseExpr, _node.falseExpression().annotation().type, _node.annotation().type, m_context);
+	}
+
 	m_currentExpr = bg::Expr::cond(cond, trueExpr, falseExpr);
 	return false;
 }
