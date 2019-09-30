@@ -46,6 +46,7 @@ string const ASTBoogieUtils::VERIFIER_IDX = "__verifier_idx";
 string const ASTBoogieUtils::VERIFIER_OLD = "__verifier_old";
 string const ASTBoogieUtils::VERIFIER_EQ = "__verifier_eq";
 string const ASTBoogieUtils::BOOGIE_CONSTRUCTOR = "__constructor";
+string const ASTBoogieUtils::BOOGIE_ALLOC_COUNTER = "__alloc_counter";
 string const ASTBoogieUtils::VERIFIER_OVERFLOW = "__verifier_overflow";
 
 string const ASTBoogieUtils::DOCTAG_CONTRACT_INVAR = "invariant";
@@ -937,19 +938,25 @@ ASTBoogieUtils::Value ASTBoogieUtils::defaultValueInternal(TypePointer type, Boo
 	return {"", nullptr};
 }
 
-bg::Decl::Ref ASTBoogieUtils::newStruct(StructDefinition const* structDef, BoogieContext& context)
+ASTBoogieUtils::AllocResult ASTBoogieUtils::newStruct(StructDefinition const* structDef, BoogieContext& context)
 {
 	// Address of the new struct
-	// TODO: make sure that it is a new address
 	string prefix = "new_struct_" + structDef->name();
 	bg::TypeDeclRef varType = context.getStructType(structDef, DataLocation::Memory);
-	return context.freshTempVar(varType, prefix);
+	bg::VarDeclRef tmpVar = context.freshTempVar(varType, prefix);
+	return AllocResult{tmpVar, {
+			bg::Stmt::assign(tmpVar->getRefTo(), context.getAllocCounter()->getRefTo()),
+			context.incrAllocCounter()
+	}};
 }
 
-bg::Decl::Ref ASTBoogieUtils::newArray(bg::TypeDeclRef type, BoogieContext& context)
+ASTBoogieUtils::AllocResult ASTBoogieUtils::newArray(bg::TypeDeclRef type, BoogieContext& context)
 {
-	// TODO: make sure that it is a new address
-	return context.freshTempVar(type, "new_array");
+	bg::VarDeclRef tmpVar =  context.freshTempVar(type, "new_array");
+	return AllocResult{tmpVar, {
+			bg::Stmt::assign(tmpVar->getRefTo(), context.getAllocCounter()->getRefTo()),
+			context.incrAllocCounter()
+	}};
 }
 
 ASTBoogieUtils::AssignResult ASTBoogieUtils::makeAssign(AssignParam lhs, AssignParam rhs, langutil::Token op,
@@ -1083,9 +1090,11 @@ void ASTBoogieUtils::makeStructAssign(AssignParam lhs, AssignParam rhs, ASTNode 
 		else if (rhsLoc == DataLocation::Storage || rhsLoc == DataLocation::CallData)
 		{
 			// Create new
-			auto varDecl = newStruct(&lhsType->structDefinition(), context);
-			result.newDecls.push_back(varDecl);
-			result.newStmts.push_back(bg::Stmt::assign(lhs.bgExpr, varDecl->getRefTo()));
+			auto allocRes = newStruct(&lhsType->structDefinition(), context);
+			result.newDecls.push_back(allocRes.newDecl);
+			for (auto stmt: allocRes.newStmts)
+				result.newStmts.push_back(stmt);
+			result.newStmts.push_back(bg::Stmt::assign(lhs.bgExpr, allocRes.newDecl->getRefTo()));
 
 			// RHS is local storage: unpack first
 			if (rhsLoc == DataLocation::Storage && rhsType->isPointer())
@@ -1173,9 +1182,11 @@ void ASTBoogieUtils::makeArrayAssign(AssignParam lhs, AssignParam rhs, ASTNode c
 		if (lhsLocation == DataLocation::Memory)
 		{
 			// Create new
-			auto varDecl = newArray(context.toBoogieType(lhsType, assocNode), context);
-			result.newDecls.push_back(varDecl);
-			result.newStmts.push_back(bg::Stmt::assign(lhs.bgExpr, varDecl->getRefTo()));
+			auto allocRes = newArray(context.toBoogieType(lhsType, assocNode), context);
+			result.newDecls.push_back(allocRes.newDecl);
+			for (auto stmt: allocRes.newStmts)
+				result.newStmts.push_back(stmt);
+			result.newStmts.push_back(bg::Stmt::assign(lhs.bgExpr, allocRes.newDecl->getRefTo()));
 			lhs.bgExpr = context.getMemArray(lhs.bgExpr, context.toBoogieType(lhsType->baseType(), assocNode));
 		}
 		if (rhsLocation == DataLocation::Memory || rhsLocation == DataLocation::CallData)
@@ -1290,12 +1301,14 @@ void ASTBoogieUtils::deepCopyStruct(StructDefinition const* structDef,
 			if (lhsLoc == DataLocation::Memory)
 			{
 				// Create new
-				auto varDecl = ASTBoogieUtils::newStruct(&memberStructType->structDefinition(), context);
-				result.newDecls.push_back(varDecl);
+				auto allocRes = ASTBoogieUtils::newStruct(&memberStructType->structDefinition(), context);
+				result.newDecls.push_back(allocRes.newDecl);
+				for (auto stmt: allocRes.newStmts)
+					result.newStmts.push_back(stmt);
 				// Update member to point to new
 				makeBasicAssign(
 						AssignParam{lhsSel, memberType, nullptr},
-						AssignParam{varDecl->getRefTo(), memberType, nullptr},
+						AssignParam{allocRes.newDecl->getRefTo(), memberType, nullptr},
 						Token::Assign, assocNode, context, result);
 			}
 			// Do the deep copy
@@ -1311,17 +1324,19 @@ void ASTBoogieUtils::deepCopyStruct(StructDefinition const* structDef,
 			if (lhsLoc == DataLocation::Memory)
 			{
 				// Create new
-				auto varDecl = ASTBoogieUtils::newArray(
+				auto allocRes = ASTBoogieUtils::newArray(
 						context.toBoogieType(TypeProvider::withLocation(arrType, DataLocation::Memory, false), assocNode),
 						context);
-				result.newDecls.push_back(varDecl);
+				result.newDecls.push_back(allocRes.newDecl);
+				for (auto stmt: allocRes.newStmts)
+					result.newStmts.push_back(stmt);
 				// Update member to point to new
 				makeBasicAssign(
 						AssignParam{lhsSel, memberType, nullptr},
-						AssignParam{varDecl->getRefTo(), memberType, nullptr},
+						AssignParam{allocRes.newDecl->getRefTo(), memberType, nullptr},
 						Token::Assign, assocNode, context, result);
 				// The LHS becomes the global memory array, RHS should be copied here
-				lhsSel = context.getMemArray(varDecl->getRefTo(),
+				lhsSel = context.getMemArray(allocRes.newDecl->getRefTo(),
 						context.toBoogieType(arrType->baseType(), assocNode));
 			}
 			if (rhsLoc == DataLocation::Memory || rhsLoc == DataLocation::CallData)

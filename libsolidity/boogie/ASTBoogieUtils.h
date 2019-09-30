@@ -60,7 +60,7 @@ public:
 	static std::string const VERIFIER_EQ;
 	static std::string const VERIFIER_OVERFLOW;
 	static std::string const BOOGIE_CONSTRUCTOR;
-	static std::string const BOOGIE_ZERO_ADDRESS;
+	static std::string const BOOGIE_ALLOC_COUNTER;
 
 	// Specification annotations
 	static std::string const DOCTAG_CONTRACT_INVAR;
@@ -221,13 +221,19 @@ private:
 	Value defaultValueInternal(TypePointer _type, BoogieContext& context);
 
 public:
+	struct AllocResult
+	{
+		boogie::Decl::Ref newDecl;
+		std::list<boogie::Stmt::Ref> newStmts;
+	};
+
 	/** Allocates a new memory struct. */
 	static
-	boogie::Decl::Ref newStruct(StructDefinition const* structDef, BoogieContext& context);
+	AllocResult newStruct(StructDefinition const* structDef, BoogieContext& context);
 
 	/** Allocates a new memory array. */
 	static
-	boogie::Decl::Ref newArray(boogie::TypeDeclRef type, BoogieContext& context);
+	AllocResult newArray(boogie::TypeDeclRef type, BoogieContext& context);
 
 	// Helper methods for assignments
 

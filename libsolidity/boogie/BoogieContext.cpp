@@ -96,6 +96,9 @@ BoogieContext::BoogieContext(Encoding encoding,
 	// overflow
 	if (m_overflow)
 		addDecl(bg::Decl::variable(ASTBoogieUtils::VERIFIER_OVERFLOW, boolType()));
+	// Allocation counter
+	m_boogieAllocCounter = bg::Decl::variable(ASTBoogieUtils::BOOGIE_ALLOC_COUNTER, bg::Decl::elementarytype("int"));
+	addDecl(m_boogieAllocCounter);
 }
 
 bg::VarDeclRef BoogieContext::freshTempVar(bg::TypeDeclRef type, string prefix)
@@ -177,7 +180,7 @@ bool BoogieContext::pathsEqual(SumPath const& p1, SumPath const& p2)
 	return true;
 }
 
-bg::Expr::Ref BoogieContext::getSumVar(boogie::Expr::Ref bgExpr, Expression const* expr, TypePointer type)
+bg::Expr::Ref BoogieContext::getSumVar(bg::Expr::Ref bgExpr, Expression const* expr, TypePointer type)
 {
 	// Expression must be int, or an int array/mapping
 	auto intType = dynamic_cast<IntegerType const*>(expr->annotation().type);
@@ -503,7 +506,7 @@ bg::TypeDeclRef BoogieContext::getStructType(StructDefinition const* structDef, 
 	{
 		if (m_memStructTypes.find(structDef) == m_memStructTypes.end())
 		{
-			m_memStructTypes[structDef] = bg::Decl::customtype("address_" + typeName);
+			m_memStructTypes[structDef] = bg::Decl::aliasedtype("address_" + typeName, bg::Decl::elementarytype("int"));
 			addDecl(m_memStructTypes[structDef]);
 		}
 		return m_memStructTypes[structDef];
@@ -532,7 +535,7 @@ std::string BoogieContext::cleanupTypeName(std::string typeName)
 	return typeName;
 }
 
-void BoogieContext::ensureArrayDeclarations(boogie::TypeDeclRef valueType)
+void BoogieContext::ensureArrayDeclarations(bg::TypeDeclRef valueType)
 {
 	auto valueTypeName = valueType->getName();
 	if (m_arrConstrs.find(valueTypeName) != m_arrConstrs.end())
@@ -547,25 +550,25 @@ void BoogieContext::ensureArrayDeclarations(boogie::TypeDeclRef valueType)
 			{ bg::Expr::id("arr"), bg::Decl::arraytype(intType(256), valueType) },
 			{ bg::Expr::id("length"), intType(256) }
 	};
-	boogie::DataTypeDeclRef datatypeDecl =  bg::Decl::datatype(valueTypeNameNoSpec + "_arr_type", members);
+	bg::DataTypeDeclRef datatypeDecl =  bg::Decl::datatype(valueTypeNameNoSpec + "_arr_type", members);
 	m_arrDataTypes[valueTypeName] = datatypeDecl;
 	addDecl(datatypeDecl);
 
 	// Constructor for
 	string name = valueTypeNameNoSpec + "_arr#constr";
-	boogie::FuncDeclRef arrayConstructor = bg::Decl::function(name, members, datatypeDecl, nullptr,
+	bg::FuncDeclRef arrayConstructor = bg::Decl::function(name, members, datatypeDecl, nullptr,
 			{ bg::Attr::attr("constructor") });
 	m_arrConstrs[valueTypeName] = arrayConstructor;
 	addDecl(arrayConstructor);
 }
 
-boogie::FuncDeclRef BoogieContext::getArrayConstructor(boogie::TypeDeclRef valueType)
+bg::FuncDeclRef BoogieContext::getArrayConstructor(bg::TypeDeclRef valueType)
 {
 	ensureArrayDeclarations(valueType);
 	return m_arrConstrs[valueType->getName()];
 }
 
-boogie::DataTypeDeclRef BoogieContext::getArrayDatatype(boogie::TypeDeclRef valueType)
+bg::DataTypeDeclRef BoogieContext::getArrayDatatype(bg::TypeDeclRef valueType)
 {
 	ensureArrayDeclarations(valueType);
 	return m_arrDataTypes[valueType->getName()];
@@ -588,23 +591,30 @@ bg::FuncDeclRef BoogieContext::defaultArray(bg::TypeDeclRef keyType, bg::TypeDec
 	return m_defaultArrays[funcName];
 }
 
-boogie::Expr::Ref BoogieContext::getMemArray(boogie::Expr::Ref arrPtrExpr, boogie::TypeDeclRef type)
+bg::Stmt::Ref BoogieContext::incrAllocCounter()
 {
-	return boogie::Expr::arrsel(m_memArrs[type->getName()]->getRefTo(), arrPtrExpr);
+	return bg::Stmt::assign(
+			m_boogieAllocCounter->getRefTo(),
+			bg::Expr::plus(m_boogieAllocCounter->getRefTo(), bg::Expr::lit((long)1)));
 }
 
-boogie::Expr::Ref BoogieContext::getArrayLength(boogie::Expr::Ref arrayExpr, boogie::TypeDeclRef type)
+bg::Expr::Ref BoogieContext::getMemArray(bg::Expr::Ref arrPtrExpr, bg::TypeDeclRef type)
+{
+	return bg::Expr::arrsel(m_memArrs[type->getName()]->getRefTo(), arrPtrExpr);
+}
+
+bg::Expr::Ref BoogieContext::getArrayLength(bg::Expr::Ref arrayExpr, bg::TypeDeclRef type)
 {
 	auto arrayConstructor = getArrayConstructor(type);
 	auto arrayDataType = getArrayDatatype(type);
-	return boogie::Expr::dtsel(arrayExpr, "length", arrayConstructor, arrayDataType);
+	return bg::Expr::dtsel(arrayExpr, "length", arrayConstructor, arrayDataType);
 }
 
-boogie::Expr::Ref BoogieContext::getInnerArray(boogie::Expr::Ref arrayExpr, boogie::TypeDeclRef type)
+bg::Expr::Ref BoogieContext::getInnerArray(bg::Expr::Ref arrayExpr, bg::TypeDeclRef type)
 {
 	auto arrayConstructor = getArrayConstructor(type);
 	auto arrayDataType = getArrayDatatype(type);
-	return boogie::Expr::dtsel(arrayExpr, "arr", arrayConstructor, arrayDataType);
+	return bg::Expr::dtsel(arrayExpr, "arr", arrayConstructor, arrayDataType);
 }
 
 bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _associatedNode)
@@ -654,7 +664,7 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 			{
 				// Pointer type
 				std::string baseNameNoSpec = cleanupTypeName(baseName);
-				m_memArrPtrTypes[baseName] = bg::Decl::customtype(baseNameNoSpec + "_arr_ptr");
+				m_memArrPtrTypes[baseName] = bg::Decl::aliasedtype(baseNameNoSpec + "_arr_ptr", bg::Decl::elementarytype("int"));
 				addDecl(m_memArrPtrTypes[baseName]);
 
 				// The actual storage
@@ -1020,7 +1030,7 @@ bg::Expr::Ref BoogieContext::bvUnaryOp(std::string name, unsigned bits, bg::Expr
 }
 
 
-boogie::Expr::Ref BoogieContext::hashFunction(std::string fnName, FunctionType::Kind fnKind, boogie::Expr::Ref arg)
+bg::Expr::Ref BoogieContext::hashFunction(std::string fnName, FunctionType::Kind fnKind, bg::Expr::Ref arg)
 {
 	// Get it if already there
 	if (m_builtinFunctions.find(fnName) == m_builtinFunctions.end())

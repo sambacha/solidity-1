@@ -80,6 +80,7 @@ private:
 	boogie::VarDeclRef m_boogieMsgSender;
 	boogie::VarDeclRef m_boogieMsgValue;
 
+	boogie::VarDeclRef m_boogieAllocCounter; // Counter to be increased when calling new
 	std::map<StructDefinition const*,boogie::TypeDeclRef> m_memStructTypes;
 	std::map<StructDefinition const*,boogie::TypeDeclRef> m_storStructTypes;
 	std::map<StructDefinition const*,boogie::FuncDeclRef> m_storStructConstrs;
@@ -231,6 +232,9 @@ public:
 
 	/** Clean a type name so that it is a valid ID */
 	static std::string cleanupTypeName(std::string typeName);
+
+	boogie::VarDeclRef getAllocCounter() { return m_boogieAllocCounter; }
+	boogie::Stmt::Ref incrAllocCounter();
 
 	boogie::Expr::Ref getMemArray(boogie::Expr::Ref arrPtrExpr, boogie::TypeDeclRef type);
 	boogie::Expr::Ref getArrayLength(boogie::Expr::Ref arrayExpr, boogie::TypeDeclRef type);
