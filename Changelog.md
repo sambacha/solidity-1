@@ -7,11 +7,15 @@ Language Features:
 Compiler Features:
  * ABI Output: Change sorting order of functions from selector to kind, name.
  * Optimizer: Add rule that replaces the BYTE opcode by 0 if the first argument is larger than 31.
+ * SMTChecker: Add loop support to the CHC engine.
  * Yul Optimizer: Take side-effect-freeness of user-defined functions into account.
  * Yul Optimizer: Remove redundant mload/sload operations.
 
 
 Bugfixes:
+ * Fix internal error when popping a dynamic storage array of mappings.
+ * Yul Optimizer: Fix reordering bug in connection with shifted one and mul/div-instructions in for loop conditions.
+ * Scanner: Fix multi-line natspec comment parsing with triple slashes when file is encoded with CRLF instead of LF.
 
 
 ### 0.5.11 (2019-08-12)
