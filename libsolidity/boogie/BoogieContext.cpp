@@ -664,7 +664,7 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 			{
 				// Pointer type
 				std::string baseNameNoSpec = cleanupTypeName(baseName);
-				m_memArrPtrTypes[baseName] = bg::Decl::customtype(baseNameNoSpec + "_arr_ptr");
+				m_memArrPtrTypes[baseName] = bg::Decl::aliasedtype(baseNameNoSpec + "_arr_ptr", bg::Decl::elementarytype("int"));
 				addDecl(m_memArrPtrTypes[baseName]);
 
 				// The actual storage

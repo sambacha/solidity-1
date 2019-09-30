@@ -123,7 +123,10 @@ bool ASTBoogieExpressionConverter::visit(TupleExpression const& _node)
 		auto arrType = dynamic_cast<ArrayType const*>(_node.annotation().type);
 		auto bgType = m_context.toBoogieType(arrType->baseType(), &_node);
 		// Create new
-		auto varDecl = ASTBoogieUtils::newArray(m_context.toBoogieType(_node.annotation().type, &_node), m_context);
+		auto result = ASTBoogieUtils::newArray(m_context.toBoogieType(_node.annotation().type, &_node), m_context);
+		auto varDecl = result.newDecl;
+		for (auto stmt: result.newStmts)
+			addSideEffect(stmt);
 		m_newDecls.push_back(varDecl);
 		auto arrExpr = m_context.getMemArray(varDecl->getRefTo(), bgType);
 		// Set each element
@@ -902,7 +905,10 @@ void ASTBoogieExpressionConverter::functionCallEq(FunctionCall const& _node, vec
 void ASTBoogieExpressionConverter::functionCallNewArray(FunctionCall const& _node)
 {
 	auto arrType = dynamic_cast<ArrayType const*>(_node.annotation().type);
-	auto varDecl = ASTBoogieUtils::newArray(m_context.toBoogieType(_node.annotation().type, &_node), m_context);
+	auto result = ASTBoogieUtils::newArray(m_context.toBoogieType(_node.annotation().type, &_node), m_context);
+	auto varDecl = result.newDecl;
+	for (auto stmt: result.newStmts)
+		addSideEffect(stmt);
 	m_newDecls.push_back(varDecl);
 	auto bgType = m_context.toBoogieType(arrType->baseType(), &_node);
 	auto memArr = m_context.getMemArray(varDecl->getRefTo(), bgType);

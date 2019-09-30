@@ -233,7 +233,7 @@ public:
 
 	/** Allocates a new memory array. */
 	static
-	boogie::Decl::Ref newArray(boogie::TypeDeclRef type, BoogieContext& context);
+	AllocResult newArray(boogie::TypeDeclRef type, BoogieContext& context);
 
 	// Helper methods for assignments
 
