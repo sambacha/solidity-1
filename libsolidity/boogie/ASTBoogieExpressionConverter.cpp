@@ -1234,6 +1234,14 @@ bool ASTBoogieExpressionConverter::visit(IndexAccess const& _node)
 	}
 	index->accept(*this);
 	bg::Expr::Ref indexExpr = m_currentExpr;
+	// Indexing with memory array (e.g., string) requires dereference
+	if (index->annotation().type->category() == Type::Category::Array &&
+			index->annotation().type->dataStoredIn(DataLocation::Memory))
+	{
+		auto arrType = dynamic_cast<ArrayType const*>(index->annotation().type);
+		auto bgArrType = m_context.toBoogieType(arrType->baseType(), &_node);
+		indexExpr = m_context.getMemArray(indexExpr, bgArrType);
+	}
 
 	TypePointer baseType = base.annotation().type;
 	TypePointer indexType = index->annotation().type;
