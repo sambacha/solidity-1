@@ -77,12 +77,56 @@ bool ASTBoogieExpressionConverter::visit(Conditional const& _node)
 	_node.falseExpression().accept(*this);
 	bg::Expr::Ref falseExpr = m_currentExpr;
 
+	// Check implicit conversion for bit-precise types
 	if (m_context.isBvEncoding() && ASTBoogieUtils::isBitPreciseType(_node.annotation().type))
 	{
 		trueExpr = ASTBoogieUtils::checkImplicitBvConversion(
 				trueExpr, _node.trueExpression().annotation().type, _node.annotation().type, m_context);
 		falseExpr = ASTBoogieUtils::checkImplicitBvConversion(
 				falseExpr, _node.falseExpression().annotation().type, _node.annotation().type, m_context);
+	}
+
+	// Check implicit conversion for reference types
+	if (auto condRefType = dynamic_cast<ReferenceType const*>(_node.annotation().type))
+	{
+		DataLocation condLoc = condRefType->location();
+		bool condPtr = condRefType->isPointer();
+
+		// true expression needs copy
+		if (auto trueRefType = dynamic_cast<ReferenceType const*>(_node.trueExpression().annotation().type))
+		{
+			if (condLoc != trueRefType->location() || condPtr != trueRefType->isPointer())
+			{
+				auto tmpVar = m_context.freshTempVar(m_context.toBoogieType(_node.annotation().type, &_node));
+				m_newDecls.push_back(tmpVar);
+				auto ar = ASTBoogieUtils::makeAssign(
+						ASTBoogieUtils::AssignParam{tmpVar->getRefTo(), _node.annotation().type, nullptr},
+						ASTBoogieUtils::AssignParam{trueExpr, _node.trueExpression().annotation().type, &_node.trueExpression()},
+						Token::Assign, &_node, m_context);
+				m_newDecls.insert(m_newDecls.end(), ar.newDecls.begin(), ar.newDecls.end());
+				for (auto stmt: ar.newStmts)
+					addSideEffect(stmt);
+				trueExpr = tmpVar->getRefTo();
+			}
+		}
+
+		// false expression needs copy
+		if (auto falseRefType = dynamic_cast<ReferenceType const*>(_node.falseExpression().annotation().type))
+		{
+			if (condLoc != falseRefType->location() || condPtr != falseRefType->isPointer())
+			{
+				auto tmpVar = m_context.freshTempVar(m_context.toBoogieType(_node.annotation().type, &_node));
+				m_newDecls.push_back(tmpVar);
+				auto ar = ASTBoogieUtils::makeAssign(
+						ASTBoogieUtils::AssignParam{tmpVar->getRefTo(), _node.annotation().type, nullptr},
+						ASTBoogieUtils::AssignParam{falseExpr, _node.falseExpression().annotation().type, &_node.falseExpression()},
+						Token::Assign, &_node, m_context);
+				m_newDecls.insert(m_newDecls.end(), ar.newDecls.begin(), ar.newDecls.end());
+				for (auto stmt: ar.newStmts)
+					addSideEffect(stmt);
+				falseExpr = tmpVar->getRefTo();
+			}
+		}
 	}
 
 	m_currentExpr = bg::Expr::cond(cond, trueExpr, falseExpr);
