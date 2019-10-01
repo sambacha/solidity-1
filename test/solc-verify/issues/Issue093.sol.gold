@@ -1,0 +1,4 @@
+test/solc-verify/issues/Issue093.sol:4:3: solc-verify warning: Errors while translating function body, will be skipped
+A::[constructor]: SKIPPED
+Some functions were skipped. Use --verbose to see details.
+No errors found.
