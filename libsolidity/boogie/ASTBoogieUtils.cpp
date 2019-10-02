@@ -652,6 +652,8 @@ unsigned ASTBoogieUtils::getBits(TypePointer type)
 		return 256;
 	if (auto fb = dynamic_cast<FixedBytesType const*>(type))
 		return fb->numBytes()*8;
+	if (dynamic_cast<AddressType const*>(type))
+		return 256;
 
 	solAssert(false, "Trying to get bits for non-bitprecise type");
 	return 0;
@@ -664,6 +666,8 @@ bool ASTBoogieUtils::isSigned(TypePointer type)
 	if (dynamic_cast<EnumType const*>(type))
 		return false;
 	if (dynamic_cast<FixedBytesType const*>(type))
+		return false;
+	if (dynamic_cast<AddressType const*>(type))
 		return false;
 
 	solAssert(false, "Trying to get sign for non-bitprecise type");
