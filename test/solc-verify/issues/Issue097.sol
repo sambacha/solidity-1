@@ -5,11 +5,11 @@ contract Issue097 {
 
     constructor() public {
         arr.length += 1;
-        assert(arr[arr.length-1] == 0);
+        assert(arr[arr.length-1] == 0); // Should hold
     }
 
     function() external payable {
         arr.length += 1;
-        assert(arr[arr.length-1] == 0);
+        assert(arr[arr.length-1] == 0); // Should hold
     }
 }

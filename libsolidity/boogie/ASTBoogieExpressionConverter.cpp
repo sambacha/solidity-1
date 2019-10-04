@@ -161,6 +161,14 @@ bool ASTBoogieExpressionConverter::visit(Assignment const& _node)
 	_node.rightHandSide().accept(*this);
 	bg::Expr::Ref rhsExpr = m_currentExpr;
 
+	if (auto lhsMemAcc = dynamic_cast<MemberAccess const*>(&_node.leftHandSide()))
+	{
+		if (lhsMemAcc->expression().annotation().type->category() == Type::Category::Array &&
+				lhsMemAcc->memberName() == "length")
+			m_context.reportWarning(&_node, "Array elements are not set to default value when resizing with length");
+
+	}
+
 	auto res = ASTBoogieUtils::makeAssign(
 			ASTBoogieUtils::AssignParam{lhsExpr, lhsType, &lhsNode},
 			ASTBoogieUtils::AssignParam{rhsExpr, rhsType, &rhsNode},
