@@ -1365,13 +1365,12 @@ void ASTBoogieUtils::deepCopyStruct(StructDefinition const* structDef,
 ASTBoogieUtils::PackResult ASTBoogieUtils::packToLocalPtr(Expression const* expr, bg::Expr::Ref bgExpr, BoogieContext& context)
 {
 	PackResult result {nullptr, {}};
-	auto structType = dynamic_cast<StructType const*>(expr->annotation().type);
-	if (!structType)
+	if (!dynamic_cast<StructType const*>(expr->annotation().type))
 	{
 		context.reportError(expr, "Expected struct type");
 		return PackResult{context.freshTempVar(context.errType()), {}};
 	}
-	packInternal(expr, bgExpr, structType, context, result);
+	packInternal(expr, bgExpr, context, result);
 	if (result.ptr)
 		return result;
 
@@ -1379,7 +1378,7 @@ ASTBoogieUtils::PackResult ASTBoogieUtils::packToLocalPtr(Expression const* expr
 	return PackResult{context.freshTempVar(context.errType()), {}};
 }
 
-void ASTBoogieUtils::packInternal(Expression const* expr, bg::Expr::Ref bgExpr, StructType const* structType, BoogieContext& context, PackResult& result)
+void ASTBoogieUtils::packInternal(Expression const* expr, bg::Expr::Ref bgExpr, BoogieContext& context, PackResult& result)
 {
 	// Packs an expression (path to storage) into a local pointer as an array
 	// The general idea is to associate each state variable and member with an index
@@ -1442,7 +1441,7 @@ void ASTBoogieUtils::packInternal(Expression const* expr, bg::Expr::Ref bgExpr, 
 	{
 		auto bgMemAccExpr = dynamic_pointer_cast<bg::DtSelExpr const>(bgExpr);
 		solAssert(bgMemAccExpr, "Expected Boogie member access expression");
-		packInternal(&memAccExpr->expression(), bgMemAccExpr->getBase(), structType, context, result);
+		packInternal(&memAccExpr->expression(), bgMemAccExpr->getBase(), context, result);
 		solAssert(result.ptr, "Empty pointer from subexpression");
 		auto eStructType = dynamic_cast<StructType const*>(memAccExpr->expression().annotation().type);
 		solAssert(eStructType, "Trying to pack member of non-struct expression");
@@ -1486,7 +1485,7 @@ void ASTBoogieUtils::packInternal(Expression const* expr, bg::Expr::Ref bgExpr, 
 			return;
 		}
 
-		packInternal(&idxExpr->baseExpression(), base, structType, context, result);
+		packInternal(&idxExpr->baseExpression(), base, context, result);
 		solAssert(result.ptr, "Empty pointer from subexpression");
 		unsigned nextPos = result.stmts.size();
 		result.stmts.push_back(bg::Stmt::assign(
