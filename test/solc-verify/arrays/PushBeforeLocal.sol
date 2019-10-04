@@ -8,7 +8,7 @@ contract PushBeforeLocal {
     // This is to test that if we push to the end of the first dimension of a 2D array
     // then the beginning of the second dimension does not get shifted
     constructor() public {
-        
+
         // Create this layout: [ [S(1)], [S(2)]]
         ss.length = 2;
         require(ss[0].length == 0); // TODO: required because elements are not set to default when resizing
