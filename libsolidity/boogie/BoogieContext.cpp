@@ -652,6 +652,11 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 		auto baseTypeDecl = toBoogieType(baseType, _associatedNode);
 		string baseName = baseTypeDecl->getName();
 
+		if (arrType->location() == DataLocation::Storage && arrType->isPointer())
+		{
+			reportError(_associatedNode, "Local storage pointers to arrays are not supported yet");
+			return errType();
+		}
 		// Storage arrays are simply the data structures
 		if (arrType->location() == DataLocation::Storage)
 			return getArrayDatatype(baseTypeDecl);

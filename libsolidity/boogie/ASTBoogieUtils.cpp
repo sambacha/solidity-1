@@ -1562,7 +1562,6 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 			if (auto arrType = dynamic_cast<ArrayType const*>(declTp))
 			{
 				auto bgType = context.toBoogieType(arrType->baseType(), ptrExpr);
-				context.toBoogieType(arrType, ptrExpr); // TODO: this makes sure that the array types are declared even if the array itself is declared later
 				base = bg::Expr::arrsel(
 						context.getInnerArray(base, context.toBoogieType(arrType->baseType(), ptrExpr)),
 						bg::Expr::arrsel(ptrBgExpr, context.intLit(depth, 256)));
