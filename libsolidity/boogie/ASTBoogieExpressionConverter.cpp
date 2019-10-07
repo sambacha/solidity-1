@@ -1375,7 +1375,6 @@ bool ASTBoogieExpressionConverter::visit(IndexAccess const& _node)
 		// Unpack local pointers
 		if (arrType->dataStoredIn(DataLocation::Storage) && arrType->isPointer())
 			baseExpr = ASTBoogieUtils::unpackLocalPtr(&_node.baseExpression(), baseExpr, m_context);
-		m_context.toBoogieType(baseType, &_node); // Make sure that types are declared
 		baseExpr = m_context.getInnerArray(baseExpr, bgArrType);
 	}
 
