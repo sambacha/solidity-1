@@ -65,9 +65,28 @@ contract ArrayLocalStorage {
         assert(s[0] == 3);
     }
 
+    function testAssignToMem() public {
+        x1[0] = 1;
+
+        int[] storage s = x1;
+        assert(x1[0] == 1);
+        assert(s[0] == 1);
+
+        int[] memory m = s;
+        assert(x1[0] == 1);
+        assert(s[0] == 1);
+        assert(m[0] == 1);
+
+        s[0] = 2;
+        assert(x1[0] == 2);
+        assert(s[0] == 2);
+        assert(m[0] == 1);
+    }
+
     function() external payable {
         testSimple();
         testReassign();
         testAssignToStorage();
+        testAssignToMem();
     }
 }

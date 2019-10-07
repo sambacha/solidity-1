@@ -1195,6 +1195,8 @@ void ASTBoogieUtils::makeArrayAssign(AssignParam lhs, AssignParam rhs, ASTNode c
 		}
 		if (rhsLocation == DataLocation::Memory || rhsLocation == DataLocation::CallData)
 			rhs.bgExpr = context.getMemArray(rhs.bgExpr, context.toBoogieType(rhsTypeArray->baseType(), assocNode));
+		if (rhsTypeArray && rhsLocation == DataLocation::Storage && rhsTypeArray->isPointer())
+			rhs.bgExpr = ASTBoogieUtils::unpackLocalPtr(rhs.expr, rhs.bgExpr, context);
 	}
 	else if (lhsLocation == DataLocation::Storage) // If locations are same
 	{
