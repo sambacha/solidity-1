@@ -1208,6 +1208,11 @@ void ASTBoogieUtils::makeArrayAssign(AssignParam lhs, AssignParam rhs, ASTNode c
 				result.newStmts.push_back(stmt);
 			rhs.bgExpr = packed.ptr->getRefTo();
 		}
+		else if (!lhsType->isPointer() && rhsTypeArray && rhsTypeArray->isPointer())
+		{
+			// Unpack local pointer when assigning to storage
+			rhs.bgExpr = ASTBoogieUtils::unpackLocalPtr(rhs.expr, rhs.bgExpr, context);
+		}
 	}
 
 	makeBasicAssign(lhs, rhs, Token::Assign, assocNode, context, result);
