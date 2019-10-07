@@ -9,7 +9,7 @@ contract ArrayLocalStorage {
         x1.push(0);
         x2.push(0);
     }
-    
+
     function testSimple() public {
         x1[0] = 1;
         x2[0] = 2;
