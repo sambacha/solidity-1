@@ -515,7 +515,8 @@ bg::TypeDeclRef BoogieContext::getStructType(StructDefinition const* structDef, 
 	return errType();
 }
 
-bg::VarDeclRef BoogieContext::getDefaultStorageContext(StructType const* type) {
+bg::VarDeclRef BoogieContext::getDefaultStorageContext(StructType const* type)
+{
 	auto structDef = &type->structDefinition();
 	if (m_defaultStorageContexts.find(structDef) == m_defaultStorageContexts.end())
 	{
@@ -526,6 +527,21 @@ bg::VarDeclRef BoogieContext::getDefaultStorageContext(StructType const* type) {
 		addDecl(varDecl);
 	}
 	return m_defaultStorageContexts[structDef];
+}
+
+bg::VarDeclRef BoogieContext::getDefaultStorageContext(ArrayType const* type)
+{
+	auto baseBgType = toBoogieType(type->baseType(), nullptr);
+	string baseBgTypeStr = cleanupTypeName(baseBgType->getName());
+	if (m_defaultArrStorageContexts.find(baseBgTypeStr) == m_defaultArrStorageContexts.end())
+	{
+		auto varDecl = bg::Decl::variable(
+				baseBgTypeStr + "_arr_default_context",
+				bg::Decl::arraytype(intType(256), getArrayDatatype(baseBgType)));
+		m_defaultArrStorageContexts[baseBgTypeStr] = varDecl;
+		addDecl(varDecl);
+	}
+	return m_defaultArrStorageContexts[baseBgTypeStr];
 }
 
 std::string BoogieContext::cleanupTypeName(std::string typeName)
@@ -653,10 +669,7 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 		string baseName = baseTypeDecl->getName();
 
 		if (arrType->location() == DataLocation::Storage && arrType->isPointer())
-		{
-			reportError(_associatedNode, "Local storage pointers to arrays are not supported yet");
-			return errType();
-		}
+			return localPtrType();
 		// Storage arrays are simply the data structures
 		if (arrType->location() == DataLocation::Storage)
 			return getArrayDatatype(baseTypeDecl);

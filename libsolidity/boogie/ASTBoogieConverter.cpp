@@ -1349,26 +1349,28 @@ bool ASTBoogieConverter::visit(VariableDeclarationStatement const& _node)
 	auto const& declarations = _node.declarations();
 	auto initialValue = _node.initialValue();
 
-	if (declarations.size() == 1 && declarations[0]->type()->category() == Type::Category::Struct)
+	if (declarations.size() == 1)
 	{
-		auto structType = dynamic_cast<StructType const*>(declarations[0]->type());
-		if (structType->dataStoredIn(DataLocation::Storage) && structType->isPointer())
+		if (auto refType = dynamic_cast<ReferenceType const*>(declarations[0]->type()))
 		{
-			solAssert(initialValue, "Uninitialized local storage pointer.");
-			bg::Expr::Ref init = convertExpression(*initialValue);
-			m_currentBlocks.top()->addStmt(bg::Stmt::comment("Packing local storage pointer " + declarations[0]->name()));
+			if (refType->dataStoredIn(DataLocation::Storage) && refType->isPointer())
+			{
+				solAssert(initialValue, "Uninitialized local storage pointer.");
+				bg::Expr::Ref init = convertExpression(*initialValue);
+				m_currentBlocks.top()->addStmt(bg::Stmt::comment("Packing local storage pointer " + declarations[0]->name()));
 
-			auto packed = ASTBoogieUtils::packToLocalPtr(initialValue, init, m_context);
-			m_localDecls.push_back(packed.ptr);
-			for (auto stmt: packed.stmts)
-				m_currentBlocks.top()->addStmt(stmt);
+				auto packed = ASTBoogieUtils::packToLocalPtr(initialValue, init, m_context);
+				m_localDecls.push_back(packed.ptr);
+				for (auto stmt: packed.stmts)
+					m_currentBlocks.top()->addStmt(stmt);
 
-			auto varDecl = bg::Decl::variable(
-					m_context.mapDeclName(*declarations[0]),
-					m_context.toBoogieType(declarations[0]->type(), declarations[0].get()));
-			m_localDecls.push_back(varDecl);
-			m_currentBlocks.top()->addStmt(bg::Stmt::assign(varDecl->getRefTo(), packed.ptr->getRefTo()));
-			return false;
+				auto varDecl = bg::Decl::variable(
+						m_context.mapDeclName(*declarations[0]),
+						m_context.toBoogieType(declarations[0]->type(), declarations[0].get()));
+				m_localDecls.push_back(varDecl);
+				m_currentBlocks.top()->addStmt(bg::Stmt::assign(varDecl->getRefTo(), packed.ptr->getRefTo()));
+				return false;
+			}
 		}
 	}
 

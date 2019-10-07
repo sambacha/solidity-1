@@ -1365,9 +1365,10 @@ void ASTBoogieUtils::deepCopyStruct(StructDefinition const* structDef,
 ASTBoogieUtils::PackResult ASTBoogieUtils::packToLocalPtr(Expression const* expr, bg::Expr::Ref bgExpr, BoogieContext& context)
 {
 	PackResult result {nullptr, {}};
-	if (!dynamic_cast<StructType const*>(expr->annotation().type))
+	if (!dynamic_cast<StructType const*>(expr->annotation().type) &&
+		!dynamic_cast<ArrayType const*>(expr->annotation().type))
 	{
-		context.reportError(expr, "Expected struct type");
+		context.reportError(expr, "Expected array or struct type");
 		return PackResult{context.freshTempVar(context.errType()), {}};
 	}
 	packInternal(expr, bgExpr, context, result);
@@ -1520,7 +1521,8 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 	if (dynamic_cast<ContractDefinition const*>(decl))
 	{
 		auto structType = dynamic_cast<StructType const*>(ptrExpr->annotation().type);
-		solAssert(structType, "Expected struct type when unpacking");
+		auto arrayType = dynamic_cast<ArrayType const*>(ptrExpr->annotation().type);
+		solAssert(structType || arrayType, "Expected array or struct type when unpacking");
 		// Collect all variables from all contracts that can see the struct
 		vector<VariableDeclaration const*> vars;
 		for (auto contr: context.stats().allContracts())
@@ -1531,7 +1533,9 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 
 		// Default context (if no state var to unpack to)
 		bg::Expr::Ref unpackedExpr = bg::Expr::arrsel(
-			context.getDefaultStorageContext(structType)->getRefTo(),
+				(structType ?
+						context.getDefaultStorageContext(structType) :
+						context.getDefaultStorageContext(arrayType))->getRefTo(),
 			bg::Expr::arrsel(ptrBgExpr, context.intLit(1, 256))
 		);
 		for (unsigned i = 0; i < vars.size(); ++i)
@@ -1545,14 +1549,14 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 						subExpr, unpackedExpr);
 			}
 		}
-		if (!unpackedExpr)
-			context.reportError(ptrExpr, "Nothing to unpack, perhaps there are no instances of the type");
 		return unpackedExpr;
 	}
 	// Variable (state var or struct member)
 	else if (auto varDecl = dynamic_cast<VariableDeclaration const*>(decl))
 	{
-		auto targetTp = dynamic_cast<StructType const*>(ptrExpr->annotation().type);
+		auto targetStructTp = dynamic_cast<StructType const*>(ptrExpr->annotation().type);
+		auto targetArrayTp = dynamic_cast<ArrayType const*>(ptrExpr->annotation().type);
+		solAssert(targetStructTp || targetArrayTp, "Expected array or struct type when unpacking");
 		auto declTp = varDecl->type();
 
 		// Get rid of arrays and mappings by indexing into them
@@ -1560,6 +1564,11 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 		{
 			if (auto arrType = dynamic_cast<ArrayType const*>(declTp))
 			{
+				// Found a variable with a matching type, just return
+				if (targetArrayTp && targetArrayTp->baseType() == arrType->baseType())
+				{
+					return base;
+				}
 				auto bgType = context.toBoogieType(arrType->baseType(), ptrExpr);
 				base = bg::Expr::arrsel(
 						context.getInnerArray(base, context.toBoogieType(arrType->baseType(), ptrExpr)),
@@ -1579,7 +1588,7 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 		auto declStructTp = dynamic_cast<StructType const*>(declTp);
 
 		// Found a variable with a matching type, just return
-		if (targetTp && declStructTp && targetTp->structDefinition() == declStructTp->structDefinition())
+		if (targetStructTp && declStructTp && targetStructTp->structDefinition() == declStructTp->structDefinition())
 		{
 			return base;
 		}

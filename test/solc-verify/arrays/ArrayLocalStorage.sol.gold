@@ -1,0 +1,4 @@
+ArrayLocalStorage::[constructor]: OK
+ArrayLocalStorage::testSimple: OK
+ArrayLocalStorage::[fallback]: OK
+No errors found.
