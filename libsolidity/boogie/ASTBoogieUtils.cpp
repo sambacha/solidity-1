@@ -1196,6 +1196,19 @@ void ASTBoogieUtils::makeArrayAssign(AssignParam lhs, AssignParam rhs, ASTNode c
 		if (rhsLocation == DataLocation::Memory || rhsLocation == DataLocation::CallData)
 			rhs.bgExpr = context.getMemArray(rhs.bgExpr, context.toBoogieType(rhsTypeArray->baseType(), assocNode));
 	}
+	else if (lhsLocation == DataLocation::Storage) // If locations are same
+	{
+		// Pack into local pointer (reassigning local pointer)
+		if (lhsType->isPointer() && rhsTypeArray && !rhsTypeArray->isPointer())
+		{
+			result.newStmts.push_back(bg::Stmt::comment("Packing local storage pointer"));
+			auto packed = packToLocalPtr(rhs.expr, rhs.bgExpr, context);
+			result.newDecls.push_back(packed.ptr);
+			for (auto stmt: packed.stmts)
+				result.newStmts.push_back(stmt);
+			rhs.bgExpr = packed.ptr->getRefTo();
+		}
+	}
 
 	makeBasicAssign(lhs, rhs, Token::Assign, assocNode, context, result);
 }

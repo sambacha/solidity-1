@@ -30,7 +30,23 @@ contract ArrayLocalStorage {
         assert(s[0] == 4);
     }
 
+    function testReassign() public {
+        x1[0] = 1;
+        x2[0] = 2;
+
+        int[] storage s = x1;
+        assert(x1[0] == 1);
+        assert(x2[0] == 2);
+        assert(s[0] == 1);
+
+        s = x2;
+        assert(x1[0] == 1);
+        assert(x2[0] == 2);
+        assert(s[0] == 2);
+    }
+
     function() external payable {
         testSimple();
+        testReassign();
     }
 }

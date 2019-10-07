@@ -1,4 +1,5 @@
 ArrayLocalStorage::[constructor]: OK
 ArrayLocalStorage::testSimple: OK
+ArrayLocalStorage::testReassign: OK
 ArrayLocalStorage::[fallback]: OK
 No errors found.
