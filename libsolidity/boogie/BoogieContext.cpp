@@ -712,7 +712,7 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 		auto structTp = dynamic_cast<StructType const*>(tp);
 		// Local pointers are arrays
 		if (structTp->location() == DataLocation::Storage && structTp->isPointer())
-			return bg::Decl::arraytype(intType(256), intType(256));
+			return localPtrType();
 
 		return getStructType(&structTp->structDefinition(), structTp->location());
 	}
