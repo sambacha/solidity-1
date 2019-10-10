@@ -1,6 +1,6 @@
 test/solc-verify/specs/Eq.sol:2:1: Warning: Experimental features are turned on. Do not use experimental features on live deployments.
 Annotation:1:1: solc-verify warning: Use operator == for comparing value types
-test/solc-verify/specs/Eq.sol:71:5: solc-verify warning: Warning(s) while processing annotation for node
+test/solc-verify/specs/Eq.sol:66:5: solc-verify warning: Warning(s) while processing annotation for node
 MapsEq::upd_correct: OK
 MapsEq::upd_incorrect: ERROR
  - test/solc-verify/specs/Eq.sol:14:5: Invariant '__verifier_eq(x, y)' might not hold at end of function.
@@ -8,14 +8,14 @@ MapsEq::[constructor]: OK
 MapsEq::[receive_ether_selfdestruct]: OK
 StructsEq::upd_correct: OK
 StructsEq::upd_incorrect: ERROR
- - test/solc-verify/specs/Eq.sol:46:5: Invariant '__verifier_eq(s1, s2)' might not hold at end of function.
+ - test/solc-verify/specs/Eq.sol:41:5: Invariant '__verifier_eq(s1, s2)' might not hold at end of function.
 StructsEq::upd_from_mem_correct: OK
 StructsEq::upd_from_mem_correct2: OK
 StructsEq::upd_from_mem_incorrect: ERROR
- - test/solc-verify/specs/Eq.sol:64:5: Invariant '__verifier_eq(s1, s2)' might not hold at end of function.
+ - test/solc-verify/specs/Eq.sol:59:5: Invariant '__verifier_eq(s1, s2)' might not hold at end of function.
 StructsEq::mem_correct: OK
 StructsEq::mem_incorrect: ERROR
- - test/solc-verify/specs/Eq.sol:78:5: Postcondition '__verifier_eq(sm1, sm2)' might not hold at end of function.
+ - test/solc-verify/specs/Eq.sol:73:5: Postcondition '__verifier_eq(sm1, sm2)' might not hold at end of function.
 StructsEq::[implicit_constructor]: OK
 StructsEq::[receive_ether_selfdestruct]: OK
 Errors were found by the verifier.
