@@ -981,28 +981,21 @@ void ASTBoogieExpressionConverter::functionCallNewArray(FunctionCall const& _nod
 	auto bgType = m_context.toBoogieType(arrType->baseType(), &_node);
 	auto memArr = m_context.getMemArray(varDecl->getRefTo(), bgType);
 	auto arrLen = m_context.getArrayLength(memArr, bgType);
+	// Try to create default values: for non-reference types this can be
+	// done by creating a default array (as if it was in storage) and
+	// then simply putting it where the new array is pointing
+	bg::Expr::Ref defVal = nullptr;
+	if (!dynamic_cast<ReferenceType const*>(arrType->baseType()))
+		defVal = ASTBoogieUtils::defaultValue(arrType->withLocation(DataLocation::Storage, false), m_context);
+	if (defVal)
+		addSideEffect(bg::Stmt::assign(memArr, defVal));
+	else
+		m_context.reportWarning(&_node, "Array elements could not be set to default value for this type");
+
 	// Set length
 	solAssert(_node.arguments().size() == 1, "Array initializer must have exactly one argument for size.");
 	_node.arguments()[0]->accept(*this);
 	addSideEffect(bg::Stmt::assign(arrLen, m_currentExpr));
-
-	if (auto lit = dynamic_pointer_cast<bg::IntLit const>(m_currentExpr))
-	{
-		auto defaultVal = ASTBoogieUtils::defaultValue(arrType->baseType(), m_context);
-		if (defaultVal)
-		{
-			for (size_t i = 0; i < lit->getVal(); i++)
-				addSideEffect(bg::Stmt::assign(
-						bg::Expr::arrsel(
-								m_context.getInnerArray(memArr, bgType),
-								m_context.intLit(i, 256)),
-						defaultVal));
-		}
-		else
-			m_context.reportWarning(&_node, "Could not set default values for array elements");
-	}
-	else
-		m_context.reportWarning(&_node, "Array size not known at compile time, elements could not be set to default value");
 
 	m_currentExpr = varDecl->getRefTo();
 }
