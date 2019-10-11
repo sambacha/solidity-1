@@ -1449,12 +1449,34 @@ bool ASTBoogieConverter::visit(VariableDeclarationStatement const& _node)
 	{
 		for (auto declNode: _node.declarations())
 		{
+			// Try default value
 			bg::Expr::Ref defaultVal = ASTBoogieUtils::defaultValue(declNode->type(), m_context);
 			if (defaultVal)
+			{
 				m_currentBlocks.top()->addStmt(bg::Stmt::assign(
 									bg::Expr::id(m_context.mapDeclName(*declNode)), defaultVal));
+			}
 			else
-				m_context.reportWarning(declNode.get(), "Unhandled default value, verification might fail");
+			{
+				// Default value for memory arrays
+				auto arrType = dynamic_cast<ArrayType const*>(declNode->type());
+				if (arrType && arrType->location() == DataLocation::Memory)
+				{
+					auto result = ASTBoogieUtils::newArray(m_context.toBoogieType(declNode->type(), declNode.get()), m_context);
+					auto varDecl = result.newDecl;
+					for (auto stmt: result.newStmts)
+						m_currentBlocks.top()->addStmt(stmt);
+					m_localDecls.push_back(varDecl);
+					m_currentBlocks.top()->addStmt(bg::Stmt::assign(
+							bg::Expr::id(m_context.mapDeclName(*declNode)), varDecl->getRefTo()));
+					auto bgType = m_context.toBoogieType(arrType->baseType(), declNode.get());
+					auto memArr = m_context.getMemArray(varDecl->getRefTo(), bgType);
+					auto arrLen = m_context.getArrayLength(memArr, bgType);
+					m_currentBlocks.top()->addStmt(bg::Stmt::assign(arrLen, m_context.intLit(0, 256)));
+				}
+				else
+					m_context.reportWarning(declNode.get(), "Unhandled default value, verification might fail");
+			}
 		}
 	}
 	return false;
