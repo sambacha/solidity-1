@@ -1180,6 +1180,12 @@ void ASTBoogieUtils::makeArrayAssign(AssignParam lhs, AssignParam rhs, ASTNode c
 	DataLocation lhsLocation = lhsType->location();
 	DataLocation rhsLocation = rhsTypeArray ? rhsTypeArray->location() : DataLocation::Storage;
 
+	if (lhsLocation != rhsLocation && rhsTypeArray &&
+			dynamic_cast<ReferenceType const*>(rhsTypeArray->baseType()))
+	{
+		context.reportError(assocNode, "Deep copy between storage/memory arrays with reference types is not yet supported.");
+	}
+
 	// Check if locations are compatible
 	if (lhsLocation != rhsLocation)
 	{
