@@ -318,6 +318,16 @@ bool ASTBoogieExpressionConverter::visit(UnaryOperation const& _node)
 			m_currentExpr = tempVar->getRefTo();
 		}
 		break;
+	case Token::Delete:
+		{
+			auto refType = dynamic_cast<ReferenceType const*>(_node.subExpression().annotation().type);
+			if (refType->dataStoredIn(DataLocation::Storage) && !refType->isPointer())
+				addSideEffect(bg::Stmt::assign(subExpr,
+						ASTBoogieUtils::defaultValue(_node.subExpression().annotation().type, m_context)));
+			else
+				m_context.reportError(&_node, "Delete is only supported for storage (non-pointer)");
+		}
+		break;
 	default:
 		m_context.reportError(&_node, string("Unsupported unary operator: ") + TokenTraits::toString(_node.getOperator()));
 		m_currentExpr = bg::Expr::error();
