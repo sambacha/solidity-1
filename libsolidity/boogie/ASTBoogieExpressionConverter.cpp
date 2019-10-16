@@ -321,11 +321,16 @@ bool ASTBoogieExpressionConverter::visit(UnaryOperation const& _node)
 	case Token::Delete:
 		{
 			auto refType = dynamic_cast<ReferenceType const*>(_node.subExpression().annotation().type);
-			if (refType->dataStoredIn(DataLocation::Storage) && !refType->isPointer())
-				addSideEffect(bg::Stmt::assign(subExpr,
-						ASTBoogieUtils::defaultValue(_node.subExpression().annotation().type, m_context)));
+			if (!refType || (refType->dataStoredIn(DataLocation::Storage) && !refType->isPointer()))
+			{
+				auto defval = ASTBoogieUtils::defaultValue(_node.subExpression().annotation().type, m_context);
+				if (defval)
+					addSideEffect(bg::Stmt::assign(subExpr, defval));
+				else
+					m_context.reportError(&_node, "Default value not supported for type");
+			}
 			else
-				m_context.reportError(&_node, "Delete is only supported for storage (non-pointer)");
+				m_context.reportError(&_node, "Delete is only supported for value types and storage (non-pointer)");
 		}
 		break;
 	default:
