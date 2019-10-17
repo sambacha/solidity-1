@@ -1591,7 +1591,7 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 			if (auto arrType = dynamic_cast<ArrayType const*>(declTp))
 			{
 				// Found a variable with a matching type, just return
-				if (targetArrayTp && targetArrayTp->baseType() == arrType->baseType())
+				if (targetArrayTp && targetArrayTp->isImplicitlyConvertibleTo(*arrType))
 				{
 					return base;
 				}
