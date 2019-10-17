@@ -1003,6 +1003,24 @@ void ASTBoogieUtils::makeAssignInternal(AssignParam lhs, AssignParam rhs, langut
 		return;
 	}
 
+	// Mappings: only assignment to local storage pointer is valid
+	if (dynamic_cast<MappingType const*>(lhs.type))
+	{
+		if (dynamic_cast<MappingType const*>(rhs.type))
+		{
+			result.newStmts.push_back(bg::Stmt::comment("Packing local storage pointer"));
+			auto packed = packToLocalPtr(rhs.expr, rhs.bgExpr, context);
+			result.newDecls.push_back(packed.ptr);
+			for (auto stmt: packed.stmts)
+				result.newStmts.push_back(stmt);
+			rhs.bgExpr = packed.ptr->getRefTo();
+			makeBasicAssign(lhs, rhs, Token::Assign, assocNode, context, result);
+		}
+		else
+			context.reportError(assocNode, "LHS is mapping but RHS is not");
+		return;
+	}
+
 	makeBasicAssign(lhs, rhs, op, assocNode, context, result);
 }
 
@@ -1392,7 +1410,8 @@ ASTBoogieUtils::PackResult ASTBoogieUtils::packToLocalPtr(Expression const* expr
 {
 	PackResult result {nullptr, {}};
 	if (!dynamic_cast<StructType const*>(expr->annotation().type) &&
-		!dynamic_cast<ArrayType const*>(expr->annotation().type))
+		!dynamic_cast<ArrayType const*>(expr->annotation().type) &&
+		!dynamic_cast<MappingType const*>(expr->annotation().type))
 	{
 		context.reportError(expr, "Expected array or struct type");
 		return PackResult{context.freshTempVar(context.errType()), {}};
@@ -1548,7 +1567,8 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 	{
 		auto structType = dynamic_cast<StructType const*>(ptrExpr->annotation().type);
 		auto arrayType = dynamic_cast<ArrayType const*>(ptrExpr->annotation().type);
-		solAssert(structType || arrayType, "Expected array or struct type when unpacking");
+		auto mapType = dynamic_cast<MappingType const*>(ptrExpr->annotation().type);
+		solAssert(structType || arrayType || mapType, "Expected array, mapping or struct type when unpacking");
 		// Collect all variables from all contracts that can see the struct
 		vector<VariableDeclaration const*> vars;
 		for (auto contr: context.stats().allContracts())
@@ -1558,21 +1578,25 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 		}
 
 		// Default context (if no state var to unpack to)
-		bg::Expr::Ref unpackedExpr = bg::Expr::arrsel(
-				(structType ?
-						context.getDefaultStorageContext(structType) :
-						context.getDefaultStorageContext(arrayType))->getRefTo(),
-			bg::Expr::arrsel(ptrBgExpr, context.intLit(1, 256))
-		);
+		bg::Expr::Ref unpackedExpr = nullptr;
+		if (structType)
+			unpackedExpr = bg::Expr::arrsel(context.getDefaultStorageContext(structType)->getRefTo(),
+					bg::Expr::arrsel(ptrBgExpr, context.intLit(1, 256)));
+		else if (arrayType)
+			unpackedExpr = bg::Expr::arrsel(context.getDefaultStorageContext(arrayType)->getRefTo(),
+				bg::Expr::arrsel(ptrBgExpr, context.intLit(1, 256)));
 		for (unsigned i = 0; i < vars.size(); ++i)
 		{
 			auto subExpr = unpackInternal(ptrExpr, ptrBgExpr, vars[i], depth+1,
 					bg::Expr::arrsel(bg::Expr::id(context.mapDeclName(*vars[i])), context.boogieThis()->getRefTo()), context);
 			if (subExpr)
 			{
-				unpackedExpr = bg::Expr::cond(
-						bg::Expr::eq(bg::Expr::arrsel(ptrBgExpr, context.intLit(depth, 256)), context.intLit(i, 256)),
-						subExpr, unpackedExpr);
+				if (unpackedExpr)
+					unpackedExpr = bg::Expr::cond(
+							bg::Expr::eq(bg::Expr::arrsel(ptrBgExpr, context.intLit(depth, 256)), context.intLit(i, 256)),
+							subExpr, unpackedExpr);
+				else
+					unpackedExpr = subExpr;
 			}
 		}
 		return unpackedExpr;
@@ -1582,7 +1606,8 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 	{
 		auto targetStructTp = dynamic_cast<StructType const*>(ptrExpr->annotation().type);
 		auto targetArrayTp = dynamic_cast<ArrayType const*>(ptrExpr->annotation().type);
-		solAssert(targetStructTp || targetArrayTp, "Expected array or struct type when unpacking");
+		auto targetMapTp = dynamic_cast<MappingType const*>(ptrExpr->annotation().type);
+		solAssert(targetStructTp || targetArrayTp || targetMapTp, "Expected array, mapping or struct type when unpacking");
 		auto declTp = varDecl->type();
 
 		// Get rid of arrays and mappings by indexing into them
@@ -1592,9 +1617,7 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 			{
 				// Found a variable with a matching type, just return
 				if (targetArrayTp && targetArrayTp->isImplicitlyConvertibleTo(*arrType))
-				{
 					return base;
-				}
 				auto bgType = context.toBoogieType(arrType->baseType(), ptrExpr);
 				base = bg::Expr::arrsel(
 						context.getInnerArray(base, context.toBoogieType(arrType->baseType(), ptrExpr)),
@@ -1603,6 +1626,9 @@ bg::Expr::Ref ASTBoogieUtils::unpackInternal(Expression const* ptrExpr, boogie::
 			}
 			else if (auto mapType = dynamic_cast<MappingType const*>(declTp))
 			{
+				// Found a variable with a matching type, just return
+				if (targetMapTp && targetMapTp->isImplicitlyConvertibleTo(*mapType))
+					return base;
 				base = bg::Expr::arrsel(base, bg::Expr::arrsel(ptrBgExpr, context.intLit(depth, 256)));
 				declTp = mapType->valueType();
 			}

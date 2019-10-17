@@ -1386,6 +1386,14 @@ bool ASTBoogieExpressionConverter::visit(IndexAccess const& _node)
 		baseExpr = m_context.getInnerArray(baseExpr, bgArrType);
 	}
 
+	// Unpack local storage pointer mappings
+	if (baseType->category() == Type::Category::Mapping)
+		if (auto idExpr = dynamic_cast<Identifier const*>(&_node.baseExpression()))
+			if (auto varDecl = dynamic_cast<VariableDeclaration const*>(idExpr->annotation().referencedDeclaration))
+				if (varDecl->isLocalOrReturn())
+					baseExpr = ASTBoogieUtils::unpackLocalPtr(&_node.baseExpression(), baseExpr, m_context);
+
+
 	// Index access is simply converted to a select in Boogie, which is fine
 	// as long as it is not an LHS of an assignment (e.g., x[i] = v), but
 	// that case is handled when converting assignments
