@@ -811,6 +811,19 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	m_localDecls.clear();
 	// Create new empty block
 	m_currentBlocks.push(bg::Block::block());
+	// Basic non-aliasing between parameters and newly allocated stuff
+	for (auto par: _node.parameters())
+	{
+		if (auto parRef = dynamic_cast<ReferenceType const*>(par->annotation().type))
+		{
+			if (parRef->dataStoredIn(DataLocation::Memory))
+			{
+				m_currentBlocks.top()->addStmt(bg::Stmt::assume(bg::Expr::lt(
+						bg::Expr::id(m_context.mapDeclName(*par)),
+						m_context.getAllocCounter()->getRefTo())));
+			}
+		}
+	}
 	// Include constructor preamble
 	if (_node.isConstructor())
 		constructorPreamble();
