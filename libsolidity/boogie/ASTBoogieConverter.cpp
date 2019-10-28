@@ -860,11 +860,11 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	// Restore error reporter
 	m_context.errorReporter() = originalErrReporter;
 
-	// Add function body if there were no errors
+	// Add function body if there were no errors and is implemented
 	vector<bg::Block::Ref> blocks;
 	if (Error::containsOnlyWarnings(errorList))
 	{
-		if (!m_currentBlocks.top()->getStatements().empty())
+		if (_node.isImplemented())
 			blocks.push_back(m_currentBlocks.top());
 	}
 	else
