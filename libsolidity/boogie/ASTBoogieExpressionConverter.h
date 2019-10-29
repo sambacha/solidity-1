@@ -24,6 +24,7 @@ private:
 	boogie::Expr::Ref m_currentAddress;
 	boogie::Expr::Ref m_currentMsgValue;
 	bool m_isGetter;
+	TypePointer m_getterVarType;
 	bool m_isLibraryCall;
 	bool m_isLibraryCallStatic;
 

@@ -41,6 +41,7 @@ ASTBoogieExpressionConverter::ASTBoogieExpressionConverter(BoogieContext& contex
 		m_currentAddress(nullptr),
 		m_currentMsgValue(nullptr),
 		m_isGetter(false),
+		m_getterVarType(nullptr),
 		m_isLibraryCall(false),
 		m_isLibraryCallStatic(false) {}
 
@@ -51,6 +52,7 @@ ASTBoogieExpressionConverter::Result ASTBoogieExpressionConverter::convert(Expre
 	m_currentAddress = nullptr;
 	m_currentMsgValue = nullptr;
 	m_isGetter = false;
+	m_getterVarType = nullptr;
 	m_isLibraryCall = false;
 	m_isLibraryCallStatic = false;
 	m_newStatements.clear();
@@ -503,21 +505,17 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 		}
 	}
 
-	// Process expression
+	// Process expression and save it for later
 	_node.expression().accept(*this);
-
-	if (m_isGetter)
-		return false; // Result is already in the current expr
+	bg::Expr::Ref expr = m_currentExpr;
+	bool isGetter = m_isGetter;
+	auto getterVarType = m_getterVarType;
 
 	// 'm_currentExpr' should be an identifier, giving the name of the function
-	string funcName;
-	if (auto varExpr = dynamic_pointer_cast<bg::VarExpr const>(m_currentExpr))
+	// except for some special cases (e.g., getter)
+	string funcName = "";
+	if (auto varExpr = dynamic_pointer_cast<bg::VarExpr const>(expr))
 		funcName = varExpr->name();
-	else
-	{
-		m_context.reportError(&_node, "Only identifiers are supported as function calls");
-		return false;
-	}
 
 	// Process arguments recursively
 	vector<bg::Expr::Ref> allArgs;
@@ -623,6 +621,28 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	allArgs.insert(allArgs.end(), regularArgs.begin(), regularArgs.end());
 
 	// Check for calls to special functions
+
+	// Getter
+	if (isGetter)
+	{
+		// Base variable access is already in 'expr', but we have to add getter arguments
+		solAssert(getterVarType, "Variable type for getter is unknown");
+		for (auto arg: regularArgs)
+		{
+			if (auto mapType = dynamic_cast<MappingType const*>(getterVarType))
+			{
+				getterVarType = mapType->valueType();
+				expr = bg::Expr::arrsel(expr, arg);
+			}
+			else
+			{
+				m_context.reportError(&_node, "Unsupported type in getter argument");
+				return false;
+			}
+		}
+		m_currentExpr = expr;
+		return false; // Result is already in the current expr
+	}
 
 	// Assert is a separate statement in Boogie (instead of a function call)
 	if (funcName == ASTBoogieUtils::SOLIDITY_ASSERT)
@@ -761,6 +781,11 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 			returnVarNames.push_back(varDecl->getName());
 			returnVars.push_back(varDecl->getRefTo());
 		}
+	}
+	if (funcName == "")
+	{
+		m_context.reportError(&_node, "Only identifiers are supported as function calls");
+		return false;
 	}
 	// Assign call to the fresh variable
 	addSideEffects({
@@ -1251,8 +1276,12 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 	m_currentExpr = bg::Expr::id(m_context.mapDeclName(*_node.annotation().referencedDeclaration));
 	// Check for getter
 	m_isGetter =  dynamic_cast<VariableDeclaration const*>(_node.annotation().referencedDeclaration);
+	m_getterVarType = nullptr;
 	if (m_isGetter)
+	{
 		m_currentExpr = bg::Expr::arrsel(m_currentExpr, m_currentAddress);
+		m_getterVarType = _node.annotation().referencedDeclaration->type();
+	}
 
 	// Check for library call
 	m_isLibraryCall = false;
