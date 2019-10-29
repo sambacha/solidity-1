@@ -634,6 +634,11 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 				getterVarType = mapType->valueType();
 				expr = bg::Expr::arrsel(expr, arg);
 			}
+			else if (auto arrType = dynamic_cast<ArrayType const*>(getterVarType))
+			{
+				getterVarType = arrType->baseType();
+				expr = bg::Expr::arrsel(m_context.getInnerArray(expr, m_context.toBoogieType(arrType->baseType(), &_node)), arg);
+			}
 			else
 			{
 				m_context.reportError(&_node, "Unsupported type in getter argument");

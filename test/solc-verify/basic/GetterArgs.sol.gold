@@ -1,5 +1,7 @@
 A::setm1: OK
 A::setm2: OK
+A::seta: OK
+A::setma: OK
 A::[implicit_constructor]: OK
 B::f: OK
 B::[implicit_constructor]: OK
