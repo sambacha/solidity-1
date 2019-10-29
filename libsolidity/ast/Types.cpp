@@ -1812,10 +1812,10 @@ TypePointer ArrayType::decodingType() const
 
 TypeResult ArrayType::interfaceType(bool _inLibrary) const
 {
-	if (_inLibrary && m_interfaceType_library.is_initialized())
+	if (_inLibrary && m_interfaceType_library.has_value())
 		return *m_interfaceType_library;
 
-	if (!_inLibrary && m_interfaceType.is_initialized())
+	if (!_inLibrary && m_interfaceType.has_value())
 		return *m_interfaceType;
 
 	TypeResult result{TypePointer{}};
@@ -1849,7 +1849,7 @@ u256 ArrayType::memoryDataSize() const
 	solAssert(m_location == DataLocation::Memory, "");
 	solAssert(!isByteArray(), "");
 	bigint size = bigint(m_length) * m_baseType->memoryHeadSize();
-	solAssert(size <= numeric_limits<unsigned>::max(), "Array size does not fit u256.");
+	solAssert(size <= numeric_limits<u256>::max(), "Array size does not fit u256.");
 	return u256(size);
 }
 
@@ -2050,6 +2050,8 @@ unsigned StructType::calldataOffsetOfMember(std::string const& _member) const
 
 bool StructType::isDynamicallyEncoded() const
 {
+	if (recursive())
+		return true;
 	solAssert(interfaceType(false).get(), "");
 	for (auto t: memoryMemberTypes())
 	{
@@ -2104,10 +2106,10 @@ MemberList::MemberMap StructType::nativeMembers(ContractDefinition const*) const
 
 TypeResult StructType::interfaceType(bool _inLibrary) const
 {
-	if (_inLibrary && m_interfaceType_library.is_initialized())
+	if (_inLibrary && m_interfaceType_library.has_value())
 		return *m_interfaceType_library;
 
-	if (!_inLibrary && m_interfaceType.is_initialized())
+	if (!_inLibrary && m_interfaceType.has_value())
 		return *m_interfaceType;
 
 	TypeResult result{TypePointer{}};
@@ -2164,7 +2166,7 @@ TypeResult StructType::interfaceType(bool _inLibrary) const
 		}
 	};
 
-	m_recursive = m_recursive.get() || (CycleDetector<StructDefinition>(visitor).run(structDefinition()) != nullptr);
+	m_recursive = m_recursive.value() || (CycleDetector<StructDefinition>(visitor).run(structDefinition()) != nullptr);
 
 	std::string const recursiveErrMsg = "Recursive type not allowed for public or external contract functions.";
 
@@ -2177,13 +2179,13 @@ TypeResult StructType::interfaceType(bool _inLibrary) const
 		else
 			m_interfaceType_library = TypeProvider::withLocation(this, DataLocation::Memory, true);
 
-		if (m_recursive.get())
+		if (m_recursive.value())
 			m_interfaceType = TypeResult::err(recursiveErrMsg);
 
 		return *m_interfaceType_library;
 	}
 
-	if (m_recursive.get())
+	if (m_recursive.value())
 		m_interfaceType = TypeResult::err(recursiveErrMsg);
 	else if (!result.message().empty())
 		m_interfaceType = result;
