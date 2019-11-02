@@ -1051,6 +1051,11 @@ void ASTBoogieExpressionConverter::functionCallPushPop(MemberAccess const* memAc
 	auto bgType = m_context.toBoogieType(arrType->baseType(), &_node);
 	memAccExpr->expression().accept(*this);
 	auto arr = m_currentExpr;
+	// Storage pointer: unpack first
+	if (arrType->isPointer())
+	{
+		arr = ASTBoogieUtils::unpackLocalPtr(&memAccExpr->expression(), arr, m_context);
+	}
 	auto len = m_context.getArrayLength(arr, bgType);
 	ASTBoogieUtils::ExprWithCC lenUpd;
 	if (memAccExpr->memberName() == "push")
@@ -1227,9 +1232,15 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 	if (isArray && _node.memberName() == "length")
 	{
 		auto arrType = dynamic_cast<ArrayType const*>(type);
+		// Memory: dereference first
 		if (type->dataStoredIn(DataLocation::Memory) || type->dataStoredIn(DataLocation::CallData))
 		{
 			m_currentExpr = m_context.getMemArray(m_currentExpr, m_context.toBoogieType(arrType->baseType(), &_node));
+		}
+		// Storage pointer: unpack first
+		if (type->dataStoredIn(DataLocation::Storage) && arrType->isPointer())
+		{
+			m_currentExpr = ASTBoogieUtils::unpackLocalPtr(&_node.expression(), m_currentExpr, m_context);
 		}
 		m_currentExpr = m_context.getArrayLength(m_currentExpr, m_context.toBoogieType(arrType->baseType(), &_node));
 		addTCC(m_currentExpr, tp_uint256);
