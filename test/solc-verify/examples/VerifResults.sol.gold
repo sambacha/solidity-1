@@ -1,0 +1,9 @@
+VerifResults::[constructor]: OK
+VerifResults::set_correct: OK
+VerifResults::set_incorrect: ERROR
+ - test/solc-verify/examples/VerifResults.sol:22:5: Postcondition 'x == x1' might not hold at end of function.
+VerifResults::use_unsupported: OK
+VerifResults::unsupported: SKIPPED
+Use --show-warnings to see 3 warnings.
+Some functions were skipped. Use --verbose to see details.
+Errors were found by the verifier.
