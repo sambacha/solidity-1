@@ -145,7 +145,7 @@ Solc-verify performs modular verification by checking for each public function w
 
 The output for each function is `OK`, `ERROR` or `SKIPPED`.
 If a function contains any errors, solc-verify lists them below.
-If a function containts any unsupported features it is skipped and treated as if it could modify any state variable arbitrarily (safe over-approximation).
+If a function contains any unsupported features it is skipped and treated as if it could modify any state variable arbitrarily (safe over-approximation).
 However, skipped functions can be specified with annotations, which will be assumed to hold during verification.
 Finally, solc-verify lists warnings if some abstraction was applied that might introduce false alarms.
 

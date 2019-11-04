@@ -1,9 +1,11 @@
+test/solc-verify/examples/VerifResults.sol:29:5: Warning: Function state mutability can be restricted to pure
+solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
+test/solc-verify/examples/VerifResults.sol:29:5: solc-verify warning: Errors while translating function body, will be skipped
 VerifResults::[constructor]: OK
 VerifResults::set_correct: OK
 VerifResults::set_incorrect: ERROR
  - test/solc-verify/examples/VerifResults.sol:22:5: Postcondition 'x == x1' might not hold at end of function.
 VerifResults::use_unsupported: OK
 VerifResults::unsupported: SKIPPED
-Use --show-warnings to see 3 warnings.
 Some functions were skipped. Use --verbose to see details.
 Errors were found by the verifier.
