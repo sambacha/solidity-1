@@ -306,7 +306,7 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 
 		// Resolve references, using the given scope
 		m_context.scopes()[expr.get()] = m_context.scopes()[_scope];
-		NameAndTypeResolver resolver(*m_context.globalContext(), m_context.scopes(), *m_context.errorReporter());
+		NameAndTypeResolver resolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
 		if (resolver.resolveNamesAndTypes(*expr))
 		{
 			// Do type checking

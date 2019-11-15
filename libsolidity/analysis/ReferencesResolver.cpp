@@ -126,7 +126,7 @@ bool ReferencesResolver::visit(ElementaryTypeName const& _typeName)
 		{
 			// for non-address types this was already caught by the parser
 			solAssert(_typeName.annotation().type->category() == Type::Category::Address, "");
-			switch(*_typeName.stateMutability())
+			switch (*_typeName.stateMutability())
 			{
 				case StateMutability::Payable:
 					_typeName.annotation().type = TypeProvider::payableAddress();
@@ -328,7 +328,7 @@ bool ReferencesResolver::visit(InlineAssembly const& _inlineAssembly)
 		analysisInfo,
 		errorsIgnored,
 		errorTypeForLoose,
-		yul::EVMDialect::looseAssemblyForEVM(EVMVersion{}),
+		yul::EVMDialect::looseAssemblyForEVM(m_evmVersion),
 		resolver
 	).analyze(_inlineAssembly.operations());
 	return false;

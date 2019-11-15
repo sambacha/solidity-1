@@ -887,10 +887,12 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 		string file = contractName.substr(0, colon);
 		string name = contractName.substr(colon + 1);
 
-		// ABI, documentation and metadata
+		// ABI, storage layout, documentation and metadata
 		Json::Value contractData(Json::objectValue);
 		if (isArtifactRequested(_inputsAndSettings.outputSelection, file, name, "abi", wildcardMatchesExperimental))
 			contractData["abi"] = compilerStack.contractABI(contractName);
+		if (isArtifactRequested(_inputsAndSettings.outputSelection, file, name, "storageLayout", false))
+			contractData["storageLayout"] = compilerStack.storageLayout(contractName);
 		if (isArtifactRequested(_inputsAndSettings.outputSelection, file, name, "metadata", wildcardMatchesExperimental))
 			contractData["metadata"] = compilerStack.metadata(contractName);
 		if (isArtifactRequested(_inputsAndSettings.outputSelection, file, name, "userdoc", wildcardMatchesExperimental))
@@ -907,6 +909,8 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 		// eWasm
 		if (compilationSuccess && isArtifactRequested(_inputsAndSettings.outputSelection, file, name, "ewasm.wast", wildcardMatchesExperimental))
 			contractData["ewasm"]["wast"] = compilerStack.eWasm(contractName);
+		if (compilationSuccess && isArtifactRequested(_inputsAndSettings.outputSelection, file, name, "ewasm.wasm", wildcardMatchesExperimental))
+			contractData["ewasm"]["wasm"] = compilerStack.eWasmObject(contractName).toHex();
 
 		// EVM
 		Json::Value evmData(Json::objectValue);

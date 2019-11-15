@@ -658,7 +658,7 @@ BoolResult FixedPointType::isExplicitlyConvertibleTo(Type const& _convertTo) con
 
 TypeResult FixedPointType::unaryOperatorResult(Token _operator) const
 {
-	switch(_operator)
+	switch (_operator)
 	{
 	case Token::Delete:
 		// "delete" is ok for all fixed types
@@ -2846,7 +2846,7 @@ unsigned FunctionType::sizeOnStack() const
 
 	unsigned size = 0;
 
-	switch(kind)
+	switch (kind)
 	{
 	case Kind::External:
 	case Kind::DelegateCall:
@@ -3371,6 +3371,15 @@ MemberList::MemberMap TypeType::nativeMembers(ContractDefinition const* _current
 			members.emplace_back(enumValue->name(), enumType);
 	}
 	return members;
+}
+
+BoolResult TypeType::isExplicitlyConvertibleTo(Type const& _convertTo) const
+{
+	if (auto const* address = dynamic_cast<AddressType const*>(&_convertTo))
+		if (address->stateMutability() == StateMutability::NonPayable)
+			if (auto const* contractType = dynamic_cast<ContractType const*>(m_actualType))
+				return contractType->contractDefinition().isLibrary();
+	return isImplicitlyConvertibleTo(_convertTo);
 }
 
 ModifierType::ModifierType(ModifierDefinition const& _modifier)
