@@ -378,7 +378,7 @@ bool ASTBoogieExpressionConverter::visit(BinaryOperation const& _node)
 	}
 
 	auto op = _node.getOperator();
-	switch(op)
+	switch (op)
 	{
 	// Non-arithmetic operations
 	case Token::And: m_currentExpr = bg::Expr::and_(lhs, rhs); break;

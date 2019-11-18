@@ -283,7 +283,7 @@ bg::ProcDeclRef ASTBoogieUtils::createSendProc(BoogieContext& context)
 
 string ASTBoogieUtils::dataLocToStr(DataLocation loc)
 {
-	switch(loc)
+	switch (loc)
 	{
 	case DataLocation::Storage: return "storage";
 	case DataLocation::Memory: return "memory";
@@ -315,10 +315,10 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithBinaryOp(BoogieContext& co
 	bg::Expr::Ref result = nullptr;
 	bg::Expr::Ref ecc = nullptr;
 
-	switch(context.encoding())
+	switch (context.encoding())
 	{
 	case BoogieContext::Encoding::INT:
-		switch(op)
+		switch (op)
 		{
 		case Token::Add:
 		case Token::AssignAdd:
@@ -456,7 +456,7 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithBinaryOp(BoogieContext& co
 		auto modulo = bg::Expr::lit(boost::multiprecision::pow(bg::bigint(2), bits));
 		auto largestSigned = bg::Expr::lit(boost::multiprecision::pow(bg::bigint(2), bits - 1) - 1);
 		auto smallestSigned = bg::Expr::lit(-boost::multiprecision::pow(bg::bigint(2), bits - 1));
-		switch(op)
+		switch (op)
 		{
 		case Token::Add:
 		case Token::AssignAdd:
@@ -565,10 +565,10 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithUnaryOp(BoogieContext& con
 	bg::Expr::Ref result = nullptr;
 	bg::Expr::Ref ecc = nullptr;
 
-	switch(context.encoding())
+	switch (context.encoding())
 	{
 	case BoogieContext::Encoding::INT:
-		switch(op)
+		switch (op)
 		{
 		case Token::Sub: result = bg::Expr::neg(subExpr); break;
 		default:
@@ -594,7 +594,7 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithUnaryOp(BoogieContext& con
 		break;
 
 	case BoogieContext::Encoding::MOD:
-		switch(op)
+		switch (op)
 		{
 		case Token::Sub:
 		{
