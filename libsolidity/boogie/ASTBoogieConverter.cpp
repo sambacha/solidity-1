@@ -1479,6 +1479,7 @@ bool ASTBoogieConverter::visit(VariableDeclarationStatement const& _node)
 			{
 				// Default value for memory arrays
 				auto arrType = dynamic_cast<ArrayType const*>(declNode->type());
+				auto structType = dynamic_cast<StructType const*>(declNode->type());
 				if (arrType && arrType->location() == DataLocation::Memory)
 				{
 					auto result = ASTBoogieUtils::newArray(m_context.toBoogieType(declNode->type(), declNode.get()), m_context);
@@ -1492,6 +1493,26 @@ bool ASTBoogieConverter::visit(VariableDeclarationStatement const& _node)
 					auto memArr = m_context.getMemArray(varDecl->getRefTo(), bgType);
 					auto arrLen = m_context.getArrayLength(memArr, bgType);
 					m_currentBlocks.top()->addStmt(bg::Stmt::assign(arrLen, m_context.intLit(0, 256)));
+				}
+				else if (structType && structType->location() == DataLocation::Memory)
+				{
+					auto structDef = &structType->structDefinition();
+					auto result = ASTBoogieUtils::newStruct(structDef, m_context);
+					auto varDecl = result.newDecl;
+					for (auto stmt: result.newStmts)
+						m_currentBlocks.top()->addStmt(stmt);
+					m_localDecls.push_back(varDecl);
+					m_currentBlocks.top()->addStmt(bg::Stmt::assign(
+							bg::Expr::id(m_context.mapDeclName(*declNode)), varDecl->getRefTo()));
+					for (size_t i = 0; i < structDef->members().size(); ++i)
+					{
+						auto member = bg::Expr::id(m_context.mapDeclName(*structDef->members()[i]));
+						auto defVal = ASTBoogieUtils::defaultValue(structDef->members()[i]->type(), m_context);
+						if (defVal)
+							m_currentBlocks.top()->addStmt(bg::Stmt::assign(member, bg::Expr::arrupd(member, varDecl->getRefTo(), defVal)));
+						else
+							m_context.reportWarning(declNode.get(), "Unhandled default value, verification might fail");
+					}
 				}
 				else
 					m_context.reportWarning(declNode.get(), "Unhandled default value, verification might fail");
