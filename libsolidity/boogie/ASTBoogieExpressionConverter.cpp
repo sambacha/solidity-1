@@ -821,9 +821,16 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 		solAssert(okDataTuple, "");
 
 		bg::Block::Ref havoc = bg::Block::block();
+		// Havoc state variables
 		for (auto contract: m_context.currentContract()->annotation().linearizedBaseContracts)
 			for (auto sv: ASTNode::filteredNodes<VariableDeclaration>(contract->subNodes()))
 				havoc->addStmt(bg::Stmt::havoc(m_context.mapDeclName(*sv)));
+		// Havoc balances
+		havoc->addStmt(bg::Stmt::havoc(m_context.boogieBalance()->getName()));
+		// Havoc sums
+		for (auto stmt: m_context.havocSumVars())
+			havoc->addStmt(stmt);
+
 		addSideEffect(bg::Stmt::ifelse(okDataTuple->elements()[0], havoc));
 
 		for (auto invar: m_context.currentContractInvars())

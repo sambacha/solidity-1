@@ -191,6 +191,8 @@ public:
 	std::list<boogie::Stmt::Ref> initSumVars(Declaration const* decl);
 	/** Updates sum variables of an assignment (lhs, rhs) if the lhs requires sum. */
 	std::list<boogie::Stmt::Ref> updateSumVars(boogie::Expr::Ref lhsBg, boogie::Expr::Ref rhsBg);
+	/** Havocs all sum shadow variables for the current contract */
+	std::list<boogie::Stmt::Ref> havocSumVars();
 
 	/** Push an extra scope for declarations under the scode of a given node. */
 	void pushExtraScope(ASTNode const* node, std::string id) { m_extraScopes.push_back(std::make_pair(node, id)); }

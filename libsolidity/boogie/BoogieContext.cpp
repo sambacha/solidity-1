@@ -297,6 +297,15 @@ list<bg::Stmt::Ref> BoogieContext::updateSumVars(bg::Expr::Ref lhsBg, bg::Expr::
 	return sumUpdates;
 }
 
+list<bg::Stmt::Ref> BoogieContext::havocSumVars()
+{
+	list<bg::Stmt::Ref> havocs;
+	for (auto entry: m_currentSumSpecs)
+		for (auto spec: entry.second)
+				havocs.push_back(bg::Stmt::havoc(spec.shadowVar->getName()));
+	return havocs;
+}
+
 string BoogieContext::mapDeclName(Declaration const& decl)
 {
 	std::string name = decl.name();
