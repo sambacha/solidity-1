@@ -33,24 +33,21 @@
 using namespace std;
 using namespace dev;
 using namespace dev::test;
+using namespace evmc::literals;
 
-
-evmc::vm* EVMHost::getVM(string const& _path)
+evmc::VM& EVMHost::getVM(string const& _path)
 {
-	static unique_ptr<evmc::vm> theVM;
+	static evmc::VM theVM;
 	if (!theVM && !_path.empty())
 	{
 		evmc_loader_error_code errorCode = {};
-		evmc_instance* vm = evmc_load_and_configure(_path.c_str(), &errorCode);
+		auto vm = evmc::VM{evmc_load_and_configure(_path.c_str(), &errorCode)};
 		if (vm && errorCode == EVMC_LOADER_SUCCESS)
 		{
-			if (evmc_vm_has_capability(vm, EVMC_CAPABILITY_EVM1))
-				theVM = make_unique<evmc::vm>(vm);
+			if (vm.get_capabilities() & EVMC_CAPABILITY_EVM1)
+				theVM = std::move(vm);
 			else
-			{
-				evmc_destroy(vm);
 				cerr << "VM loaded does not support EVM1" << endl;
-			}
 		}
 		else
 		{
@@ -60,11 +57,12 @@ evmc::vm* EVMHost::getVM(string const& _path)
 			cerr << endl;
 		}
 	}
-	return theVM.get();
+	return theVM;
 }
 
-EVMHost::EVMHost(langutil::EVMVersion _evmVersion, evmc::vm* _vm):
-	m_vm(_vm)
+EVMHost::EVMHost(langutil::EVMVersion _evmVersion, evmc::VM& _vm):
+	m_vm(_vm),
+	m_evmVersion(_evmVersion)
 {
 	if (!m_vm)
 	{
@@ -73,21 +71,21 @@ EVMHost::EVMHost(langutil::EVMVersion _evmVersion, evmc::vm* _vm):
 	}
 
 	if (_evmVersion == langutil::EVMVersion::homestead())
-		m_evmVersion = EVMC_HOMESTEAD;
+		m_evmRevision = EVMC_HOMESTEAD;
 	else if (_evmVersion == langutil::EVMVersion::tangerineWhistle())
-		m_evmVersion = EVMC_TANGERINE_WHISTLE;
+		m_evmRevision = EVMC_TANGERINE_WHISTLE;
 	else if (_evmVersion == langutil::EVMVersion::spuriousDragon())
-		m_evmVersion = EVMC_SPURIOUS_DRAGON;
+		m_evmRevision = EVMC_SPURIOUS_DRAGON;
 	else if (_evmVersion == langutil::EVMVersion::byzantium())
-		m_evmVersion = EVMC_BYZANTIUM;
+		m_evmRevision = EVMC_BYZANTIUM;
 	else if (_evmVersion == langutil::EVMVersion::constantinople())
-		m_evmVersion = EVMC_CONSTANTINOPLE;
+		m_evmRevision = EVMC_CONSTANTINOPLE;
 	else if (_evmVersion == langutil::EVMVersion::istanbul())
-		assertThrow(false, Exception, "Istanbul is not supported yet.");
+		m_evmRevision = EVMC_ISTANBUL;
 	else if (_evmVersion == langutil::EVMVersion::berlin())
 		assertThrow(false, Exception, "Berlin is not supported yet.");
 	else //if (_evmVersion == langutil::EVMVersion::petersburg())
-		m_evmVersion = EVMC_PETERSBURG;
+		m_evmRevision = EVMC_PETERSBURG;
 }
 
 evmc_storage_status EVMHost::set_storage(const evmc::address& _addr, const evmc::bytes32& _key, const evmc::bytes32& _value) noexcept
@@ -117,21 +115,21 @@ void EVMHost::selfdestruct(const evmc::address& _addr, const evmc::address& _ben
 
 evmc::result EVMHost::call(evmc_message const& _message) noexcept
 {
-	if (_message.destination == convertToEVMC(Address(1)))
+	if (_message.destination == 0x0000000000000000000000000000000000000001_address)
 		return precompileECRecover(_message);
-	else if (_message.destination == convertToEVMC(Address(2)))
+	else if (_message.destination == 0x0000000000000000000000000000000000000002_address)
 		return precompileSha256(_message);
-	else if (_message.destination == convertToEVMC(Address(3)))
+	else if (_message.destination == 0x0000000000000000000000000000000000000003_address)
 		return precompileRipeMD160(_message);
-	else if (_message.destination == convertToEVMC(Address(4)))
+	else if (_message.destination == 0x0000000000000000000000000000000000000004_address)
 		return precompileIdentity(_message);
-	else if (_message.destination == convertToEVMC(Address(5)))
+	else if (_message.destination == 0x0000000000000000000000000000000000000005_address)
 		return precompileModExp(_message);
-	else if (_message.destination == convertToEVMC(Address(6)))
+	else if (_message.destination == 0x0000000000000000000000000000000000000006_address)
 		return precompileALTBN128G1Add(_message);
-	else if (_message.destination == convertToEVMC(Address(7)))
+	else if (_message.destination == 0x0000000000000000000000000000000000000007_address)
 		return precompileALTBN128G1Mul(_message);
-	else if (_message.destination == convertToEVMC(Address(8)))
+	else if (_message.destination == 0x0000000000000000000000000000000000000008_address)
 		return precompileALTBN128PairingProduct(_message);
 
 	State stateBackup = m_state;
@@ -146,7 +144,7 @@ evmc::result EVMHost::call(evmc_message const& _message) noexcept
 	{
 		message.gas -= message.kind == EVMC_CREATE ? eth::GasCosts::txCreateGas : eth::GasCosts::txGas;
 		for (size_t i = 0; i < message.input_size; ++i)
-			message.gas -= message.input_data[i] == 0 ? eth::GasCosts::txDataZeroGas : eth::GasCosts::txDataNonZeroGas;
+			message.gas -= message.input_data[i] == 0 ? eth::GasCosts::txDataZeroGas : eth::GasCosts::txDataNonZeroGas(m_evmVersion);
 		if (message.gas < 0)
 		{
 			evmc::result result({});
@@ -191,7 +189,7 @@ evmc::result EVMHost::call(evmc_message const& _message) noexcept
 
 	evmc::address currentAddress = m_currentAddress;
 	m_currentAddress = message.destination;
-	evmc::result result = m_vm->execute(*this, m_evmVersion, message, code.data(), code.size());
+	evmc::result result = m_vm.execute(*this, m_evmRevision, message, code.data(), code.size());
 	m_currentAddress = currentAddress;
 
 	if (message.kind == EVMC_CREATE)
@@ -223,10 +221,13 @@ evmc_tx_context EVMHost::get_tx_context() noexcept
 	ctx.block_timestamp = m_state.timestamp;
 	ctx.block_number = m_state.blockNumber;
 	ctx.block_coinbase = m_coinbase;
+	// TODO: support short literals in EVMC and use them here
 	ctx.block_difficulty = convertToEVMC(u256("200000000"));
 	ctx.block_gas_limit = 20000000;
 	ctx.tx_gas_price = convertToEVMC(u256("3000000000"));
-	ctx.tx_origin = convertToEVMC(Address("0x9292929292929292929292929292929292929292"));
+	ctx.tx_origin = 0x9292929292929292929292929292929292929292_address;
+	// Mainnet according to EIP-155
+	ctx.chain_id = convertToEVMC(u256(1));
 	return ctx;
 }
 

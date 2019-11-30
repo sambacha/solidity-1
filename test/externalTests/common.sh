@@ -37,7 +37,7 @@ function setup_solcjs
 
     cd "$dir"
     printLog "Setting up solc-js..."
-    git clone --depth 1 -b v0.5.0 https://github.com/ethereum/solc-js.git solc
+    git clone --depth 1 -b master https://github.com/ethereum/solc-js.git solc
 
     cd solc
     npm install
@@ -107,7 +107,7 @@ function force_solc_truffle_modules
         if [ -d "$d" ]; then
             cd $d
             rm -rf solc
-            git clone --depth 1 -b v0.5.0 https://github.com/ethereum/solc-js.git solc
+            git clone --depth 1 -b master https://github.com/ethereum/solc-js.git solc
             cp "$1" solc/soljson.js
         fi
     )
@@ -207,7 +207,7 @@ function run_test
     for optimize in "${optimizer_settings[@]}"
     do
         clean
-        force_solc_settings "$CONFIG" "$optimize" "petersburg"
+        force_solc_settings "$CONFIG" "$optimize" "istanbul"
         # Force ABIEncoderV2 in the last step. Has to be the last because code is modified.
         if [ "$FORCE_ABIv2" = true ]; then
             [[ "$optimize" =~ yul ]] && force_abi_v2
@@ -216,8 +216,13 @@ function run_test
         printLog "Running compile function..."
         $compile_fn
         verify_compiler_version "$SOLCVERSION"
-        printLog "Running test function..."
-        $test_fn
+
+        if [[ "$COMPILE_ONLY" == 1 ]]; then
+            printLog "Skipping test function..."
+        else
+            printLog "Running test function..."
+            $test_fn
+        fi
     done
 }
 
