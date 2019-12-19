@@ -758,6 +758,16 @@
         "bugs": [],
         "released": "2019-11-14"
     },
+    "0.5.14": {
+        "bugs": [
+            "ABIEncoderV2LoopYulOptimizer"
+        ],
+        "released": "2019-12-09"
+    },
+    "0.5.15": {
+        "bugs": [],
+        "released": "2019-12-17"
+    },
     "0.5.2": {
         "bugs": [
             "SignedArrayStorageCopy",
