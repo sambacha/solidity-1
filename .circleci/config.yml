@@ -67,6 +67,7 @@ defaults:
         pushd .
         git clone https://github.com/boogie-org/boogie.git
         cd boogie
+        git checkout 9e74c3271f430adb958908400c6f6fce5b59000a
         mozroots --import --sync
         wget https://nuget.org/nuget.exe
         mono ./nuget.exe restore Source/Boogie.sln
