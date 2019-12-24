@@ -1,7 +1,10 @@
 module.exports = {
   compilers: {
     solc: {
-      version: "native"
+      version: "native",
+      settings: {
+        evmVersion: "petersburg"
+      }
     }
   }
 }
