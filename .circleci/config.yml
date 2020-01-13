@@ -866,7 +866,7 @@ workflows:
 
       # Emscripten build and selected tests
       - b_ems: *workflow_trigger_on_tags
-      - t_ems_solcjs: *workflow_emscripten
+      # - t_ems_solcjs: *workflow_emscripten
       - t_ems_compile_ext_colony: *workflow_emscripten
       - t_ems_compile_ext_gnosis: *workflow_emscripten
       - t_ems_compile_ext_zeppelin: *workflow_emscripten
