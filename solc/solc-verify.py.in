@@ -84,7 +84,7 @@ def main(tmpDir):
     compilerOutputStr = ''
     try:
         compilerOutput = subprocess.check_output(convertCommand, shell = True, stderr=subprocess.STDOUT)
-        compilerOutputStr = compilerOutput.decode('utf-8')
+        compilerOutputStr = compilerOutput.decode('utf-8', 'ignore')
         if args.verbose:
             print(blueTxt('----- Compiler output -----'))
             printVerbose(compilerOutputStr)
