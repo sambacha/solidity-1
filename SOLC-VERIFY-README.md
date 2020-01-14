@@ -171,7 +171,7 @@ Furthermore, `unsupported` contains some unsupported features and is skipped.
 Nevertheless, it is annotated so the function `use_unsupported` that calls it can still be proved correct.
 
 ## Papers
-- [ESOP 2020](https://www.etaps.org/2020/esop): [SMT-Friendly Formalization of the Solidity Memory Model](https://arxiv.org/abs/2001.03256)  
+- [ESOP 2020](https://www.etaps.org/2020/esop): [SMT-Friendly Formalization of the Solidity Memory Model](https://arxiv.org/abs/2001.03256)
   _Formalization of reference types (e.g., arrays, mappings, structs) and the memory model (storage and memory data locations)._
-- [VSTTE 2019](https://sri-csl.github.io/VSTTE19/): [solc-verify: A Modular Verifier for Solidity Smart Contracts](https://arxiv.org/abs/1907.04262)  
+- [VSTTE 2019](https://sri-csl.github.io/VSTTE19/): [solc-verify: A Modular Verifier for Solidity Smart Contracts](https://arxiv.org/abs/1907.04262)
   _An overview of the modular verification approach including the specification annotations and the translation to Boogie._
