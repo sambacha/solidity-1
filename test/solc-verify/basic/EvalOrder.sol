@@ -2,7 +2,7 @@ pragma solidity>=0.5.0;
 
 contract EvalOrder {
     uint[] x;
-    
+
     constructor() public {
         x.push(3);
         x.push(0);
