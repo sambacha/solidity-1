@@ -155,13 +155,13 @@ bool ASTBoogieExpressionConverter::visit(Assignment const& _node)
 	TypePointer lhsType = lhsNode.annotation().type;
 	TypePointer rhsType = rhsNode.annotation().type;
 
-	// Get lhs recursively
-	_node.leftHandSide().accept(*this);
-	bg::Expr::Ref lhsExpr = m_currentExpr;
-
 	// Get rhs recursively
 	_node.rightHandSide().accept(*this);
 	bg::Expr::Ref rhsExpr = m_currentExpr;
+
+	// Get lhs recursively
+	_node.leftHandSide().accept(*this);
+	bg::Expr::Ref lhsExpr = m_currentExpr;
 
 	if (auto lhsMemAcc = dynamic_cast<MemberAccess const*>(&_node.leftHandSide()))
 	{
@@ -358,13 +358,13 @@ bool ASTBoogieExpressionConverter::visit(BinaryOperation const& _node)
 		return false;
 	}
 
-	// Get lhs recursively
-	_node.leftExpression().accept(*this);
-	bg::Expr::Ref lhs = m_currentExpr;
-
 	// Get rhs recursively
 	_node.rightExpression().accept(*this);
 	bg::Expr::Ref rhs = m_currentExpr;
+
+	// Get lhs recursively
+	_node.leftExpression().accept(*this);
+	bg::Expr::Ref lhs = m_currentExpr;
 
 	// Common type might not be equal to the type of the node, e.g., in case of uint32 == uint64,
 	// the common type is uint64, but the type of the node is bool
