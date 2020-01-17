@@ -740,6 +740,14 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 			return false;
 		}
 	}
+	if (auto memAcc = dynamic_cast<MemberAccess const*>(&_node.expression()))
+	{
+		if (auto structDef = dynamic_cast<StructDefinition const *>(memAcc->annotation().referencedDeclaration))
+		{
+			functionCallNewStruct(structDef, regularArgs);
+			return false;
+		}
+	}
 
 	// If msg.value was set, we should reduce our own balance (and the called function will increase its own)
 	if (msgValue != defaultMsgValue) functionCallReduceBalance(msgValue);
