@@ -508,6 +508,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	// Process expression and save it for later
 	_node.expression().accept(*this);
 	bg::Expr::Ref expr = m_currentExpr;
+	bg::Expr::Ref currentAddr = m_currentAddress;
 	bool isGetter = m_isGetter;
 	auto getterVarType = m_getterVarType;
 
@@ -802,7 +803,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	if (returnVars.size() == 0)
 	{
 		// For new expressions there is no return value, but the address should be used
-		if (dynamic_cast<NewExpression const*>(&_node.expression())) m_currentExpr = m_currentAddress;
+		if (dynamic_cast<NewExpression const*>(&_node.expression())) m_currentExpr = currentAddr;
 		else m_currentExpr = nullptr;
 	}
 	else if (returnVars.size() == 1)
