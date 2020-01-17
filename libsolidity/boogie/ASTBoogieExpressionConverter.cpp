@@ -825,7 +825,8 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 		// Havoc state variables
 		for (auto contract: m_context.currentContract()->annotation().linearizedBaseContracts)
 			for (auto sv: ASTNode::filteredNodes<VariableDeclaration>(contract->subNodes()))
-				havoc->addStmt(bg::Stmt::havoc(m_context.mapDeclName(*sv)));
+				if (!sv->isConstant())
+					havoc->addStmt(bg::Stmt::havoc(m_context.mapDeclName(*sv)));
 		// Havoc balances
 		havoc->addStmt(bg::Stmt::havoc(m_context.boogieBalance()->getName()));
 		// Havoc sums
