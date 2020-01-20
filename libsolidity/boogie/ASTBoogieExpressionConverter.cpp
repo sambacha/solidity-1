@@ -1,6 +1,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <libsolidity/boogie/ASTBoogieExpressionConverter.h>
 #include <libsolidity/boogie/ASTBoogieUtils.h>
+#include <libsolidity/boogie/AssignHelper.h>
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/ast/TypeProvider.h>
 #include <liblangutil/Exceptions.h>
@@ -107,9 +108,9 @@ bool ASTBoogieExpressionConverter::visit(Conditional const& _node)
 		{
 			auto tmpVar = m_context.freshTempVar(m_context.toBoogieType(nodeType, &_node));
 			m_newDecls.push_back(tmpVar);
-			auto ar = ASTBoogieUtils::makeAssign(
-					ASTBoogieUtils::AssignParam{tmpVar->getRefTo(), nodeType, nullptr},
-					ASTBoogieUtils::AssignParam{trueExpr, trueType, &_node.trueExpression()},
+			auto ar = AssignHelper::makeAssign(
+					AssignHelper::AssignParam{tmpVar->getRefTo(), nodeType, nullptr},
+					AssignHelper::AssignParam{trueExpr, trueType, &_node.trueExpression()},
 					Token::Assign, &_node, m_context);
 			m_newDecls.insert(m_newDecls.end(), ar.newDecls.begin(), ar.newDecls.end());
 			for (auto stmt: ar.newStmts)
@@ -128,9 +129,9 @@ bool ASTBoogieExpressionConverter::visit(Conditional const& _node)
 		{
 			auto tmpVar = m_context.freshTempVar(m_context.toBoogieType(nodeType, &_node));
 			m_newDecls.push_back(tmpVar);
-			auto ar = ASTBoogieUtils::makeAssign(
-					ASTBoogieUtils::AssignParam{tmpVar->getRefTo(), nodeType, nullptr},
-					ASTBoogieUtils::AssignParam{falseExpr, falseType, &_node.falseExpression()},
+			auto ar = AssignHelper::makeAssign(
+					AssignHelper::AssignParam{tmpVar->getRefTo(), nodeType, nullptr},
+					AssignHelper::AssignParam{falseExpr, falseType, &_node.falseExpression()},
 					Token::Assign, &_node, m_context);
 			m_newDecls.insert(m_newDecls.end(), ar.newDecls.begin(), ar.newDecls.end());
 			for (auto stmt: ar.newStmts)
@@ -171,9 +172,9 @@ bool ASTBoogieExpressionConverter::visit(Assignment const& _node)
 
 	}
 
-	auto res = ASTBoogieUtils::makeAssign(
-			ASTBoogieUtils::AssignParam{lhsExpr, lhsType, &lhsNode},
-			ASTBoogieUtils::AssignParam{rhsExpr, rhsType, &rhsNode},
+	auto res = AssignHelper::makeAssign(
+			AssignHelper::AssignParam{lhsExpr, lhsType, &lhsNode},
+			AssignHelper::AssignParam{rhsExpr, rhsType, &rhsNode},
 			_node.assignmentOperator(), &_node, m_context);
 	m_newDecls.insert(m_newDecls.end(), res.newDecls.begin(), res.newDecls.end());
 	m_ocs.insert(m_ocs.end(), res.ocs.begin(), res.ocs.end());
@@ -293,9 +294,9 @@ bool ASTBoogieExpressionConverter::visit(UnaryOperation const& _node)
 				// First do the assignment x := x + 1 (or x := x - 1)
 				if (m_context.overflow() && rhsResult.cc)
 					m_ocs.push_back(rhsResult.cc);
-				auto res = ASTBoogieUtils::makeAssign(
-						ASTBoogieUtils::AssignParam{lhs, _node.annotation().type, &_node.subExpression()},
-						ASTBoogieUtils::AssignParam{rhsResult.expr, _node.annotation().type, nullptr},
+				auto res = AssignHelper::makeAssign(
+						AssignHelper::AssignParam{lhs, _node.annotation().type, &_node.subExpression()},
+						AssignHelper::AssignParam{rhsResult.expr, _node.annotation().type, nullptr},
 						Token::Assign, &_node, m_context);
 				for (auto stmt: res.newStmts)
 					addSideEffect(stmt);
@@ -309,9 +310,9 @@ bool ASTBoogieExpressionConverter::visit(UnaryOperation const& _node)
 				// Then the assignment x := x + 1 (or x := x - 1)
 				if (m_context.overflow() && rhsResult.cc)
 					m_ocs.push_back(rhsResult.cc);
-				auto res = ASTBoogieUtils::makeAssign(
-						ASTBoogieUtils::AssignParam{lhs, _node.annotation().type, &_node.subExpression()},
-						ASTBoogieUtils::AssignParam{rhsResult.expr, _node.annotation().type, nullptr},
+				auto res = AssignHelper::makeAssign(
+						AssignHelper::AssignParam{lhs, _node.annotation().type, &_node.subExpression()},
+						AssignHelper::AssignParam{rhsResult.expr, _node.annotation().type, nullptr},
 						Token::Assign, &_node, m_context);
 				for (auto stmt: res.newStmts)
 					addSideEffect(stmt);
@@ -603,9 +604,9 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 				// Introduce temp variable, make the assignment, including conversions
 				auto argDecl = m_context.freshTempVar(m_context.toBoogieType(funcType->parameterTypes()[i], arg.get()), "call_arg");
 				m_newDecls.push_back(argDecl);
-				auto ar = ASTBoogieUtils::makeAssign(
-						ASTBoogieUtils::AssignParam{argDecl->getRefTo(), funcType->parameterTypes()[i], nullptr },
-						ASTBoogieUtils::AssignParam{m_currentExpr, arg->annotation().type, arg.get() },
+				auto ar = AssignHelper::makeAssign(
+						AssignHelper::AssignParam{argDecl->getRefTo(), funcType->parameterTypes()[i], nullptr },
+						AssignHelper::AssignParam{m_currentExpr, arg->annotation().type, arg.get() },
 						Token::Assign, &_node, m_context);
 				m_newDecls.insert(m_newDecls.end(), ar.newDecls.begin(), ar.newDecls.end());
 				for (auto stmt: ar.newStmts)
@@ -1085,9 +1086,9 @@ void ASTBoogieExpressionConverter::functionCallPushPop(MemberAccess const* memAc
 				bg::Expr::arrsel(m_context.getInnerArray(arr, bgType), len),
 				ASTBoogieUtils::defaultValue(arrType->baseType(), m_context)));
 		// Then we put the actual argument (updating also the sum)
-		auto res = ASTBoogieUtils::makeAssign(
-			ASTBoogieUtils::AssignParam{bg::Expr::arrsel(m_context.getInnerArray(arr, bgType), len), arrType->baseType(), nullptr},
-			ASTBoogieUtils::AssignParam{arg, _node.arguments()[0]->annotation().type, _node.arguments()[0].get()},
+		auto res = AssignHelper::makeAssign(
+				AssignHelper::AssignParam{bg::Expr::arrsel(m_context.getInnerArray(arr, bgType), len), arrType->baseType(), nullptr},
+				AssignHelper::AssignParam{arg, _node.arguments()[0]->annotation().type, _node.arguments()[0].get()},
 			Token::Assign, &_node, m_context);
 		m_newDecls.insert(m_newDecls.end(), res.newDecls.begin(), res.newDecls.end());
 		for (auto stmt: res.newStmts)
@@ -1110,9 +1111,9 @@ void ASTBoogieExpressionConverter::functionCallPushPop(MemberAccess const* memAc
 	if (memAccExpr->memberName() == "pop")
 	{
 		// Reset the removed element (updating the sum)
-		auto res = ASTBoogieUtils::makeAssign(
-			ASTBoogieUtils::AssignParam{bg::Expr::arrsel(m_context.getInnerArray(arr, bgType), len), arrType->baseType(), nullptr},
-			ASTBoogieUtils::AssignParam{ASTBoogieUtils::defaultValue(arrType->baseType(), m_context), arrType->baseType(), nullptr},
+		auto res = AssignHelper::makeAssign(
+				AssignHelper::AssignParam{bg::Expr::arrsel(m_context.getInnerArray(arr, bgType), len), arrType->baseType(), nullptr},
+				AssignHelper::AssignParam{ASTBoogieUtils::defaultValue(arrType->baseType(), m_context), arrType->baseType(), nullptr},
 			Token::Assign, &_node, m_context);
 		m_newDecls.insert(m_newDecls.end(), res.newDecls.begin(), res.newDecls.end());
 		for (auto stmt: res.newStmts)

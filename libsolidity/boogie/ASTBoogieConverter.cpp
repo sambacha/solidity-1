@@ -3,6 +3,7 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <libsolidity/analysis/NameAndTypeResolver.h>
 #include <libsolidity/analysis/TypeChecker.h>
+#include <libsolidity/boogie/AssignHelper.h>
 #include <libsolidity/boogie/ASTBoogieConverter.h>
 #include <libsolidity/boogie/ASTBoogieExpressionConverter.h>
 #include <libsolidity/boogie/ASTBoogieUtils.h>
@@ -253,9 +254,9 @@ void ASTBoogieConverter::initializeStateVar(VariableDeclaration const& _node)
 	{
 		bg::Expr::Ref rhs = convertExpression(*_node.value());
 		bg::Expr::Ref lhs = bg::Expr::arrsel(varDecl, m_context.boogieThis()->getRefTo());
-		auto ar = ASTBoogieUtils::makeAssign(
-				ASTBoogieUtils::AssignParam{lhs, _node.type(), nullptr},
-				ASTBoogieUtils::AssignParam{rhs, _node.value()->annotation().type, _node.value().get()},
+		auto ar = AssignHelper::makeAssign(
+				AssignHelper::AssignParam{lhs, _node.type(), nullptr},
+				AssignHelper::AssignParam{rhs, _node.value()->annotation().type, _node.value().get()},
 				Token::Assign, &_node, m_context);
 		m_localDecls.insert(m_localDecls.end(), ar.newDecls.begin(), ar.newDecls.end());
 		for (auto stmt: ar.newStmts)
@@ -1327,9 +1328,9 @@ bool ASTBoogieConverter::visit(Return const& _node)
 		bg::Expr::Ref lhs = m_currentRet;
 
 		// First create an assignment, and then an empty return
-		auto ar = ASTBoogieUtils::makeAssign(
-						ASTBoogieUtils::AssignParam{lhs, returnType, nullptr},
-						ASTBoogieUtils::AssignParam{rhs, rhsType, _node.expression()},
+		auto ar = AssignHelper::makeAssign(
+				AssignHelper::AssignParam{lhs, returnType, nullptr},
+				AssignHelper::AssignParam{rhs, rhsType, _node.expression()},
 						Token::Assign, &_node, m_context);
 		m_localDecls.insert(m_localDecls.end(), ar.newDecls.begin(), ar.newDecls.end());
 		for (auto stmt: ar.newStmts)
@@ -1423,9 +1424,9 @@ bool ASTBoogieConverter::visit(VariableDeclarationStatement const& _node)
 			auto decl = declarations[0];
 			auto declType = decl->type();
 
-			auto ar = ASTBoogieUtils::makeAssign(
-					ASTBoogieUtils::AssignParam{bg::Expr::id(m_context.mapDeclName(*decl)), declType, nullptr},
-					ASTBoogieUtils::AssignParam{rhs, initalValueType, initialValue},
+			auto ar = AssignHelper::makeAssign(
+					AssignHelper::AssignParam{bg::Expr::id(m_context.mapDeclName(*decl)), declType, nullptr},
+					AssignHelper::AssignParam{rhs, initalValueType, initialValue},
 					Token::Assign, &_node, m_context);
 			m_localDecls.insert(m_localDecls.end(), ar.newDecls.begin(), ar.newDecls.end());
 			for (auto stmt: ar.newStmts)
@@ -1452,9 +1453,9 @@ bool ASTBoogieConverter::visit(VariableDeclarationStatement const& _node)
 					auto exprType = initTupleType->components()[i];
 					auto rhs_i = rhsTuple->elements()[i];
 
-					auto ar = ASTBoogieUtils::makeAssign(
-									ASTBoogieUtils::AssignParam{bg::Expr::id(m_context.mapDeclName(*decl)), declType, nullptr},
-									ASTBoogieUtils::AssignParam{rhs_i, exprType, initTuple ? initTuple->components().at(i).get() : nullptr},
+					auto ar = AssignHelper::makeAssign(
+							AssignHelper::AssignParam{bg::Expr::id(m_context.mapDeclName(*decl)), declType, nullptr},
+							AssignHelper::AssignParam{rhs_i, exprType, initTuple ? initTuple->components().at(i).get() : nullptr},
 									Token::Assign, &_node, m_context);
 					m_localDecls.insert(m_localDecls.end(), ar.newDecls.begin(), ar.newDecls.end());
 					for (auto stmt: ar.newStmts)

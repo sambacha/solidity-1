@@ -49,6 +49,7 @@ set(sources
 	ast/Types.h
 	ast/TypeProvider.cpp
 	ast/TypeProvider.h
+	boogie/AssignHelper.cpp
 	boogie/ASTBoogieConverter.cpp
 	boogie/ASTBoogieExpressionConverter.cpp
 	boogie/ASTBoogieStats.cpp
