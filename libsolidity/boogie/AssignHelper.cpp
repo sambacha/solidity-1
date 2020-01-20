@@ -2,6 +2,7 @@
 #include <libsolidity/boogie/AssignHelper.h>
 #include <libsolidity/boogie/ASTBoogieUtils.h>
 #include <libsolidity/boogie/BoogieContext.h>
+#include <libsolidity/boogie/StoragePtrHelper.h>
 
 using namespace std;
 using namespace dev;
@@ -62,7 +63,7 @@ void AssignHelper::makeAssignInternal(AssignParam lhs, AssignParam rhs, langutil
 		if (dynamic_cast<MappingType const*>(rhs.type))
 		{
 			result.newStmts.push_back(bg::Stmt::comment("Packing local storage pointer"));
-			auto packed = ASTBoogieUtils::packToLocalPtr(rhs.expr, rhs.bgExpr, context);
+			auto packed = StoragePtrHelper::packToLocalPtr(rhs.expr, rhs.bgExpr, context);
 			result.newDecls.push_back(packed.ptr);
 			for (auto stmt: packed.stmts)
 				result.newStmts.push_back(stmt);
@@ -173,7 +174,7 @@ void AssignHelper::makeStructAssign(AssignParam lhs, AssignParam rhs, ASTNode co
 
 			// RHS is local storage: unpack first
 			if (rhsLoc == DataLocation::Storage && rhsType->isPointer())
-				rhs.bgExpr = ASTBoogieUtils::unpackLocalPtr(rhs.expr, rhs.bgExpr, context);
+				rhs.bgExpr = StoragePtrHelper::unpackLocalPtr(rhs.expr, rhs.bgExpr, context);
 
 			// Make deep copy
 			deepCopyStruct(&lhsType->structDefinition(), lhs.bgExpr, rhs.bgExpr,
@@ -206,7 +207,7 @@ void AssignHelper::makeStructAssign(AssignParam lhs, AssignParam rhs, ASTNode co
 				else // Otherwise pack
 				{
 					result.newStmts.push_back(bg::Stmt::comment("Packing local storage pointer"));
-					auto packed = ASTBoogieUtils::packToLocalPtr(rhs.expr, rhs.bgExpr, context);
+					auto packed = StoragePtrHelper::packToLocalPtr(rhs.expr, rhs.bgExpr, context);
 					result.newDecls.push_back(packed.ptr);
 					for (auto stmt: packed.stmts)
 						result.newStmts.push_back(stmt);
@@ -219,7 +220,7 @@ void AssignHelper::makeStructAssign(AssignParam lhs, AssignParam rhs, ASTNode co
 			{
 				// Unpack pointers first
 				if (rhsType->isPointer())
-					rhs.bgExpr = ASTBoogieUtils::unpackLocalPtr(rhs.expr, rhs.bgExpr, context);
+					rhs.bgExpr = StoragePtrHelper::unpackLocalPtr(rhs.expr, rhs.bgExpr, context);
 
 				makeBasicAssign(lhs, rhs, Token::Assign, assocNode, context, result);
 				return;
@@ -277,7 +278,7 @@ void AssignHelper::makeArrayAssign(AssignParam lhs, AssignParam rhs, ASTNode con
 		if (rhsLocation == DataLocation::Memory || rhsLocation == DataLocation::CallData)
 			rhs.bgExpr = context.getMemArray(rhs.bgExpr, context.toBoogieType(rhsTypeArray->baseType(), assocNode));
 		if (rhsTypeArray && rhsLocation == DataLocation::Storage && rhsTypeArray->isPointer())
-			rhs.bgExpr = ASTBoogieUtils::unpackLocalPtr(rhs.expr, rhs.bgExpr, context);
+			rhs.bgExpr = StoragePtrHelper::unpackLocalPtr(rhs.expr, rhs.bgExpr, context);
 	}
 	else if (lhsLocation == DataLocation::Storage) // If locations are same
 	{
@@ -285,7 +286,7 @@ void AssignHelper::makeArrayAssign(AssignParam lhs, AssignParam rhs, ASTNode con
 		if (lhsType->isPointer() && rhsTypeArray && !rhsTypeArray->isPointer())
 		{
 			result.newStmts.push_back(bg::Stmt::comment("Packing local storage pointer"));
-			auto packed = ASTBoogieUtils::packToLocalPtr(rhs.expr, rhs.bgExpr, context);
+			auto packed = StoragePtrHelper::packToLocalPtr(rhs.expr, rhs.bgExpr, context);
 			result.newDecls.push_back(packed.ptr);
 			for (auto stmt: packed.stmts)
 				result.newStmts.push_back(stmt);
@@ -294,7 +295,7 @@ void AssignHelper::makeArrayAssign(AssignParam lhs, AssignParam rhs, ASTNode con
 		else if (!lhsType->isPointer() && rhsTypeArray && rhsTypeArray->isPointer())
 		{
 			// Unpack local pointer when assigning to storage
-			rhs.bgExpr = ASTBoogieUtils::unpackLocalPtr(rhs.expr, rhs.bgExpr, context);
+			rhs.bgExpr = StoragePtrHelper::unpackLocalPtr(rhs.expr, rhs.bgExpr, context);
 		}
 	}
 

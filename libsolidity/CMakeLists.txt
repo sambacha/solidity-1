@@ -56,6 +56,7 @@ set(sources
 	boogie/ASTBoogieUtils.cpp
 	boogie/BoogieAst.cpp
 	boogie/BoogieContext.cpp
+	boogie/StoragePtrHelper.cpp
 	codegen/ABIFunctions.cpp
 	codegen/ABIFunctions.h
 	codegen/ArrayUtils.cpp

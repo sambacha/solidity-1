@@ -1,7 +1,8 @@
 #include <boost/algorithm/string/predicate.hpp>
+#include <libsolidity/boogie/AssignHelper.h>
 #include <libsolidity/boogie/ASTBoogieExpressionConverter.h>
 #include <libsolidity/boogie/ASTBoogieUtils.h>
-#include <libsolidity/boogie/AssignHelper.h>
+#include <libsolidity/boogie/StoragePtrHelper.h>
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/ast/TypeProvider.h>
 #include <liblangutil/Exceptions.h>
@@ -549,7 +550,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 			{
 				if (structType->dataStoredIn(DataLocation::Storage))
 				{
-					auto res = ASTBoogieUtils::packToLocalPtr(&memAccExpr->expression(), m_currentAddress, m_context);
+					auto res = StoragePtrHelper::packToLocalPtr(&memAccExpr->expression(), m_currentAddress, m_context);
 					m_newDecls.push_back(res.ptr);
 					for (auto stmt: res.stmts)
 						addSideEffect(stmt);
@@ -1072,7 +1073,7 @@ void ASTBoogieExpressionConverter::functionCallPushPop(MemberAccess const* memAc
 	// Storage pointer: unpack first
 	if (arrType->isPointer())
 	{
-		arr = ASTBoogieUtils::unpackLocalPtr(&memAccExpr->expression(), arr, m_context);
+		arr = StoragePtrHelper::unpackLocalPtr(&memAccExpr->expression(), arr, m_context);
 	}
 	auto len = m_context.getArrayLength(arr, bgType);
 	ASTBoogieUtils::ExprWithCC lenUpd;
@@ -1258,7 +1259,7 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 		// Storage pointer: unpack first
 		if (type->dataStoredIn(DataLocation::Storage) && arrType->isPointer())
 		{
-			m_currentExpr = ASTBoogieUtils::unpackLocalPtr(&_node.expression(), m_currentExpr, m_context);
+			m_currentExpr = StoragePtrHelper::unpackLocalPtr(&_node.expression(), m_currentExpr, m_context);
 		}
 		m_currentExpr = m_context.getArrayLength(m_currentExpr, m_context.toBoogieType(arrType->baseType(), &_node));
 		addTCC(m_currentExpr, tp_uint256);
@@ -1348,7 +1349,7 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 		{
 			// Local pointers: unpack first
 			if (structType->dataStoredIn(DataLocation::Storage) && structType->isPointer())
-				m_currentAddress = ASTBoogieUtils::unpackLocalPtr(&_node.expression(), m_currentAddress, m_context);
+				m_currentAddress = StoragePtrHelper::unpackLocalPtr(&_node.expression(), m_currentAddress, m_context);
 
 			m_currentExpr = bg::Expr::dtsel(m_currentAddress,
 					m_context.mapDeclName(*_node.annotation().referencedDeclaration),
@@ -1445,7 +1446,7 @@ bool ASTBoogieExpressionConverter::visit(IndexAccess const& _node)
 			baseExpr = m_context.getMemArray(baseExpr, bgArrType);
 		// Unpack local pointers
 		if (arrType->dataStoredIn(DataLocation::Storage) && arrType->isPointer())
-			baseExpr = ASTBoogieUtils::unpackLocalPtr(&_node.baseExpression(), baseExpr, m_context);
+			baseExpr = StoragePtrHelper::unpackLocalPtr(&_node.baseExpression(), baseExpr, m_context);
 		baseExpr = m_context.getInnerArray(baseExpr, bgArrType);
 	}
 
@@ -1454,7 +1455,7 @@ bool ASTBoogieExpressionConverter::visit(IndexAccess const& _node)
 		if (auto idExpr = dynamic_cast<Identifier const*>(&_node.baseExpression()))
 			if (auto varDecl = dynamic_cast<VariableDeclaration const*>(idExpr->annotation().referencedDeclaration))
 				if (varDecl->isLocalOrReturn())
-					baseExpr = ASTBoogieUtils::unpackLocalPtr(&_node.baseExpression(), baseExpr, m_context);
+					baseExpr = StoragePtrHelper::unpackLocalPtr(&_node.baseExpression(), baseExpr, m_context);
 
 
 	// Index access is simply converted to a select in Boogie, which is fine

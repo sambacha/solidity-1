@@ -7,6 +7,7 @@
 #include <libsolidity/boogie/ASTBoogieConverter.h>
 #include <libsolidity/boogie/ASTBoogieExpressionConverter.h>
 #include <libsolidity/boogie/ASTBoogieUtils.h>
+#include <libsolidity/boogie/StoragePtrHelper.h>
 #include <libsolidity/ast/TypeProvider.h>
 #include <libsolidity/parsing/Parser.h>
 #include <liblangutil/SourceReferenceFormatter.h>
@@ -1380,7 +1381,7 @@ bool ASTBoogieConverter::visit(VariableDeclarationStatement const& _node)
 			bg::Expr::Ref init = convertExpression(*initialValue);
 			m_currentBlocks.top()->addStmt(bg::Stmt::comment("Packing local storage pointer " + declarations[0]->name()));
 
-			auto packed = ASTBoogieUtils::packToLocalPtr(initialValue, init, m_context);
+			auto packed = StoragePtrHelper::packToLocalPtr(initialValue, init, m_context);
 			m_localDecls.push_back(packed.ptr);
 			for (auto stmt: packed.stmts)
 				m_currentBlocks.top()->addStmt(stmt);
