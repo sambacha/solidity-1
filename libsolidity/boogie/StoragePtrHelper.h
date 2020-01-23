@@ -59,6 +59,8 @@ private:
 	static
 	boogie::Expr::Ref unpackInternal(Expression const* ptrExpr, boogie::Expr::Ref ptrBgExpr, Declaration const* decl, int depth, boogie::Expr::Ref base, BoogieContext& context);
 
+	static
+	PackResult repack(Expression const* ptrExpr, boogie::Expr::Ref ptrBgExpr, Declaration const* decl, int depth, BoogieContext& context);
 };
 
 }

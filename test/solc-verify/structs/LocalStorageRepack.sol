@@ -23,5 +23,10 @@ contract LocalStorageRepack {
         T storage tptr = sptr.t;
 
         assert(tptr.z == 11);
+
+        sptr = s2;
+        tptr = sptr.t;
+
+        assert(tptr.z == 22);
     }
 }

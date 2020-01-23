@@ -88,6 +88,10 @@ void StoragePtrHelper::packInternal(Expression const* expr, bg::Expr::Ref bgExpr
 	// Identifier: search for matching state variable in the contract
 	if (auto idExpr = dynamic_cast<Identifier const*>(expr))
 	{
+		// Must be the first element in the packed array
+		solAssert(result.conds.empty(), "Non-empty expressions when packing identifier");
+		solAssert(result.exprs.empty(), "Non-empty expressions when packing identifier");
+
 		// Collect all variables from all contracts
 		vector<VariableDeclaration const*> vars;
 		for (auto contr: context.stats().allContracts())
@@ -100,16 +104,28 @@ void StoragePtrHelper::packInternal(Expression const* expr, bg::Expr::Ref bgExpr
 			// If found, initialize packed array with its index
 			if (vars[i] == idExpr->annotation().referencedDeclaration)
 			{
-				// Must be the first element in the packed array
-				solAssert(result.conds.empty(), "Non-empty expressions when packing identifier");
-				solAssert(result.exprs.empty(), "Non-empty expressions when packing identifier");
 				result.conds.push_back(bg::Expr::lit(true));
 				result.exprs.push_back({context.intLit(bg::bigint(i), 256)});
 				return;
 			}
 		}
 
-		// TODO: Handle case when the identifier is not state var, but a pointer (repack)
+		// Identifier points to local storage pointer: repack
+		if (auto refType = dynamic_cast<ReferenceType const*>(idExpr->annotation().type))
+		{
+			if (refType->dataStoredIn(DataLocation::Storage) && refType->isPointer())
+			{
+				auto repacked = repack(
+						idExpr,
+						bg::Expr::id(context.mapDeclName(*idExpr->annotation().referencedDeclaration)),
+						context.currentContract(), 0, context);
+				for (auto c: repacked.conds)
+					result.conds.push_back(c);
+				for (auto e: repacked.exprs)
+					result.exprs.push_back(e);
+				return;
+			}
+		}
 
 		context.reportError(expr, "Only state variables are supported as identifiers as base of local storage pointer.");
 		result.conds.push_back(bg::Expr::error());
@@ -302,6 +318,70 @@ bg::Expr::Ref StoragePtrHelper::unpackInternal(Expression const* ptrExpr, boogie
 	}
 	return nullptr;
 }
+
+StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr, bg::Expr::Ref ptrBgExpr, Declaration const* decl, int depth, BoogieContext& context)
+{
+	if (dynamic_cast<ContractDefinition const*>(decl))
+	{
+		auto structType = dynamic_cast<StructType const*>(ptrExpr->annotation().type);
+		auto arrayType = dynamic_cast<ArrayType const*>(ptrExpr->annotation().type);
+		auto mapType = dynamic_cast<MappingType const*>(ptrExpr->annotation().type);
+		solAssert(structType || arrayType || mapType, "Expected array, mapping or struct type when unpacking");
+		// Collect all variables from all contracts
+		vector<VariableDeclaration const*> vars;
+		for (auto contr: context.stats().allContracts())
+		{
+			auto subVars = ASTNode::filteredNodes<VariableDeclaration>(contr->subNodes());
+			vars.insert(vars.end(), subVars.begin(), subVars.end());
+		}
+		PackResult repacked = {{}, {}};
+		for (unsigned i = 0; i < vars.size(); ++i)
+		{
+			PackResult sub = repack(ptrExpr, ptrBgExpr, vars[i], depth+1, context);
+			if (!sub.exprs.empty())
+			{
+				for (size_t s = 0; s < sub.exprs.size(); ++s)
+				{
+					bg::Expr::Ref cond = bg::Expr::and_(
+							bg::Expr::eq(
+								bg::Expr::arrsel(ptrBgExpr, context.intLit(bg::bigint(depth), 256)),
+								context.intLit(bg::bigint(i), 256)),
+							sub.conds[s]);
+					repacked.conds.push_back(cond);
+					sub.exprs[s].insert(sub.exprs[s].begin(), context.intLit(bg::bigint(i), 256));
+					repacked.exprs.push_back(sub.exprs[s]);
+				}
+			}
+		}
+		return repacked;
+	}
+	// Variable (state var or struct member)
+	else if (auto varDecl = dynamic_cast<VariableDeclaration const*>(decl))
+	{
+		auto targetStructTp = dynamic_cast<StructType const*>(ptrExpr->annotation().type);
+		auto targetArrayTp = dynamic_cast<ArrayType const*>(ptrExpr->annotation().type);
+		auto targetMapTp = dynamic_cast<MappingType const*>(ptrExpr->annotation().type);
+		solAssert(targetStructTp || targetArrayTp || targetMapTp, "Expected array, mapping or struct type when unpacking");
+		auto declTp = varDecl->type();
+
+		// TODO: get rid of indexing
+
+		auto declStructTp = dynamic_cast<StructType const*>(declTp);
+
+		// Found a variable with a matching type, just return
+		if (targetStructTp && declStructTp && targetStructTp->structDefinition() == declStructTp->structDefinition())
+		{
+			PackResult res;
+			res.conds.push_back(bg::Expr::lit(true));
+			res.exprs.push_back({});
+			return res;
+		}
+		return PackResult{{},{}};
+	}
+	// TODO
+	return PackResult{{},{}};
+}
+
 }
 
 }
