@@ -26,13 +26,24 @@ bg::Expr::Ref StoragePtrHelper::packToLocalPtr(Expression const* expr, bg::Expr:
 	if (dynamic_cast<FunctionCall const*>(expr))
 		return bgExpr;
 
-	PackResult result {{}, {}};
-	packInternal(expr, bgExpr, context, result);
+	PackResult packed {{}, {}};
+	packInternal(expr, bgExpr, context, packed);
 
-	if (result.exprs.size() == 1)
-		return toWriteExpr(result.exprs[0], context);
+	// Single array: convert to array write and return
+	if (packed.exprs.size() == 1)
+		return toWriteExpr(packed.exprs[0], context);
 
-	// TODO: create if-then-else when the result has multiple arrays
+	// Multiple arrays: if-then-else of array writes
+	if (packed.exprs.size() > 1)
+	{
+		solAssert(packed.exprs.size() == packed.conds.size(), "Expression and condition mismatch");
+		// Start with last
+		bg::Expr::Ref result = toWriteExpr(packed.exprs[packed.exprs.size() - 1], context);
+		// Create if-then-else recursively using the rest
+		for (int i = packed.exprs.size() - 2; i >= 0; --i)
+			result = bg::Expr::cond(packed.conds[i], toWriteExpr(packed.exprs[i], context), result);
+		return result;
+	}
 
 	context.reportError(expr, "Unsupported expression for packing into local pointer");
 	return bg::Expr::error();
