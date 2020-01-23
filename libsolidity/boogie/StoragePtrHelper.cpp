@@ -127,7 +127,7 @@ void StoragePtrHelper::packInternal(Expression const* expr, bg::Expr::Ref bgExpr
 			}
 		}
 
-		context.reportError(expr, "Only state variables are supported as identifiers as base of local storage pointer.");
+		context.reportError(expr, "Unsupported identifier as base of local storage pointer");
 		result.conds.push_back(bg::Expr::error());
 		result.exprs.push_back({bg::Expr::error()});
 		return;
@@ -371,11 +371,38 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 		// Found a variable with a matching type, just return
 		if (targetStructTp && declStructTp && targetStructTp->structDefinition() == declStructTp->structDefinition())
 		{
-			PackResult res;
-			res.conds.push_back(bg::Expr::lit(true));
-			res.exprs.push_back({});
-			return res;
+			PackResult repacked;
+			repacked.conds.push_back(bg::Expr::lit(true));
+			repacked.exprs.push_back({});
+			return repacked;
 		}
+
+		// Otherwise if it is a struct, go through members and recurse
+		if (declStructTp)
+		{
+			PackResult repacked;
+			auto members = declStructTp->structDefinition().members();
+			for (unsigned i = 0; i < members.size(); ++i)
+			{
+				PackResult sub = repack(ptrExpr, ptrBgExpr, members[i].get(), depth+1, context);
+				if (!sub.exprs.empty())
+				{
+					for (size_t s = 0; s < sub.exprs.size(); ++s)
+					{
+						bg::Expr::Ref cond = bg::Expr::and_(
+								bg::Expr::eq(
+									bg::Expr::arrsel(ptrBgExpr, context.intLit(bg::bigint(depth), 256)),
+									context.intLit(bg::bigint(i), 256)),
+								sub.conds[s]);
+						repacked.conds.push_back(cond);
+						sub.exprs[s].insert(sub.exprs[s].begin(), context.intLit(bg::bigint(i), 256));
+						repacked.exprs.push_back(sub.exprs[s]);
+					}
+				}
+			}
+			return repacked;
+		}
+
 		return PackResult{{},{}};
 	}
 	// TODO
