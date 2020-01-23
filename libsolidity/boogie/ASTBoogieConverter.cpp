@@ -593,6 +593,8 @@ void ASTBoogieConverter::processFuncModifiersAndBody()
 	}
 	else if (m_currentFunc->isImplemented()) // We reached the function
 	{
+		if (!m_currentFunc->modifiers().empty())
+			m_context.pushExtraScope(&m_currentFunc->body(), toString(m_context.nextId()));
 		string oldReturnLabel = m_currentReturnLabel;
 		m_currentReturnLabel = "$return" + to_string(m_nextReturnLabelId);
 		++m_nextReturnLabelId;
@@ -601,6 +603,8 @@ void ASTBoogieConverter::processFuncModifiersAndBody()
 		m_currentBlocks.top()->addStmt(bg::Stmt::label(m_currentReturnLabel));
 		m_currentBlocks.top()->addStmt(bg::Stmt::comment("Function body ends here"));
 		m_currentReturnLabel = oldReturnLabel;
+		if (!m_currentFunc->modifiers().empty())
+			m_context.popExtraScope();
 	}
 }
 
