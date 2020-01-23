@@ -34,7 +34,8 @@ private:
 
 	/** Helper struct for internal operations during packing. */
 	struct PackResult {
-		std::vector<boogie::Expr::Ref> exprs; // Elements in the packed array
+		std::vector<boogie::Expr::Ref> conds; // Conditions
+		std::vector<std::vector<boogie::Expr::Ref>> exprs; // Elements in the packed array
 	};
 
 	/**

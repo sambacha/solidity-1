@@ -26,14 +26,16 @@ bg::Expr::Ref StoragePtrHelper::packToLocalPtr(Expression const* expr, bg::Expr:
 	if (dynamic_cast<FunctionCall const*>(expr))
 		return bgExpr;
 
-	PackResult result {{}};
+	PackResult result {{}, {}};
 	packInternal(expr, bgExpr, context, result);
-	if (result.exprs.empty())
-	{
-		context.reportError(expr, "Unsupported expression for packing into local pointer");
-		return bg::Expr::error();
-	}
-	return toWriteExpr(result.exprs, context);
+
+	if (result.exprs.size() == 1)
+		return toWriteExpr(result.exprs[0], context);
+
+	// TODO: create if-then-else when the result has multiple arrays
+
+	context.reportError(expr, "Unsupported expression for packing into local pointer");
+	return bg::Expr::error();
 }
 
 bg::Expr::Ref StoragePtrHelper::toWriteExpr(vector<bg::Expr::Ref> exprs, BoogieContext& context)
@@ -75,8 +77,7 @@ void StoragePtrHelper::packInternal(Expression const* expr, bg::Expr::Ref bgExpr
 	// Identifier: search for matching state variable in the contract
 	if (auto idExpr = dynamic_cast<Identifier const*>(expr))
 	{
-		auto ptr = context.freshTempVar(context.localPtrType());
-		// Collect all variables from all contracts that can see the struct
+		// Collect all variables from all contracts
 		vector<VariableDeclaration const*> vars;
 		for (auto contr: context.stats().allContracts())
 		{
@@ -85,17 +86,23 @@ void StoragePtrHelper::packInternal(Expression const* expr, bg::Expr::Ref bgExpr
 		}
 		for (unsigned i = 0; i < vars.size(); ++i)
 		{
-			// If found, put its index into the packed array
+			// If found, initialize packed array with its index
 			if (vars[i] == idExpr->annotation().referencedDeclaration)
 			{
 				// Must be the first element in the packed array
+				solAssert(result.conds.empty(), "Non-empty expressions when packing identifier");
 				solAssert(result.exprs.empty(), "Non-empty expressions when packing identifier");
-				result.exprs.push_back(context.intLit(bg::bigint(i), 256));
+				result.conds.push_back(bg::Expr::lit(true));
+				result.exprs.push_back({context.intLit(bg::bigint(i), 256)});
 				return;
 			}
 		}
+
+		// TODO: Handle case when the identifier is not state var, but a pointer (repack)
+
 		context.reportError(expr, "Only state variables are supported as identifiers as base of local storage pointer.");
-		result.exprs.push_back(bg::Expr::error());
+		result.conds.push_back(bg::Expr::error());
+		result.exprs.push_back({bg::Expr::error()});
 		return;
 	}
 	// Member access: process base recursively, then find matching member
@@ -110,10 +117,11 @@ void StoragePtrHelper::packInternal(Expression const* expr, bg::Expr::Ref bgExpr
 		auto members = eStructType->structDefinition().members();
 		for (unsigned i = 0; i < members.size(); ++i)
 		{
-			// If matching member found, put index in next position of the packed array
+			// If matching member found, put index in next position of each packed array
 			if (members[i].get() == memAccExpr->annotation().referencedDeclaration)
 			{
-				result.exprs.push_back(context.intLit(bg::bigint(i), 256));
+				for (size_t e = 0; e < result.exprs.size(); ++e)
+					result.exprs[e].push_back(context.intLit(bg::bigint(i), 256));
 				return;
 			}
 		}
@@ -146,7 +154,9 @@ void StoragePtrHelper::packInternal(Expression const* expr, bg::Expr::Ref bgExpr
 		packInternal(&idxExpr->baseExpression(), base, context, result);
 		solAssert(!result.exprs.empty(), "Empty pointer from subexpression");
 
-		result.exprs.push_back(bgIdxAccExpr->getIdx());
+		// Append index into each packed array
+		for (size_t e = 0; e < result.exprs.size(); ++e)
+			result.exprs[e].push_back(bgIdxAccExpr->getIdx());
 		return;
 	}
 
