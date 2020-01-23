@@ -11,12 +11,6 @@ class BoogieContext;
 class StoragePtrHelper {
 
 public:
-	/* Result of packing a local storage pointer into an array. **/
-	struct PackResult {
-		boogie::Decl::Ref ptr; // Resulting pointer
-		std::list<boogie::Stmt::Ref> stmts; // Side effects of packing (filling the pointer array)
-	};
-
 	/**
 	 * Packs an expression into a local storage pointer.
 	 * @param expr Expression to be packed
@@ -25,7 +19,7 @@ public:
 	 * @returns Local pointer
 	 */
 	static
-	PackResult packToLocalPtr(Expression const* expr, boogie::Expr::Ref bgExpr, BoogieContext& context);
+	boogie::Expr::Ref packToLocalPtr(Expression const* expr, boogie::Expr::Ref bgExpr, BoogieContext& context);
 
 	/**
 	 * Unpacks a local storage pointer into an access to storage.
@@ -37,6 +31,19 @@ public:
 	boogie::Expr::Ref unpackLocalPtr(Expression const* ptrExpr, boogie::Expr::Ref ptrBgExpr, BoogieContext& context);
 
 private:
+
+	/** Helper struct for internal operations during packing. */
+	struct PackResult {
+		std::vector<boogie::Expr::Ref> exprs; // Elements in the packed array
+	};
+
+	/**
+	 * Transform a list of integer expressions into a series of array writes.
+	 * For example, [3, i, 4] becomes constarray()[0 <- 3][1 <- i][2 <- 4].
+	 */
+	static
+	boogie::Expr::Ref toWriteExpr(std::vector<boogie::Expr::Ref> exprs, BoogieContext& context);
+
 	/**
 	 * Packs a path to a local storage into an array. E.g., 'ss[i].t' becomes [2, i, 3] if
 	 *  'ss' is the 2nd state var and 't' is the 3rd member.

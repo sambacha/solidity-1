@@ -550,11 +550,8 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 			{
 				if (structType->dataStoredIn(DataLocation::Storage))
 				{
-					auto res = StoragePtrHelper::packToLocalPtr(&memAccExpr->expression(), m_currentAddress, m_context);
-					m_newDecls.push_back(res.ptr);
-					for (auto stmt: res.stmts)
-						addSideEffect(stmt);
-					m_currentAddress = res.ptr->getRefTo();
+					auto packed = StoragePtrHelper::packToLocalPtr(&memAccExpr->expression(), m_currentAddress, m_context);
+					m_currentAddress = packed;
 				}
 			}
 		}
