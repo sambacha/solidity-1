@@ -321,6 +321,13 @@ bg::Expr::Ref StoragePtrHelper::unpackInternal(Expression const* ptrExpr, boogie
 
 StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr, bg::Expr::Ref ptrBgExpr, Declaration const* decl, int depth, BoogieContext& context)
 {
+	// Works similarly to unpack, but instead of a big conditional expression,
+	// it returns a list of conditions and a corresponding list of array
+	// expressions to be used to further reference a pointer.
+	// For the example in pack, repacking an array [arr] (pointing to S)
+	// would be like the following:
+	// if arr[0] == 1 then [1]
+	// if arr[0] == 2 then [2, arr[1]]
 	if (dynamic_cast<ContractDefinition const*>(decl))
 	{
 		auto structType = dynamic_cast<StructType const*>(ptrExpr->annotation().type);
@@ -364,14 +371,13 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 		solAssert(targetStructTp || targetArrayTp || targetMapTp, "Expected array, mapping or struct type when unpacking");
 		auto declTp = varDecl->type();
 
-		vector<bg::Expr::Ref> indices;
-
 		// Get rid of arrays and mappings by indexing into them
+		vector<bg::Expr::Ref> indices; // Collect the extra indices
 		while (declTp->category() == Type::Category::Array || declTp->category() == Type::Category::Mapping)
 		{
 			if (auto arrType = dynamic_cast<ArrayType const*>(declTp))
 			{
-				// Found a variable with a matching type, just return
+				// Found a variable with a matching type, just return what we have so far
 				if (targetArrayTp && targetArrayTp->isImplicitlyConvertibleTo(*arrType))
 				{
 					PackResult repacked;
@@ -379,13 +385,14 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 					repacked.exprs.push_back(indices);
 					return repacked;
 				}
+				// Otherwise add the extra index (at current depth from pointer)
 				indices.push_back(bg::Expr::arrsel(ptrBgExpr, context.intLit(bg::bigint(depth), 256)));
 				declTp = arrType->baseType();
 			}
 
 			else if (auto mapType = dynamic_cast<MappingType const*>(declTp))
 			{
-				// Found a variable with a matching type, just return
+				// Found a variable with a matching type, just return what we have so far
 				if (targetMapTp && targetMapTp->isImplicitlyConvertibleTo(*mapType))
 				{
 					PackResult repacked;
@@ -393,6 +400,7 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 					repacked.exprs.push_back(indices);
 					return repacked;
 				}
+				// Otherwise add the extra index (at current depth from pointer)
 				indices.push_back(bg::Expr::arrsel(ptrBgExpr, context.intLit(bg::bigint(depth), 256)));
 				declTp = mapType->valueType();
 			}
@@ -424,13 +432,16 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 				{
 					for (size_t s = 0; s < sub.exprs.size(); ++s)
 					{
+						// Take subcondition and append current
 						bg::Expr::Ref cond = bg::Expr::and_(
 								bg::Expr::eq(
 									bg::Expr::arrsel(ptrBgExpr, context.intLit(bg::bigint(depth), 256)),
 									context.intLit(bg::bigint(i), 256)),
 								sub.conds[s]);
 						repacked.conds.push_back(cond);
+						// Insert extra indices to beginning
 						sub.exprs[s].insert(sub.exprs[s].begin(), indices.begin(), indices.end());
+						// Insert current index (of member) to beginning
 						sub.exprs[s].insert(sub.exprs[s].begin(), context.intLit(bg::bigint(i), 256));
 						repacked.exprs.push_back(sub.exprs[s]);
 					}
@@ -438,10 +449,7 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 			}
 			return repacked;
 		}
-
-		return PackResult{{},{}};
 	}
-	// TODO
 	return PackResult{{},{}};
 }
 
