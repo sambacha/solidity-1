@@ -234,6 +234,8 @@ bg::Expr::Ref StoragePtrHelper::unpackInternal(Expression const* ptrExpr, boogie
 				bg::Expr::arrsel(ptrBgExpr, context.intLit(1, 256)));
 		for (unsigned i = 0; i < vars.size(); ++i)
 		{
+			if (vars[i]->isConstant())
+				continue;
 			auto subExpr = unpackInternal(ptrExpr, ptrBgExpr, vars[i], depth+1,
 					bg::Expr::arrsel(bg::Expr::id(context.mapDeclName(*vars[i])), context.boogieThis()->getRefTo()), context);
 			if (subExpr)
@@ -344,6 +346,8 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 		PackResult repacked = {{}, {}};
 		for (unsigned i = 0; i < vars.size(); ++i)
 		{
+			if (vars[i]->isConstant())
+				continue;
 			PackResult sub = repack(ptrExpr, ptrBgExpr, vars[i], depth+1, context);
 			if (!sub.exprs.empty())
 			{
