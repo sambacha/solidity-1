@@ -364,7 +364,42 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 		solAssert(targetStructTp || targetArrayTp || targetMapTp, "Expected array, mapping or struct type when unpacking");
 		auto declTp = varDecl->type();
 
-		// TODO: get rid of indexing
+		vector<bg::Expr::Ref> indices;
+
+		// Get rid of arrays and mappings by indexing into them
+		while (declTp->category() == Type::Category::Array || declTp->category() == Type::Category::Mapping)
+		{
+			if (auto arrType = dynamic_cast<ArrayType const*>(declTp))
+			{
+				// Found a variable with a matching type, just return
+				if (targetArrayTp && targetArrayTp->isImplicitlyConvertibleTo(*arrType))
+				{
+					PackResult repacked;
+					repacked.conds.push_back(bg::Expr::lit(true));
+					repacked.exprs.push_back(indices);
+					return repacked;
+				}
+				indices.push_back(bg::Expr::arrsel(ptrBgExpr, context.intLit(bg::bigint(depth), 256)));
+				declTp = arrType->baseType();
+			}
+
+			else if (auto mapType = dynamic_cast<MappingType const*>(declTp))
+			{
+				// Found a variable with a matching type, just return
+				if (targetMapTp && targetMapTp->isImplicitlyConvertibleTo(*mapType))
+				{
+					PackResult repacked;
+					repacked.conds.push_back(bg::Expr::lit(true));
+					repacked.exprs.push_back(indices);
+					return repacked;
+				}
+				indices.push_back(bg::Expr::arrsel(ptrBgExpr, context.intLit(bg::bigint(depth), 256)));
+				declTp = mapType->valueType();
+			}
+			else
+				solAssert(false, "Expected array or mapping type");
+			depth++;
+		}
 
 		auto declStructTp = dynamic_cast<StructType const*>(declTp);
 
@@ -373,7 +408,7 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 		{
 			PackResult repacked;
 			repacked.conds.push_back(bg::Expr::lit(true));
-			repacked.exprs.push_back({});
+			repacked.exprs.push_back(indices);
 			return repacked;
 		}
 
@@ -395,6 +430,7 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 									context.intLit(bg::bigint(i), 256)),
 								sub.conds[s]);
 						repacked.conds.push_back(cond);
+						sub.exprs[s].insert(sub.exprs[s].begin(), indices.begin(), indices.end());
 						sub.exprs[s].insert(sub.exprs[s].begin(), context.intLit(bg::bigint(i), 256));
 						repacked.exprs.push_back(sub.exprs[s]);
 					}
