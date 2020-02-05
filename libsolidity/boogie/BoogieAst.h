@@ -13,7 +13,7 @@
 namespace boogie
 {
 
-using bigint = boost::multiprecision::int1024_t;
+using bigint = dev::bigint;
 
 class TypeDecl;
 using TypeDeclRef = std::shared_ptr<TypeDecl>;
