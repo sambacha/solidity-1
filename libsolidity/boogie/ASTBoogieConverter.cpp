@@ -1383,18 +1383,13 @@ bool ASTBoogieConverter::visit(VariableDeclarationStatement const& _node)
 		{
 			solAssert(initialValue, "Uninitialized local storage pointer.");
 			bg::Expr::Ref init = convertExpression(*initialValue);
-			m_currentBlocks.top()->addStmt(bg::Stmt::comment("Packing local storage pointer " + declarations[0]->name()));
 
 			auto packed = StoragePtrHelper::packToLocalPtr(initialValue, init, m_context);
-			m_localDecls.push_back(packed.ptr);
-			for (auto stmt: packed.stmts)
-				m_currentBlocks.top()->addStmt(stmt);
-
 			auto varDecl = bg::Decl::variable(
 					m_context.mapDeclName(*declarations[0]),
 					m_context.localPtrType());
 			m_localDecls.push_back(varDecl);
-			m_currentBlocks.top()->addStmt(bg::Stmt::assign(varDecl->getRefTo(), packed.ptr->getRefTo()));
+			m_currentBlocks.top()->addStmt(bg::Stmt::assign(varDecl->getRefTo(), packed));
 			return false;
 		}
 	}

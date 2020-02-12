@@ -62,12 +62,8 @@ void AssignHelper::makeAssignInternal(AssignParam lhs, AssignParam rhs, langutil
 	{
 		if (dynamic_cast<MappingType const*>(rhs.type))
 		{
-			result.newStmts.push_back(bg::Stmt::comment("Packing local storage pointer"));
 			auto packed = StoragePtrHelper::packToLocalPtr(rhs.expr, rhs.bgExpr, context);
-			result.newDecls.push_back(packed.ptr);
-			for (auto stmt: packed.stmts)
-				result.newStmts.push_back(stmt);
-			rhs.bgExpr = packed.ptr->getRefTo();
+			rhs.bgExpr = packed;
 			makeBasicAssign(lhs, rhs, Token::Assign, assocNode, context, result);
 		}
 		else
@@ -206,12 +202,8 @@ void AssignHelper::makeStructAssign(AssignParam lhs, AssignParam rhs, ASTNode co
 				}
 				else // Otherwise pack
 				{
-					result.newStmts.push_back(bg::Stmt::comment("Packing local storage pointer"));
 					auto packed = StoragePtrHelper::packToLocalPtr(rhs.expr, rhs.bgExpr, context);
-					result.newDecls.push_back(packed.ptr);
-					for (auto stmt: packed.stmts)
-						result.newStmts.push_back(stmt);
-					result.newStmts.push_back(bg::Stmt::assign(lhs.bgExpr, packed.ptr->getRefTo()));
+					result.newStmts.push_back(bg::Stmt::assign(lhs.bgExpr, packed));
 					return;
 				}
 			}
@@ -285,12 +277,8 @@ void AssignHelper::makeArrayAssign(AssignParam lhs, AssignParam rhs, ASTNode con
 		// Pack into local pointer (reassigning local pointer)
 		if (lhsType->isPointer() && rhsTypeArray && !rhsTypeArray->isPointer())
 		{
-			result.newStmts.push_back(bg::Stmt::comment("Packing local storage pointer"));
 			auto packed = StoragePtrHelper::packToLocalPtr(rhs.expr, rhs.bgExpr, context);
-			result.newDecls.push_back(packed.ptr);
-			for (auto stmt: packed.stmts)
-				result.newStmts.push_back(stmt);
-			rhs.bgExpr = packed.ptr->getRefTo();
+			rhs.bgExpr = packed;
 		}
 		else if (!lhsType->isPointer() && rhsTypeArray && rhsTypeArray->isPointer())
 		{
