@@ -77,10 +77,20 @@ private:
 	 * @param exprStr Expression as a string
 	 * @param _node Corresponding node (for error reporting)
 	 * @param _scope Scope
+	 * @returns The parsed expression
+	 */
+	ASTPointer<Expression> parseExpr(std::string exprStr, ASTNode const& _node, ASTNode const* _scope);
+
+	/**
+	 * Helper method to parse an expression from a string with a given scope
+	 * and convert it into a Boogie expression.
+	 * @param exprStr Expression as a string
+	 * @param _node Corresponding node (for error reporting)
+	 * @param _scope Scope
 	 * @param result Parsed expression
 	 * @returns True if parsing was successful
 	 */
-	bool parseExpr(std::string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result);
+	bool parseBoogieExpr(std::string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result);
 
 	/**
 	 * Parse expressions from documentation for a given tag.
@@ -98,6 +108,13 @@ private:
 	 * @param _annot Annotations
 	 */
 	bool includeContractInvars(DocumentedAnnotation const& _annot);
+
+	/**
+	 * Check if emits specifications match what the function can actually emit.
+	 * @param _node Solidity function
+	 * @returns Result of check
+	 */
+	bool checkEmitsSpecs(FunctionDefinition const& _node);
 
 	/**
 	 * Helper method to extract the variable to which the modifies specification corresponds.

@@ -286,49 +286,53 @@ void ASTBoogieConverter::initializeStateVar(VariableDeclaration const& _node)
 	}
 }
 
-bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result)
+ASTPointer<Expression> ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& /*_node*/, ASTNode const* _scope)
+{
+	TypeChecker typeChecker(m_context.evmVersion(), *m_context.errorReporter(), m_context.currentContract());
+	CharStream exprStream(exprStr, "Annotation");
+	// Parse
+	ASTPointer<Expression> expr = Parser(*m_context.errorReporter(), m_context.evmVersion())
+		.parseExpression(std::make_shared<Scanner>(exprStream));
+	if (!expr)
+		throw langutil::FatalError();
+
+	// Resolve references, using the given scope
+	m_context.scopes()[expr.get()] = m_context.scopes()[_scope];
+	NameAndTypeResolver resolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
+	if (!resolver.resolveNamesAndTypes(*expr)) return nullptr;
+	// Do type checking
+	if (!typeChecker.checkTypeRequirements(*expr)) return nullptr;
+
+	return expr;
+}
+
+bool ASTBoogieConverter::parseBoogieExpr(string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result)
 {
 	// We temporarily replace the error reporter in the context, because the locations
 	// are pointing to positions in the docstring
 	ErrorList errorList;
 	ErrorReporter errorReporter(errorList);
-	TypeChecker typeChecker(m_context.evmVersion(), errorReporter, m_context.currentContract());
 
 	ErrorReporter* originalErrReporter = m_context.errorReporter();
 	m_context.errorReporter() = &errorReporter;
 
 	try
 	{
-		// Parse
-		CharStream exprStream(exprStr, "Annotation");
-		ASTPointer<Expression> expr = Parser(*m_context.errorReporter(), m_context.evmVersion())
-			.parseExpression(std::make_shared<Scanner>(exprStream));
-		if (!expr)
-			throw langutil::FatalError();
-
-		// Resolve references, using the given scope
-		m_context.scopes()[expr.get()] = m_context.scopes()[_scope];
-		NameAndTypeResolver resolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
-		if (resolver.resolveNamesAndTypes(*expr))
+		if (auto expr = parseExpr(exprStr, _node, _scope))
 		{
-			// Do type checking
-			if (typeChecker.checkTypeRequirements(*expr))
-			{
-				// Convert expression to Boogie representation
-				auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr, true);
-				result.expr = convResult.expr;
-				result.exprStr = exprStr;
-				result.exprSol = expr;
-				result.tccs = convResult.tccs;
-				result.ocs = convResult.ocs;
+			// Convert expression to Boogie representation
+			auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr, true);
+			result.expr = convResult.expr;
+			result.exprStr = exprStr;
+			result.exprSol = expr;
+			result.tccs = convResult.tccs;
+			result.ocs = convResult.ocs;
 
-				// Report unsupported cases (side effects)
-				if (!convResult.newStatements.empty())
-					m_context.reportError(&_node, "Annotation expression introduces intermediate statements");
-				if (!convResult.newDecls.empty())
-					m_context.reportError(&_node, "Annotation expression introduces intermediate declarations");
-
-			}
+			// Report unsupported cases (side effects)
+			if (!convResult.newStatements.empty())
+				m_context.reportError(&_node, "Annotation expression introduces intermediate statements");
+			if (!convResult.newDecls.empty())
+				m_context.reportError(&_node, "Annotation expression introduces intermediate declarations");
 		}
 	}
 	catch (langutil::FatalError const& fe)
@@ -363,7 +367,7 @@ std::vector<BoogieContext::DocTagExpr> ASTBoogieConverter::getExprsFromDocTags(A
 		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, _tag)) // Find expressions with the given tag
 		{
 			BoogieContext::DocTagExpr expr;
-			if (parseExpr(docTag.second.content.substr(_tag.length() + 1), _node, _scope, expr))
+			if (parseBoogieExpr(docTag.second.content.substr(_tag.length() + 1), _node, _scope, expr))
 				exprs.push_back(expr);
 		}
 	}
@@ -377,6 +381,28 @@ bool ASTBoogieConverter::includeContractInvars(DocumentedAnnotation const& _anno
 			return true;
 
 	return false;
+}
+
+bool ASTBoogieConverter::checkEmitsSpecs(FunctionDefinition const& _node)
+{
+	for (auto docTag: _node.annotation().docTags)
+	{
+		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, ASTBoogieUtils::DOCTAG_EMITS))
+		{
+			if (auto expr = parseExpr(docTag.second.content.substr(ASTBoogieUtils::DOCTAG_EMITS.length() + 1), _node, &_node))
+			{
+				if (auto id = dynamic_pointer_cast<Identifier>(expr))
+				{
+					auto decl = id->annotation().referencedDeclaration;
+					if (!dynamic_cast<EventDefinition const*>(decl))
+						m_context.reportError(&_node, "Expected event in emits specification.");
+					else // TODO: just ignoring for now
+						m_context.reportWarning(&_node, "Ignored emits spec: " + decl->name());
+				}
+			}
+		}
+	}
+	return true;
 }
 
 Declaration const* ASTBoogieConverter::getModifiesBase(Expression const* expr)
@@ -457,13 +483,13 @@ void ASTBoogieConverter::addModifiesSpecs(FunctionDefinition const& _node, bg::P
 				targetEnd = condStart;
 				// Parse the condition
 				BoogieContext::DocTagExpr cond;
-				if (parseExpr(docTag.second.content.substr(condStart + ASTBoogieUtils::DOCTAG_MODIFIES_COND.length()), _node, &_node, cond))
+				if (parseBoogieExpr(docTag.second.content.substr(condStart + ASTBoogieUtils::DOCTAG_MODIFIES_COND.length()), _node, &_node, cond))
 					condExpr = bg::Expr::old(cond.expr);
 			}
 			// Parse the target (identifier/selector)
 			BoogieContext::DocTagExpr target;
 			size_t targetStart = ASTBoogieUtils::DOCTAG_MODIFIES.length() + 1;
-			if (parseExpr(docTag.second.content.substr(targetStart, targetEnd - targetStart + 1), _node, &_node, target))
+			if (parseBoogieExpr(docTag.second.content.substr(targetStart, targetEnd - targetStart + 1), _node, &_node, target))
 			{
 				auto memAccExpr = dynamic_cast<MemberAccess const*>(target.exprSol.get());
 				if (memAccExpr && memAccExpr->memberName() == ASTBoogieUtils::BALANCE.solidity &&
@@ -961,6 +987,8 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 
 	// Modifies specifications
 	addModifiesSpecs(_node, procDecl);
+	// Emits specs
+	checkEmitsSpecs(_node);
 
 	string traceabilityName = _node.name();
 	if (_node.isConstructor())
