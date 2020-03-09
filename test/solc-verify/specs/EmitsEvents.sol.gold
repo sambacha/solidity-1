@@ -1,0 +1,4 @@
+test/solc-verify/specs/EmitsEvents.sol:4:5: solc-verify warning: Ignored event definition
+EmitsEvents::increase: OK
+EmitsEvents::[implicit_constructor]: OK
+No errors found.

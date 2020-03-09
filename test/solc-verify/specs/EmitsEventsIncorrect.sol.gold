@@ -1,0 +1,9 @@
+test/solc-verify/specs/EmitsEventsIncorrect.sol:11:9: solc-verify error: Event possibly emitted, but not specified
+test/solc-verify/specs/EmitsEventsIncorrect.sol:4:5: solc-verify warning: Ignored event definition
+test/solc-verify/specs/EmitsEventsIncorrect.sol:5:5: solc-verify warning: Ignored event definition
+test/solc-verify/specs/EmitsEventsIncorrect.sol:9:5: solc-verify warning: Errors while translating function body, will be skipped
+test/solc-verify/specs/EmitsEventsIncorrect.sol:9:5: solc-verify warning: Function specifies 'Decreased' but never emits.
+EmitsEvents::[implicit_constructor]: OK
+EmitsEvents::increase: SKIPPED
+Some functions were skipped. Use --show-warnings to see details.
+No errors found.
