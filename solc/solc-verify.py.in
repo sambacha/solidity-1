@@ -163,6 +163,11 @@ def main(tmpDir):
                 line = line.replace('Warning: ', yellowTxt('Warning') + ': ')
                 line = line.replace('solc-verify warning: ', yellowTxt('solc-verify warning') + ': ')
                 print(line)
+        # Also print errors (this can only be intra-function errors)
+        if 'solc-verify error: ' in line:
+            if args.show_warnings:
+                line = line.replace('solc-verify error: ', redTxt('solc-verify error') + ': ')
+                print(line)
 
     # Map results back to .sol file
     prefix = '' if args.errors_only else ' - '
@@ -203,7 +208,7 @@ def main(tmpDir):
     if 'inconclusive' in outputLines[-1]:
         print(yellowTxt('Inconclusive results.'))
     if skipped > 0:
-        print(yellowTxt('Some functions were skipped. Use --verbose to see details.'))
+        print(yellowTxt('Some functions were skipped. Use --show-warnings to see details.'))
 
     # Final result
     if (re.match('Boogie program verifier finished with \\d+ verified, 0 errors', outputLines[-1])):
