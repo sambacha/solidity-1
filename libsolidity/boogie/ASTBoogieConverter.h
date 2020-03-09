@@ -38,6 +38,9 @@ private:
 	std::string m_currentContinueLabel;
 	std::string m_currentBreakLabel;
 
+	// Events specified by the current function and whether they are indeed emitted
+	std::map<EventDefinition const*, bool> m_currentEmits;
+
 	/**
 	 * Helper method to convert an expression using the dedicated expression converter class,
 	 * it also handles side-effect statements and declarations introduced by the conversion.
@@ -110,11 +113,11 @@ private:
 	bool includeContractInvars(DocumentedAnnotation const& _annot);
 
 	/**
-	 * Check if emits specifications match what the function can actually emit.
+	 * Collect the events that the current function specifies to emit.
 	 * @param _node Solidity function
-	 * @returns Result of check
+	 * @returns Whether emits specs are syntactically correct
 	 */
-	bool checkEmitsSpecs(FunctionDefinition const& _node);
+	bool collectEmitsSpecs(FunctionDefinition const& _node);
 
 	/**
 	 * Helper method to extract the variable to which the modifies specification corresponds.
