@@ -57,6 +57,7 @@ string const ASTBoogieUtils::DOCTAG_POSTCOND = "postcondition";
 string const ASTBoogieUtils::DOCTAG_MODIFIES = "modifies";
 string const ASTBoogieUtils::DOCTAG_MODIFIES_ALL = DOCTAG_MODIFIES + " *";
 string const ASTBoogieUtils::DOCTAG_MODIFIES_COND = " if ";
+string const ASTBoogieUtils::DOCTAG_EVENT_TRACKS_CHANGES = "tracks-changes-in";
 
 bg::ProcDeclRef ASTBoogieUtils::createTransferProc(BoogieContext& context)
 {
