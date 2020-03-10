@@ -50,10 +50,27 @@ void ASTBoogieConverter::createImplicitConstructor(ContractDefinition const& _no
 
 	m_localDecls.clear();
 
+	// Create a new error reporter to be able to recover
+	ErrorList errorList;
+	ErrorReporter errorReporter(errorList);
+	ErrorReporter* originalErrReporter = m_context.errorReporter();
+	m_context.errorReporter() = &errorReporter;
+
 	// Include preamble
 	m_currentBlocks.push(bg::Block::block());
 	constructorPreamble();
-	bg::Block::Ref block = m_currentBlocks.top();
+
+	// Print errors related to the function
+	m_context.printErrors(cerr);
+	// Restore error reporter
+	m_context.errorReporter() = originalErrReporter;
+
+	// Add function body if there were no errors
+	vector<bg::Block::Ref> blocks;
+	if (Error::containsOnlyWarnings(errorList))
+		blocks.push_back(m_currentBlocks.top());
+	else
+		m_context.reportWarning(&_node, "Errors while inlining base constructor(s) into implicit constructor, will be skipped");
 	m_currentBlocks.pop();
 	solAssert(m_currentBlocks.empty(), "Non-empty stack of blocks at the end of function.");
 
@@ -67,7 +84,7 @@ void ASTBoogieConverter::createImplicitConstructor(ContractDefinition const& _no
 	};
 
 	// Create the procedure
-	auto procDecl = bg::Decl::procedure(funcName, params, {}, m_localDecls, {block});
+	auto procDecl = bg::Decl::procedure(funcName, params, {}, m_localDecls, blocks);
 	for (auto invar: m_context.currentContractInvars())
 	{
 		auto attrs = ASTBoogieUtils::createAttrs(_node.location(), "State variable initializers might violate invariant '" + invar.exprStr + "'.", *m_context.currentScanner());
@@ -84,6 +101,17 @@ void ASTBoogieConverter::createImplicitConstructor(ContractDefinition const& _no
 	}
 	auto attrs = ASTBoogieUtils::createAttrs(_node.location(),  _node.name() + "::[implicit_constructor]", *m_context.currentScanner());
 	procDecl->addAttrs(attrs);
+
+	if (!Error::containsOnlyWarnings(errorList))
+		procDecl->addAttr(bg::Attr::attr("skipped"));
+
+	// Havoc state vars if skipped
+	if (!Error::containsOnlyWarnings(errorList))
+		for (auto contract: m_context.currentContract()->annotation().linearizedBaseContracts)
+			for (auto sv: ASTNode::filteredNodes<VariableDeclaration>(contract->subNodes()))
+				if (!sv->isConstant())
+					procDecl->getModifies().push_back(m_context.mapDeclName(*sv));
+
 	m_context.addDecl(procDecl);
 }
 
