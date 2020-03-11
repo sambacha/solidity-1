@@ -1093,8 +1093,11 @@ bool ASTBoogieConverter::visit(EventDefinition const& _node)
 	auto eventPostconditions = getExprsFromDocTags(_node, _node.annotation(), scope(), ASTBoogieUtils::DOCTAG_POSTCOND);
 
 	std::cerr << "tracks:" << std::endl;
+
 	for (auto e: eventTracks) {
 		std::cerr << e.expr << std::endl;
+		// TODO: for every expression, declare a new expression e_old
+		// TODO: make a substitution map
 	}
 
 	// Name of the event
@@ -1120,6 +1123,7 @@ bool ASTBoogieConverter::visit(EventDefinition const& _node)
 	for (auto eventPre: eventPreconditions)
 	{
 		auto attrs = ASTBoogieUtils::createAttrs(_node.location(), "Event precondition '" + eventPre.exprStr + "' might not hold before emit.", *m_context.currentScanner());
+		auto oldExpr = eventPre.expr->substitute(m_context.getEventDataSubstitution());
 		auto spec = bg::Specification::spec(eventPre.expr, attrs);
 		procDecl->getRequires().push_back(spec);
 	}
@@ -1131,7 +1135,7 @@ bool ASTBoogieConverter::visit(EventDefinition const& _node)
 		procDecl->getRequires().push_back(spec);
 	}
 
-	// Add tracebility info
+	// Add traceability info
 	string traceabilityName = _node.name();
 	traceabilityName = "[event] " + m_context.currentContract()->name() + "::" + traceabilityName;
 	procDecl->addAttrs(ASTBoogieUtils::createAttrs(_node.location(), traceabilityName, *m_context.currentScanner()));

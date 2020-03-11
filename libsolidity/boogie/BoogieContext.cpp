@@ -1158,5 +1158,27 @@ bg::Expr::Ref BoogieContext::ecrecover(bg::Expr::Ref hash, bg::Expr::Ref v, bg::
 	return bg::Expr::fn(fnName, {hash, v, r, s});
 }
 
+boogie::Expr::substitution const& BoogieContext::getEventDataSubstitution() const
+{
+	return m_eventDataSubstitution;
+}
+
+void BoogieContext::addEventData(boogie::Expr::Ref bgExpr, Expression const* expr, TypePointer type)
+{
+	// If already added, skip
+	if (m_eventData.count(expr))
+		return;
+	// Get the variable
+	auto varExpr = dynamic_pointer_cast<bg::VarExpr const>(bgExpr);
+	solAssert(varExpr, "We only accept members ");
+	// Create the new variable and declare it
+	string oldDataName = varExpr->name() + "#event_old";
+	bg::VarDeclRef oldDataDecl = bg::Decl::variable(oldDataName, toBoogieType(type, expr));
+	addDecl(oldDataDecl);
+	// Record the data and the substitution
+	m_eventData.insert(expr);
+	m_eventDataSubstitution[varExpr->name()] = bg::Expr::id(oldDataName);
+}
+
 }
 }

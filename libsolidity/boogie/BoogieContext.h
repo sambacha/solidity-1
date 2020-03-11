@@ -127,6 +127,11 @@ private:
 
 	bool m_warnForBalances;
 
+	// Set of solidity members that we're watching for events
+	std::set<Expression const *> m_eventData;
+	// Substitution from data members to old data members for events
+	boogie::Expr::substitution m_eventDataSubstitution;
+
 public:
 
 	BoogieContext(Encoding encoding,
@@ -171,6 +176,12 @@ public:
 	std::string mapDeclName(Declaration const& decl);
 
 	void warnForBalances();
+
+	/** Returns the substitution for data tracked by events */
+	boogie::Expr::substitution const& getEventDataSubstitution() const;
+
+	/** Add new data tracked by an event */
+	void addEventData(boogie::Expr::Ref bgExpr, Expression const* expr, TypePointer type);
 
 	// Sum function related
 private:
