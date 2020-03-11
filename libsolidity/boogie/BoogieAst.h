@@ -34,6 +34,7 @@ public:
 	/** Reference to expressions */
 	using Ref = std::shared_ptr<Expr const>;
 
+	/** A substitution is a map from variable names to expressions to substitute */
 	using substitution = std::map<std::string, Ref>;
 
 	virtual ~Expr() {}
@@ -43,6 +44,7 @@ public:
 	std::string toString() const;
 	std::string toSMT2() const;
 
+	/** Substitutes s into the expression */
 	virtual Ref substitute(substitution const& s) const = 0;
 
 	virtual bool isError() const { return false; }
@@ -53,8 +55,11 @@ public:
 	static Ref exists(std::vector<Binding> const&, Ref e);
 	static Ref forall(std::vector<Binding> const&, Ref e);
 	static Ref and_(Ref l, Ref r);
+	static Ref and_(std::vector<Expr::Ref> const& es);
 	static Ref or_(Ref l, Ref r);
+	static Ref or_(std::vector<Expr::Ref> const& es);
 	static Ref cond(Ref c, Ref t, Ref e);
+	static Ref oneOf(std::vector<Expr::Ref> const& es);
 	static Ref eq(Ref l, Ref r);
 	static Ref lt(Ref l, Ref r);
 	static Ref gt(Ref l, Ref r);

@@ -32,6 +32,8 @@ contract Secondary {
 
     /**
      * @dev Emitted when the primary contract changes.
+     * @notice tracks-changes-in _primary
+     * @notice postcondition _primary == recipient
      */
     event PrimaryTransferred(
         address recipient
@@ -81,7 +83,10 @@ contract Secondary {
 contract Escrow is Secondary {
     using SafeMath for uint256;
 
+    /// @notice tracks-changes-in _deposits
     event Deposited(address indexed payee, uint256 weiAmount);
+
+    /// @notice tracks-changes-in _deposits
     event Withdrawn(address indexed payee, uint256 weiAmount);
 
     mapping(address => uint256) internal _deposits;

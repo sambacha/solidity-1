@@ -386,6 +386,8 @@ bool ASTBoogieConverter::includeContractInvars(DocumentedAnnotation const& _anno
 bool ASTBoogieConverter::collectEmitsSpecs(FunctionDefinition const& _node)
 {
 	m_currentEmits.clear();
+
+	// Collect all the events from the docTags and enable tracking
 	for (auto docTag: _node.annotation().docTags)
 	{
 		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, ASTBoogieUtils::DOCTAG_EMITS))
@@ -398,6 +400,8 @@ bool ASTBoogieConverter::collectEmitsSpecs(FunctionDefinition const& _node)
 					if (auto event = dynamic_cast<EventDefinition const*>(decl))
 					{
 						m_currentEmits[event] = false;
+						m_context.enableEventDataTrackingFor(event);
+
 					}
 					else
 					{
@@ -415,6 +419,7 @@ bool ASTBoogieConverter::collectEmitsSpecs(FunctionDefinition const& _node)
 				return false;
 		}
 	}
+
 	return true;
 }
 
@@ -705,6 +710,10 @@ bool ASTBoogieConverter::visit(ContractDefinition const& _node)
 	for (auto ispec: _node.baseContracts())
 		ispec->accept(*this);
 
+	// Process any event definitions
+	for (auto event: ASTNode::filteredNodes<EventDefinition>(_node.subNodes()))
+		processEventDefinition(*event);
+
 	// Process subnodes
 	for (auto sn: _node.subNodes())
 		sn->accept(*this);
@@ -925,6 +934,8 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	for (auto ev: m_currentEmits)
 		if (!ev.second)
 			m_context.reportWarning(&_node, "Function specifies '" + ev.first->name() + "' but never emits.");
+	// Disable event tracking since we're done with the body
+	m_context.disableEventDataTracking();
 
 	// Get the name of the function
 	string funcName = _node.isConstructor() ?
@@ -1006,6 +1017,13 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	}
 	// TODO: check that no new sum variables were introduced
 
+	// Add all specs for events that have been declared
+	for (auto const& e: m_currentEmits)
+	{
+		auto event = e.first;
+		m_context.addFunctionSpecsForEvent(event, procDecl);
+	}
+
 	// Modifies specifications
 	addModifiesSpecs(_node, procDecl);
 
@@ -1075,9 +1093,9 @@ bool ASTBoogieConverter::visit(ModifierInvocation const& _node)
 	return false;
 }
 
-bool ASTBoogieConverter::visit(EventDefinition const& _node)
+void ASTBoogieConverter::processEventDefinition(EventDefinition const& _event)
 {
-	rememberScope(_node);
+	rememberScope(_event);
 
 	// For each event emit we add:
 	// - a precondition assertion: pre(saved_data)
@@ -1088,20 +1106,19 @@ bool ASTBoogieConverter::visit(EventDefinition const& _node)
 	// - declare the event as an inline function with an empty body
 	// - treat both preconditions and postconditions as function preconditions in Boogie
 
-	auto eventTracks = getExprsFromDocTags(_node, _node.annotation(), scope(), ASTBoogieUtils::DOCTAG_EVENT_TRACKS_CHANGES);
-	auto eventPreconditions = getExprsFromDocTags(_node, _node.annotation(), scope(), ASTBoogieUtils::DOCTAG_PRECOND);
-	auto eventPostconditions = getExprsFromDocTags(_node, _node.annotation(), scope(), ASTBoogieUtils::DOCTAG_POSTCOND);
+	auto eventTracks = getExprsFromDocTags(_event, _event.annotation(), scope(), ASTBoogieUtils::DOCTAG_EVENT_TRACKS_CHANGES);
+	auto eventPreconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), ASTBoogieUtils::DOCTAG_PRECOND);
+	auto eventPostconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), ASTBoogieUtils::DOCTAG_POSTCOND);
 
-	std::cerr << "tracks:" << std::endl;
-
-	for (auto e: eventTracks) {
-		std::cerr << e.expr << std::endl;
-		// TODO: for every expression, declare a new expression e_old
-		// TODO: make a substitution map
+	// Add all the tracked data
+	for (auto e: eventTracks)
+	{
+		std::cerr << "tracking " << e.expr << std::endl;
+		m_context.addEventData(e.exprSol.get(), &_event);
 	}
 
 	// Name of the event
-	string eventName = m_context.mapDeclName(_node);
+	string eventName = m_context.mapDeclName(_event);
 
 	// Input parameters
 	std::vector<bg::Binding> params {
@@ -1109,39 +1126,45 @@ bool ASTBoogieConverter::visit(EventDefinition const& _node)
 		{m_context.boogieMsgSender()->getRefTo(), m_context.boogieMsgSender()->getType() }, // msg.sender
 		{m_context.boogieMsgValue()->getRefTo(), m_context.boogieMsgValue()->getType() } // msg.value
 	};
-	for (auto par: _node.parameters())
+	for (auto par: _event.parameters())
 		params.push_back({bg::Expr::id(m_context.mapDeclName(*par)), m_context.toBoogieType(par->type(), par.get())});
 
-	// Event body is just empty
-	vector<bg::Block::Ref> blocks;
-	blocks.push_back(bg::Block::block());
-
 	// Create the procedure
-	auto procDecl = bg::Decl::procedure(eventName, params, {}, {}, blocks);
+	auto procDecl = m_context.declareEventProcedure(&_event, eventName, params);
 
 	// Add preconditions
 	for (auto eventPre: eventPreconditions)
 	{
-		auto attrs = ASTBoogieUtils::createAttrs(_node.location(), "Event precondition '" + eventPre.exprStr + "' might not hold before emit.", *m_context.currentScanner());
+		auto attrs = ASTBoogieUtils::createAttrs(_event.location(), "Event precondition '" + eventPre.exprStr + "' might not hold before emit of " + _event.name() + ".", *m_context.currentScanner());
 		auto oldExpr = eventPre.expr->substitute(m_context.getEventDataSubstitution());
-		auto spec = bg::Specification::spec(eventPre.expr, attrs);
+		auto spec = bg::Specification::spec(oldExpr, attrs);
 		procDecl->getRequires().push_back(spec);
 	}
 	// Add postconditions
 	for (auto eventPost: eventPostconditions)
 	{
-		auto attrs = ASTBoogieUtils::createAttrs(_node.location(), "Event postcondition '" + eventPost.exprStr + "' might not hold before emit.", *m_context.currentScanner());
+		auto attrs = ASTBoogieUtils::createAttrs(_event.location(), "Event postcondition '" + eventPost.exprStr + "' might not hold before emit " + _event.name() + ".", *m_context.currentScanner());
 		auto spec = bg::Specification::spec(eventPost.expr, attrs);
 		procDecl->getRequires().push_back(spec);
 	}
 
-	// Add traceability info
-	string traceabilityName = _node.name();
-	traceabilityName = "[event] " + m_context.currentContract()->name() + "::" + traceabilityName;
-	procDecl->addAttrs(ASTBoogieUtils::createAttrs(_node.location(), traceabilityName, *m_context.currentScanner()));
 
-	m_context.addGlobalComment("\nEvent: " + _node.name());
+	// Add traceability info
+	string traceabilityName = _event.name();
+	traceabilityName = "[event] " + m_context.currentContract()->name() + "::" + traceabilityName;
+	procDecl->addAttrs(ASTBoogieUtils::createAttrs(_event.location(), traceabilityName, *m_context.currentScanner()));
+
+	m_context.addGlobalComment("\nEvent: " + _event.name());
 	m_context.addDecl(procDecl);
+
+	// Remove the scope
+	endVisitNode(_event);
+}
+
+
+bool ASTBoogieConverter::visit(EventDefinition const& _node)
+{
+	rememberScope(_node);
 
 	return false;
 }

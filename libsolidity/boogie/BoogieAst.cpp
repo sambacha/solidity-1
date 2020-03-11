@@ -54,15 +54,49 @@ Expr::Ref Expr::and_(Ref l, Ref r)
 	return std::make_shared<BinExpr const>(BinExpr::And, l, r);
 }
 
+Expr::Ref Expr::and_(std::vector<Expr::Ref> const& es)
+{
+	if (es.size() == 0)
+		return lit(true);
+	Expr::Ref result = es[0];
+	for (size_t i = 1; i < es.size(); ++ i)
+		result = and_(result, es[i]);
+	return result;
+}
+
 Expr::Ref Expr::or_(Ref l, Ref r)
 {
 	return std::make_shared<BinExpr const>(BinExpr::Or, l, r);
+}
+
+Expr::Ref Expr::or_(std::vector<Expr::Ref> const& es)
+{
+	if (es.size() == 0)
+		return lit(false);
+	Expr::Ref result = es[0];
+	for (size_t i = 1; i < es.size(); ++ i)
+		result = or_(result, es[i]);
+	return result;
 }
 
 Expr::Ref Expr::cond(Ref c, Ref t, Ref e)
 {
 	return std::make_shared<CondExpr const>(c,t,e);
 }
+
+Expr::Ref Expr::oneOf(std::vector<Expr::Ref> const& es)
+{
+	std::vector<Expr::Ref> conjuncts(es);
+	std::vector<Expr::Ref> disjuncts;
+	for (size_t i = 0; i < es.size(); ++ i) {
+		Expr::Ref pick = es[i];
+		conjuncts[i] = not_(pick);
+		disjuncts.push_back(and_(conjuncts));
+		conjuncts[i] = pick;
+	}
+	return or_(disjuncts);
+}
+
 
 Expr::Ref Expr::eq(Ref l, Ref r)
 {
@@ -1149,7 +1183,7 @@ Expr::Ref NegExpr::substitute(Expr::substitution const& s) const
 Expr::Ref NotExpr::substitute(Expr::substitution const& s) const
 {
 	Ref expr1 = expr->substitute(s);
-	return std::make_shared<NegExpr const>(expr1);
+	return std::make_shared<NotExpr const>(expr1);
 }
 
 Expr::Ref QuantExpr::substitute(Expr::substitution const& s) const

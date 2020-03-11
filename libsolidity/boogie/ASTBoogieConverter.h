@@ -180,6 +180,9 @@ private:
 			return nullptr;
 	}
 
+	/** Process event definition */
+	void processEventDefinition(EventDefinition const& event);
+
 public:
 	/**
 	 * Create a new instance with a given context.

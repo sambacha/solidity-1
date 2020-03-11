@@ -319,6 +319,11 @@ void AssignHelper::makeBasicAssign(AssignParam lhs, AssignParam rhs, langutil::T
 	for (auto stmt: checkForSums(lhs.bgExpr, rhsResult.expr, context))
 		result.newStmts.push_back(stmt);
 
+	// Check if we require the event data to be saved
+	if (lhs.expr)
+		for (auto stmt: context.checkForEventDataSave(lhs.expr))
+			result.newStmts.push_back(stmt);
+
 	result.newStmts.push_back(bg::Stmt::assign(lhs.bgExpr, rhsResult.expr));
 }
 

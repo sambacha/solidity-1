@@ -127,11 +127,6 @@ private:
 
 	bool m_warnForBalances;
 
-	// Set of solidity members that we're watching for events
-	std::set<Expression const *> m_eventData;
-	// Substitution from data members to old data members for events
-	boogie::Expr::substitution m_eventDataSubstitution;
-
 public:
 
 	BoogieContext(Encoding encoding,
@@ -177,11 +172,76 @@ public:
 
 	void warnForBalances();
 
+private:
+
+	//
+	// Data related to Event tracking
+	//
+
+	// If a field f is modified, one of the events E1, ..., En, that track it
+	// need to be triggered. For each event we have a trigger variable tE1,
+	// ..., tEn.
+	//
+	// - event E has the precondition tE and postcondition !tE
+	// - function f with events E1, ..., En has precondition and postcondition
+	//     !tE1, !tE2, ..., !tEn
+	// - loops withing f have invariants
+	//     !tE1, !tE2, ..., !tEn
+	// - after f is modified we have do
+	//     havoc(tE1, ..., eEn); assume(oneOf(tE1, tE2, ..., tEn);
+
+	using EventDataSet = std::set<Declaration const*>;
+
+	struct EventDataInfo {
+		boogie::Expr::Ref dataVar; // Data tracked
+		boogie::Expr::Ref oldDataVar; // Same type, to save data
+		boogie::Expr::Ref oldDataSavedVar; // Bool type, whether to update
+	};
+
+	// Information about events we're tracking
+	std::map<EventDefinition const*, EventDataSet> m_eventData;
+	// Set of all id's that we're tracking old values for
+	std::map<Declaration const*, EventDataInfo> m_allEventData;
+	// Set of solidity events that we're watching at the moment
+	std::set<EventDefinition const*> m_eventDataCurrent;
+	// Set of solidity events we're currently watching
+	// Substitution from data members to old data members for events
+	boogie::Expr::substitution m_eventDataSubstitution;
+
+public:
+
+	//
+	// Methods related to Event tracking.
+	//
+
 	/** Returns the substitution for data tracked by events */
 	boogie::Expr::substitution const& getEventDataSubstitution() const;
 
 	/** Add new data tracked by an event */
-	void addEventData(boogie::Expr::Ref bgExpr, Expression const* expr, TypePointer type);
+	void addEventData(Expression const* expr, EventDefinition const* event);
+
+	/** Enable tracking of data related to given event */
+	void enableEventDataTrackingFor(EventDefinition const* event);
+
+	/** Clear tracking of events */
+	void disableEventDataTracking();
+
+	/**
+	 * Given LHS of an assignment, check if it's an update tracked by an event. Returns a statement
+	 * to save the data, if not saved already.
+	 */
+	std::list<boogie::Stmt::Ref> checkForEventDataSave(Expression const* lhsExpr);
+
+	/**
+	 * Sets up the event procedure with the right pre- and post-conditions and body to capture
+	 * trigger and data-update variables
+	 */
+	boogie::ProcDeclRef declareEventProcedure(EventDefinition const* event, std::string eventName, std::vector<boogie::Binding> const& params);
+
+	/**
+	 * Adds entry and exit specs for the given function.
+	 */
+	void addFunctionSpecsForEvent(EventDefinition const* event, boogie::ProcDeclRef procedure);
 
 	// Sum function related
 private:

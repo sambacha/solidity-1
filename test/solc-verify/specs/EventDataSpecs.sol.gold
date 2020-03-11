@@ -1,0 +1,4 @@
+C::test_new_entry: OK
+C::test_updated_entry: OK
+C::[implicit_constructor]: OK
+No errors found.
