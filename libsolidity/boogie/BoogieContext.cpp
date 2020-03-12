@@ -1348,7 +1348,7 @@ bg::ProcDeclRef BoogieContext::declareEventProcedure(EventDefinition const* even
 	}
 
 	// Declare postconditions
-	auto procDecl = bg::Decl::procedure(eventName, params, {}, {}, {});
+	auto procDecl = bg::Decl::procedure(eventName, params, {}, {}, blocks);
 
 	// At least one data entry has been saved on entry, none has been saved on exit
 	std::vector<boogie::Expr::Ref> dataSavedDisjuncts;
