@@ -43,7 +43,9 @@ contract C {
     require(data[0].initialized);
     data[0].value = 1;
     lastUpdate = msg.sender;
-    emit updated_entry(0, 1);
+    if (data[1].value == 3) {
+      emit updated_entry(0, 1);
+    }
   }
 
 }

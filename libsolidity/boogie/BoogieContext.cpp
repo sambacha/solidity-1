@@ -1376,7 +1376,7 @@ void BoogieContext::addFunctionSpecsForEvent(EventDefinition const* event, boogi
 	procDecl->getRequires().push_back(bg::Specification::spec(bg::Expr::not_(dataSaved),
 			ASTBoogieUtils::createAttrs(event->location(), "Function called without triggering event " + event->name(), *currentScanner())));
 	procDecl->getEnsures().push_back(bg::Specification::spec(bg::Expr::not_(dataSaved),
-			ASTBoogieUtils::createAttrs(event->location(), "Function ends without triggering event", *currentScanner())));
+			ASTBoogieUtils::createAttrs(event->location(), "Function can end without triggering event", *currentScanner())));
 
 }
 

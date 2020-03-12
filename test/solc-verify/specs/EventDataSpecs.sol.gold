@@ -1,4 +1,5 @@
 C::test_new_entry: OK
-C::test_updated_entry: OK
+C::test_updated_entry: ERROR
+ - test/solc-verify/specs/EventDataSpecs.sol:26:3: Function can end without triggering event
 C::[implicit_constructor]: OK
-No errors found.
+Errors were found by the verifier.
