@@ -178,18 +178,6 @@ private:
 	// Data related to Event tracking
 	//
 
-	// If a field f is modified, one of the events E1, ..., En, that track it
-	// need to be triggered. For each event we have a trigger variable tE1,
-	// ..., tEn.
-	//
-	// - event E has the precondition tE and postcondition !tE
-	// - function f with events E1, ..., En has precondition and postcondition
-	//     !tE1, !tE2, ..., !tEn
-	// - loops withing f have invariants
-	//     !tE1, !tE2, ..., !tEn
-	// - after f is modified we have do
-	//     havoc(tE1, ..., eEn); assume(oneOf(tE1, tE2, ..., tEn);
-
 	using EventDataSet = std::set<Declaration const*>;
 
 	struct EventDataInfo {

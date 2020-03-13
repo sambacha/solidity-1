@@ -1177,7 +1177,8 @@ void BoogieContext::addEventData(Expression const* expr, EventDefinition const* 
 		return;
 
 	// Create the new variable and declare it
-	if (m_allEventData.count(dataDecl) == 0) {
+	if (m_allEventData.count(dataDecl) == 0)
+	{
 		string oldDataName = dataVarName + "#event_old";
 		TypePointer type = dataExpr->annotation().type;
 		bg::TypeDeclRef oldDataType = bg::Decl::arraytype(addressType(), toBoogieType(type, expr));
