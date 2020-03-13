@@ -48,4 +48,22 @@ contract C {
     }
   }
 
+  int a;
+  int b;
+
+  /// @notice tracks-changes-in a
+  /// @notice tracks-changes-in b
+  /// @notice precondition a < b
+  /// @notice postcndition a < b
+  event a_b_changed();
+
+  /// @notice emits a_b_changed
+  function test_a_b_changed() public {
+    require(a < b);
+    b ++;
+    emit a_b_changed();
+    a ++;
+    emit a_b_changed();
+  }
+
 }

@@ -1176,7 +1176,7 @@ void BoogieContext::addEventData(Expression const* expr, EventDefinition const* 
 	if (m_eventData[event].count(dataDecl) > 0)
 		return;
 
-	// Create the new variable and declare it
+	// Create the new variables and declare them
 	if (m_allEventData.count(dataDecl) == 0)
 	{
 		string oldDataName = dataVarName + "#event_old";
@@ -1190,11 +1190,11 @@ void BoogieContext::addEventData(Expression const* expr, EventDefinition const* 
 		addDecl(oldUpdateDecl);
 		bg::Expr::Ref data = bg::Expr::id(dataVarName);
 		bg::Expr::Ref oldData = bg::Expr::id(oldDataName);
-		bg::Expr::Ref oldUpdate = bg::Expr::id(oldUpdateName);
+		bg::Expr::Ref oldDataSaved = bg::Expr::id(oldUpdateName);
 		m_allEventData[dataDecl].dataVar = data;
 		m_allEventData[dataDecl].oldDataVar = oldData;
-		m_allEventData[dataDecl].oldDataSavedVar = oldUpdate;
-		m_eventDataSubstitution[dataVarName] = oldData;
+		m_allEventData[dataDecl].oldDataSavedVar = oldDataSaved;
+		m_eventDataSubstitution[dataVarName] = bg::Expr::cond(oldDataSaved, oldData, data);
 	}
 
 	// Record the data and the substitution
