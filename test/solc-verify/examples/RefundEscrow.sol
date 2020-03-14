@@ -151,6 +151,7 @@ contract ConditionalEscrow is Escrow {
     function withdrawalAllowed(address payee) public view returns (bool);
 
     /**
+     * @notice emits Withdrawn
      * @notice modifies _deposits[payee]
      * @notice modifies address(this).balance
      * @notice modifies payee.balance
@@ -177,7 +178,16 @@ contract ConditionalEscrow is Escrow {
 contract RefundEscrow is ConditionalEscrow {
     enum State { Active, Refunding, Closed }
 
+    /// @notice tracks-changes-in _state
+    /// @notice tracks-changes-in _primary
+    /// @notice precondition _state == State.Active && msg.sender == _primary
+    /// @notice postcondition _state == State.Closed
     event RefundsClosed();
+
+    /// @notice tracks-changes-in _state
+    /// @notice tracks-changes-in _primary
+    /// @notice precondition _state == State.Active && msg.sender == _primary
+    /// @notice postcondition _state == State.Refunding
     event RefundsEnabled();
 
     State private _state;
@@ -212,6 +222,7 @@ contract RefundEscrow is ConditionalEscrow {
      * @dev Stores funds that may later be refunded.
      * @param refundee The address funds will be sent to if a refund occurs.
      *
+     * @notice emits Deposited
      * @notice modifies _deposits[refundee] if _state == State.Active
      * @notice modifies address(this).balance
      */
