@@ -76,15 +76,6 @@ private:
 	void initializeStateVar(VariableDeclaration const& _node);
 
 	/**
-	 * Helper method to parse an expression from a string with a given scope.
-	 * @param exprStr Expression as a string
-	 * @param _node Corresponding node (for error reporting)
-	 * @param _scope Scope
-	 * @returns The parsed expression
-	 */
-	ASTPointer<Expression> parseExpr(std::string exprStr, ASTNode const& _node, ASTNode const* _scope);
-
-	/**
 	 * Helper method to parse an expression from a string with a given scope
 	 * and convert it into a Boogie expression.
 	 * @param exprStr Expression as a string

@@ -170,6 +170,15 @@ public:
 	/** Maps a declaration name to a name in Boogie, including extra scoping if needed. */
 	std::string mapDeclName(Declaration const& decl);
 
+	/**
+	 * Helper method to parse an expression from a string with a given scope.
+	 * @param exprStr Expression as a string
+	 * @param _node Corresponding node (for error reporting)
+	 * @param _scope Scope
+	 * @returns The parsed expression
+	 */
+	ASTPointer<Expression> parseAnnotation(std::string exprStr, ASTNode const& _node, ASTNode const* _scope);
+
 	void warnForBalances();
 
 private:
