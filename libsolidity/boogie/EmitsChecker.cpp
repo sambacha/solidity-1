@@ -167,6 +167,8 @@ bool EmitsChecker::visit(FunctionCall const& _node)
 	FunctionDefinition const* calledDef = nullptr;
 	if (auto id = dynamic_cast<Identifier const*>(&_node.expression()))
 		calledDef = dynamic_cast<FunctionDefinition const*>(id->annotation().referencedDeclaration);
+	if (auto memAcc = dynamic_cast<MemberAccess const*>(&_node.expression()))
+		calledDef = dynamic_cast<FunctionDefinition const*>(memAcc->annotation().referencedDeclaration);
 
 	// TODO: handle other cases for function calls
 
