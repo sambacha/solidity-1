@@ -1,5 +1,6 @@
+Base::[constructor]: OK
+EmitsEventsModular::[constructor]: OK
 EmitsEventsModular::inc: OK
 EmitsEventsModular::dec: OK
 EmitsEventsModular::both: OK
-EmitsEventsModular::[implicit_constructor]: OK
 No errors found.

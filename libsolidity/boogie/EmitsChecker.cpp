@@ -6,45 +6,51 @@ using namespace dev;
 using namespace dev::solidity;
 using namespace std;
 
-EmitsChecker::EmitsChecker(BoogieContext& context) :
-		m_context(context),
-		m_currentScope(nullptr)
-{ }
-
-bool EmitsChecker::check()
+bool EmitsChecker::collectEmitsSpecs(FunctionDefinition const* fn, set<EventDefinition const*>& specs)
 {
-	bool result = true;
-
-	// First go through all functions and parse specs
-	map<FunctionDefinition const*, set<EventDefinition const*>> specified;
-	for (auto fn: m_allFunctions)
+	for (auto docTag: fn->annotation().docTags)
 	{
-		for (auto docTag: fn->annotation().docTags)
+		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, ASTBoogieUtils::DOCTAG_EMITS))
 		{
-			if (docTag.first == "notice" && boost::starts_with(docTag.second.content, ASTBoogieUtils::DOCTAG_EMITS))
+			if (auto expr = m_context.parseAnnotation(docTag.second.content.substr(ASTBoogieUtils::DOCTAG_EMITS.length() + 1), *fn, fn))
 			{
-				if (auto expr = m_context.parseAnnotation(docTag.second.content.substr(ASTBoogieUtils::DOCTAG_EMITS.length() + 1), *fn, fn))
+				if (auto id = dynamic_pointer_cast<Identifier>(expr))
 				{
-					if (auto id = dynamic_pointer_cast<Identifier>(expr))
-					{
-						auto decl = id->annotation().referencedDeclaration;
-						if (auto event = dynamic_cast<EventDefinition const*>(decl))
-							specified[fn].insert(event);
-						else
-						{
-							m_context.reportError(fn, "Expected event in emits specification.");
-							return false;
-						}
-					}
+					auto decl = id->annotation().referencedDeclaration;
+					if (auto event = dynamic_cast<EventDefinition const*>(decl))
+						specs.insert(event);
 					else
 					{
 						m_context.reportError(fn, "Expected event in emits specification.");
 						return false;
 					}
 				}
+				else
+				{
+					m_context.reportError(fn, "Expected event in emits specification.");
+					return false;
+				}
 			}
 		}
 	}
+	return true;
+}
+
+EmitsChecker::EmitsChecker(BoogieContext& context) :
+		m_context(context),
+		m_currentScope(nullptr),
+		m_currentContract(nullptr)
+{ }
+
+bool EmitsChecker::check()
+{
+	bool specsSatisfied = true;
+
+	// First go through all functions and parse specs
+	map<FunctionDefinition const*, set<EventDefinition const*>> specified;
+	for (auto fn: m_allFunctions)
+		if (!collectEmitsSpecs(fn, specified[fn]))
+			return false;
 
 	// Then go through functions again and check specs
 	for (auto fn: m_allFunctions)
@@ -53,25 +59,24 @@ bool EmitsChecker::check()
 		// indicating whether the event can indeed be emitted
 		map<EventDefinition const*, bool> currentFuncSpec;
 		for (auto ev: specified[fn])
-			currentFuncSpec[ev] = false;
+			currentFuncSpec[ev] = false; // Initially assume that it is not emitted
 
 		// Check directly emitted events
-		for (auto ev: m_emitted[fn])
+		for (auto ev: m_directlyEmitted[fn])
 		{
 			if (currentFuncSpec.find(ev) != currentFuncSpec.end())
 				currentFuncSpec[ev] = true;
 			else
 			{
 				m_context.reportError(fn, "Function possibly emits '" + ev->name() + "' without specifying");
-				result = false;
+				specsSatisfied = false;
 			}
 		}
 
 		// Check specs of called functions (incl. base constructors)
 		for (auto called: m_calledFuncs[fn])
 		{
-			string calledName = called->name();
-			if (called->isConstructor()) calledName = "base constructor";
+			string calledName = called->isConstructor() ? "base constructor" : called->name();
 
 			for (auto ev: specified[called])
 			{
@@ -80,7 +85,7 @@ bool EmitsChecker::check()
 				else
 				{
 					m_context.reportError(fn, "Function possibly emits '" + ev->name() + "' (via calling " + calledName + ") without specifying");
-					result = false;
+					specsSatisfied = false;
 				}
 			}
 		}
@@ -91,7 +96,7 @@ bool EmitsChecker::check()
 			auto modifierDecl = dynamic_cast<ModifierDefinition const*>(modif->name()->annotation().referencedDeclaration);
 			if (modifierDecl)
 			{
-				for (auto ev: m_emitted[modifierDecl])
+				for (auto ev: m_directlyEmitted[modifierDecl])
 				{
 					if (currentFuncSpec.find(ev) != currentFuncSpec.end())
 						currentFuncSpec[ev] = true;
@@ -99,7 +104,7 @@ bool EmitsChecker::check()
 					{
 						m_context.reportError(fn, "Function possibly emits '" + ev->name() +
 								"' (via modifier " + modifierDecl->name() + ") without specifying");
-						result = false;
+						specsSatisfied = false;
 					}
 				}
 			}
@@ -114,7 +119,7 @@ bool EmitsChecker::check()
 		}
 	}
 
-	return result;
+	return specsSatisfied;
 }
 
 bool EmitsChecker::visit(ContractDefinition const& _node)
@@ -157,7 +162,7 @@ bool EmitsChecker::visit(EmitStatement const& _node)
 		m_context.reportError(&_node, "Unsupported emit statement, could not determine event");
 		return false;
 	}
-	m_emitted[m_currentScope].insert(eventDef);
+	m_directlyEmitted[m_currentScope].insert(eventDef);
 	return true;
 }
 
@@ -190,11 +195,10 @@ bool EmitsChecker::visit(FunctionCall const& _node)
 		calledDef = dynamic_cast<FunctionDefinition const*>(memAcc->annotation().referencedDeclaration);
 
 	// TODO: handle other cases for function calls
+	// TODO: if we cannot get the definition we don't give a warning yet because it would break a lot of tests
 
 	if (calledDef)
 		m_calledFuncs[m_currentScope].insert(calledDef);
-	// TODO: if we cannot get the definition we don't give a warning yet
-	// because it would break a lot of tests
 
 	return true;
 }

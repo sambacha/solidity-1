@@ -1,6 +1,19 @@
 pragma solidity >=0.5.0;
 
-contract EmitsEventsModular {
+contract Base {
+    uint b;
+
+    /// @notice tracks-changes-in b
+    event Created();
+
+    /// @notice emits Created
+    constructor(uint _b) public {
+        b = _b;
+        emit Created();
+    }
+}
+
+contract EmitsEventsModular is Base {
     /// @notice tracks-changes-in x
     event Increased();
     /// @notice tracks-changes-in x
@@ -12,6 +25,9 @@ contract EmitsEventsModular {
         _;
         emit Increased();
     }
+
+    /// @notice emits Created
+    constructor() public Base(0) {}
 
     /// @notice emits Increased
     function inc() public increases_x {
