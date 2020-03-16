@@ -15,11 +15,10 @@ bool EmitsChecker::check()
 {
 	bool result = true;
 
-	// Go through all functions and check against specs
+	// First go through all functions and parse specs
+	map<FunctionDefinition const*, set<EventDefinition const*>> specified;
 	for (auto fn: m_allFunctions)
 	{
-		// First parse the specs
-		map<EventDefinition const*, bool> specified;
 		for (auto docTag: fn->annotation().docTags)
 		{
 			if (docTag.first == "notice" && boost::starts_with(docTag.second.content, ASTBoogieUtils::DOCTAG_EMITS))
@@ -30,7 +29,7 @@ bool EmitsChecker::check()
 					{
 						auto decl = id->annotation().referencedDeclaration;
 						if (auto event = dynamic_cast<EventDefinition const*>(decl))
-							specified[event] = false;
+							specified[fn].insert(event);
 						else
 						{
 							m_context.reportError(fn, "Expected event in emits specification.");
@@ -45,12 +44,22 @@ bool EmitsChecker::check()
 				}
 			}
 		}
+	}
+
+	// Then go through functions again and check specs
+	for (auto fn: m_allFunctions)
+	{
+		// Collect the specs for the current function with a flag
+		// indicating whether the event can indeed be emitted
+		map<EventDefinition const*, bool> currentFuncSpec;
+		for (auto ev: specified[fn])
+			currentFuncSpec[ev] = false;
 
 		// Check directly emitted events
 		for (auto ev: m_emitted[fn])
 		{
-			if (specified.find(ev) != specified.end())
-				specified[ev] = true;
+			if (currentFuncSpec.find(ev) != currentFuncSpec.end())
+				currentFuncSpec[ev] = true;
 			else
 			{
 				m_context.reportError(fn, "Function possibly emits '" + ev->name() + "' without specifying");
@@ -58,10 +67,28 @@ bool EmitsChecker::check()
 			}
 		}
 
-		// TODO: called functions, called modifiers, base constructors, ...
+		// Check specs of called functions (incl. base constructors)
+		for (auto called: m_calledFuncs[fn])
+		{
+			string calledName = called->name();
+			if (called->isConstructor()) calledName = "base constructor";
+
+			for (auto ev: specified[called])
+			{
+				if (currentFuncSpec.find(ev) != currentFuncSpec.end())
+					currentFuncSpec[ev] = true;
+				else
+				{
+					m_context.reportError(fn, "Function possibly emits '" + ev->name() + "' (via calling " + calledName + ") without specifying");
+					result = false;
+				}
+			}
+		}
+
+		// TODO: called modifiers
 
 		// Finally give warnings for specified but not emitted events
-		for (auto entry: specified)
+		for (auto entry: currentFuncSpec)
 		{
 			if (!entry.second)
 				m_context.reportWarning(fn, "Function specifies '" + entry.first->name() + "' but never emits.");
@@ -71,11 +98,25 @@ bool EmitsChecker::check()
 	return result;
 }
 
+bool EmitsChecker::visit(ContractDefinition const& _node)
+{
+	m_currentContract = &_node;
+	return true;
+}
+
 bool EmitsChecker::visit(FunctionDefinition const& _node)
 {
 	m_currentScope = &_node;
 	m_allFunctions.push_back(&_node);
-	// TODO: base constructor calls if the function is a constructor
+
+	// Add base constructor calls
+	solAssert(m_currentContract, "FunctionDefinition without ContractDefinition");
+	if (_node.isConstructor())
+		for (auto base: m_currentContract->annotation().linearizedBaseContracts)
+			for (auto fn: ASTNode::filteredNodes<FunctionDefinition>(base->subNodes()))
+				if (fn->isConstructor())
+					m_calledFuncs[m_currentScope].insert(fn);
+
 	return true;
 }
 
@@ -99,6 +140,11 @@ bool EmitsChecker::visit(EmitStatement const& _node)
 	}
 	m_emitted[m_currentScope].insert(eventDef);
 	return true;
+}
+
+void EmitsChecker::endVisit(ContractDefinition const&)
+{
+	m_currentContract = nullptr;
 }
 
 void EmitsChecker::endVisit(FunctionDefinition const&)

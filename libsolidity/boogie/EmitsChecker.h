@@ -18,15 +18,18 @@ private:
 	std::map<CallableDeclaration const*, std::set<EventDefinition const*>> m_emitted;
 	std::list<FunctionDefinition const*> m_allFunctions;
 	CallableDeclaration const* m_currentScope;
+	ContractDefinition const* m_currentContract;
 
 public:
 	EmitsChecker(BoogieContext& context);
 
 	bool check();
 
+	bool visit(ContractDefinition const& _node) override;
 	bool visit(FunctionDefinition const& _node) override;
 	bool visit(ModifierDefinition const& _node) override;
 	bool visit(EmitStatement const& _node) override;
+	void endVisit(ContractDefinition const& _node) override;
 	void endVisit(FunctionDefinition const& _node) override;
 	void endVisit(ModifierDefinition const& _node) override;
 
