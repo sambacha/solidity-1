@@ -1407,15 +1407,19 @@ bg::ProcDeclRef BoogieContext::declareEventProcedure(EventDefinition const* even
 	auto procDecl = bg::Decl::procedure(eventName, params, {}, {}, blocks);
 
 	// At least one data entry has been saved on entry, none has been saved on exit
-	std::vector<boogie::Expr::Ref> dataSavedDisjuncts;
-	for (auto const& e: eventData)
-		dataSavedDisjuncts.push_back(m_allEventData[e].oldDataSavedVar);
-	boogie::Expr::Ref dataSaved = bg::Expr::or_(dataSavedDisjuncts);
+	if (eventData.size())
+	{
+		std::vector<boogie::Expr::Ref> dataSavedDisjuncts;
+		for (auto const& e: eventData)
+			dataSavedDisjuncts.push_back(m_allEventData[e].oldDataSavedVar);
+		boogie::Expr::Ref dataSaved = bg::Expr::or_(dataSavedDisjuncts);
 
-	procDecl->getRequires().push_back(bg::Specification::spec(dataSaved,
+		procDecl->getRequires().push_back(bg::Specification::spec(dataSaved,
 			ASTBoogieUtils::createAttrs(event->location(), "Event triggered without changes to data", *currentScanner())));
-	procDecl->getEnsures().push_back(bg::Specification::spec(bg::Expr::not_(dataSaved),
+		procDecl->getEnsures().push_back(bg::Specification::spec(bg::Expr::not_(dataSaved),
 			ASTBoogieUtils::createAttrs(event->location(), "Event triggered without changes to data", *currentScanner())));
+	}
+
 	procDecl->addAttr(bg::Attr::attr("inline", 1));
 
 	return procDecl;

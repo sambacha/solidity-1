@@ -66,4 +66,9 @@ contract C {
     emit a_b_changed();
   }
 
+  event no_data_changed();
+
+  /// @notice emits no_data_changed
+  function emit_no_data_changed() public { emit no_data_changed(); }
+
 }

@@ -2,5 +2,6 @@ C::test_new_entry: OK
 C::test_updated_entry: ERROR
  - test/solc-verify/specs/EventDataSpecs.sol:26:3: Function can end without triggering event
 C::test_a_b_changed: OK
+C::emit_no_data_changed: OK
 C::[implicit_constructor]: OK
 Errors were found by the verifier.
