@@ -32,6 +32,7 @@
 #include <libsolidity/boogie/ASTBoogieConverter.h>
 #include <libsolidity/boogie/ASTBoogieStats.h>
 #include <libsolidity/boogie/BoogieContext.h>
+#include <libsolidity/boogie/EmitsChecker.h>
 #include <libsolidity/analysis/GlobalContext.h>
 #include <libsolidity/analysis/NameAndTypeResolver.h>
 #include <libsolidity/interface/CompilerStack.h>
@@ -1295,29 +1296,39 @@ void CommandLineInterface::handleBoogie()
 			m_args.count(g_strAstBoogieModAnalysis) || stats.hasModifiesSpecs(),
 			&errorReporter, m_compiler->getScopes(), m_evmVersion, stats);
 	ASTBoogieConverter boogieConverter(context);
+	EmitsChecker emitsChecker(context);
 
 	SourceReferenceFormatter formatter(serr(false));
 
 	for (auto const& sourceCode: m_sourceCodes)
 	{
-		sout() << endl << "======= " << sourceCode.first << " =======" << endl;
-		try
+		context.currentScanner() = &m_compiler->scanner(sourceCode.first);
+		m_compiler->ast(sourceCode.first).accept(emitsChecker);
+	}
+
+	if (emitsChecker.check())
+	{
+		for (auto const& sourceCode: m_sourceCodes)
 		{
-			context.currentScanner() = &m_compiler->scanner(sourceCode.first);
-			boogieConverter.convert(m_compiler->ast(sourceCode.first));
-		}
-		catch (CompilerError const& _exception)
-		{
-			formatter.printExceptionInformation(_exception, "solc-verify exception");
-			m_error = true;
-			return;
-		}
-		catch (InternalCompilerError const& _exception)
-		{
-			formatter.printExceptionInformation(_exception, "solc-verify internal exception");
-			serr() << "Details:" << endl << boost::diagnostic_information(_exception);
-			m_error = true;
-			return;
+			sout() << endl << "======= " << sourceCode.first << " =======" << endl;
+			try
+			{
+				context.currentScanner() = &m_compiler->scanner(sourceCode.first);
+				boogieConverter.convert(m_compiler->ast(sourceCode.first));
+			}
+			catch (CompilerError const& _exception)
+			{
+				formatter.printExceptionInformation(_exception, "solc-verify exception");
+				m_error = true;
+				return;
+			}
+			catch (InternalCompilerError const& _exception)
+			{
+				formatter.printExceptionInformation(_exception, "solc-verify internal exception");
+				serr() << "Details:" << endl << boost::diagnostic_information(_exception);
+				m_error = true;
+				return;
+			}
 		}
 	}
 

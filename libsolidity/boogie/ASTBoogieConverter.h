@@ -39,6 +39,7 @@ private:
 	std::string m_currentBreakLabel;
 
 	// Events specified by the current function and whether they are indeed emitted
+	// TODO: the bool flag is not needed anymore because EmitsChecker does the job
 	std::map<EventDefinition const*, bool> m_currentEmits;
 
 	/**

@@ -389,8 +389,9 @@ bool ASTBoogieConverter::includeContractInvars(DocumentedAnnotation const& _anno
 
 bool ASTBoogieConverter::collectEmitsSpecs(FunctionDefinition const& _node)
 {
-	m_currentEmits.clear();
+	// TODO: this is a duplication, EmitsChecker already has this information
 
+	m_currentEmits.clear();
 	// Collect all the events from the docTags and enable tracking
 	for (auto docTag: _node.annotation().docTags)
 	{
@@ -405,7 +406,6 @@ bool ASTBoogieConverter::collectEmitsSpecs(FunctionDefinition const& _node)
 					{
 						m_currentEmits[event] = false;
 						m_context.enableEventDataTrackingFor(event);
-
 					}
 					else
 					{
@@ -934,10 +934,6 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	m_currentBlocks.pop();
 	solAssert(m_currentBlocks.empty(), "Non-empty stack of blocks at the end of function.");
 
-	// Check for events that are specified but not emitted
-	for (auto ev: m_currentEmits)
-		if (!ev.second)
-			m_context.reportWarning(&_node, "Function specifies '" + ev.first->name() + "' but never emits.");
 	// Disable event tracking since we're done with the body
 	m_context.disableEventDataTracking();
 
@@ -1493,22 +1489,6 @@ bool ASTBoogieConverter::visit(Throw const& _node)
 bool ASTBoogieConverter::visit(EmitStatement const& _node)
 {
 	rememberScope(_node);
-
-	// Check that the emit statement is declared as emitted
-	EventDefinition const* eventDef = nullptr;
-	if (auto id = dynamic_cast<Identifier const*>(&_node.eventCall().expression()))
-		eventDef = dynamic_cast<EventDefinition const*>(id->annotation().referencedDeclaration);
-
-	if (!eventDef)
-	{
-		m_context.reportError(&_node, "Unsupported emit statement, could not determine event");
-		return false;
-	}
-
-	if (m_currentEmits.find(eventDef) == m_currentEmits.end())
-		m_context.reportError(&_node, "Event possibly emitted, but not specified");
-	else
-		m_currentEmits[eventDef] = true;
 
 	// Call the event "function"
 	FunctionCall const& eventCall = _node.eventCall();
