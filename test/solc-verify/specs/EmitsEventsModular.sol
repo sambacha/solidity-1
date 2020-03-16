@@ -8,10 +8,14 @@ contract EmitsEventsModular {
 
     uint x;
 
-    /// @notice emits Increased
-    function inc() public {
-        x++;
+    modifier increases_x {
+        _;
         emit Increased();
+    }
+
+    /// @notice emits Increased
+    function inc() public increases_x {
+        x++;
     }
 
     /// @notice emits Decreased

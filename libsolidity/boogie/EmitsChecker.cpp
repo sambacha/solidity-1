@@ -85,7 +85,26 @@ bool EmitsChecker::check()
 			}
 		}
 
-		// TODO: called modifiers
+		// Check what called modifiers emit
+		for (auto modif: fn->modifiers())
+		{
+			auto modifierDecl = dynamic_cast<ModifierDefinition const*>(modif->name()->annotation().referencedDeclaration);
+			if (modifierDecl)
+			{
+				for (auto ev: m_emitted[modifierDecl])
+				{
+					if (currentFuncSpec.find(ev) != currentFuncSpec.end())
+						currentFuncSpec[ev] = true;
+					else
+					{
+						m_context.reportError(fn, "Function possibly emits '" + ev->name() +
+								"' (via modifier " + modifierDecl->name() + ") without specifying");
+						result = false;
+					}
+				}
+			}
+			// TODO: else report unsupported case (except if it is a base constructor call)
+		}
 
 		// Finally give warnings for specified but not emitted events
 		for (auto entry: currentFuncSpec)
