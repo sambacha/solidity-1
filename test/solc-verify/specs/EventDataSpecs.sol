@@ -71,4 +71,22 @@ contract C {
   /// @notice emits no_data_changed
   function emit_no_data_changed() public { emit no_data_changed(); }
 
+  /// @notice emits a_b_changed
+  function test_a_b_loop(int n) public {
+    require(a < b);
+    require(n > 0);
+    /// @notice invariant a + i < b
+    for (int i = 0; i < n; ++ i) {
+      b ++;
+      emit a_b_changed();
+    }
+    int i = 0;
+    /// @notice invariant a + n - i < b
+    while (i < n) {
+      a ++; i ++;
+      emit a_b_changed();
+    }
+    //
+  }
+
 }

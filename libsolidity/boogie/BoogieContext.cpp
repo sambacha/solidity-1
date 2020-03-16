@@ -1213,7 +1213,7 @@ bg::Expr::Ref BoogieContext::ecrecover(bg::Expr::Ref hash, bg::Expr::Ref v, bg::
 	return bg::Expr::fn(fnName, {hash, v, r, s});
 }
 
-boogie::Expr::substitution const& BoogieContext::getEventDataSubstitution() const
+bg::Expr::substitution const& BoogieContext::getEventDataSubstitution() const
 {
 	return m_eventDataSubstitution;
 }
@@ -1399,7 +1399,7 @@ bg::ProcDeclRef BoogieContext::declareEventProcedure(EventDefinition const* even
 	auto const& eventData = m_eventData[event];
 	for (auto e: eventData)
 	{
-		boogie::Expr::Ref dataSavedVar = m_allEventData[e].oldDataSavedVar;
+		bg::Expr::Ref dataSavedVar = m_allEventData[e].oldDataSavedVar;
 		blocks.back()->addStmt(bg::Stmt::assign(dataSavedVar, bg::Expr::lit(false)));
 	}
 
@@ -1409,10 +1409,10 @@ bg::ProcDeclRef BoogieContext::declareEventProcedure(EventDefinition const* even
 	// At least one data entry has been saved on entry, none has been saved on exit
 	if (eventData.size())
 	{
-		std::vector<boogie::Expr::Ref> dataSavedDisjuncts;
+		std::vector<bg::Expr::Ref> dataSavedDisjuncts;
 		for (auto const& e: eventData)
 			dataSavedDisjuncts.push_back(m_allEventData[e].oldDataSavedVar);
-		boogie::Expr::Ref dataSaved = bg::Expr::or_(dataSavedDisjuncts);
+		bg::Expr::Ref dataSaved = bg::Expr::or_(dataSavedDisjuncts);
 
 		procDecl->getRequires().push_back(bg::Specification::spec(dataSaved,
 			ASTBoogieUtils::createAttrs(event->location(), "Event triggered without changes to data", *currentScanner())));
@@ -1425,20 +1425,44 @@ bg::ProcDeclRef BoogieContext::declareEventProcedure(EventDefinition const* even
 	return procDecl;
 }
 
-void BoogieContext::addFunctionSpecsForEvent(EventDefinition const* event, boogie::ProcDeclRef procDecl)
+void BoogieContext::addFunctionSpecsForEvent(EventDefinition const* event, bg::ProcDeclRef procDecl)
 {
 	auto eventData = m_eventData[event];
-	std::vector<boogie::Expr::Ref> dataSavedDisjuncts;
-	for (auto e: eventData)
-		dataSavedDisjuncts.push_back(m_allEventData[e].oldDataSavedVar);
-	boogie::Expr::Ref dataSaved = bg::Expr::or_(dataSavedDisjuncts);
+	if (eventData.size())
+	{
+		std::vector<bg::Expr::Ref> dataSavedDisjuncts;
+		for (auto e: eventData)
+			dataSavedDisjuncts.push_back(m_allEventData[e].oldDataSavedVar);
+		bg::Expr::Ref dataNotSaved = bg::Expr::not_(bg::Expr::or_(dataSavedDisjuncts));
 
-	procDecl->getRequires().push_back(bg::Specification::spec(bg::Expr::not_(dataSaved),
-			ASTBoogieUtils::createAttrs(event->location(), "Function called without triggering event " + event->name(), *currentScanner())));
-	procDecl->getEnsures().push_back(bg::Specification::spec(bg::Expr::not_(dataSaved),
-			ASTBoogieUtils::createAttrs(event->location(), "Function can end without triggering event", *currentScanner())));
+		procDecl->getRequires().push_back(bg::Specification::spec(dataNotSaved,
+				ASTBoogieUtils::createAttrs(event->location(), "Function called without triggering event " + event->name(), *currentScanner())));
+		procDecl->getEnsures().push_back(bg::Specification::spec(dataNotSaved,
+				ASTBoogieUtils::createAttrs(event->location(), "Function can end without triggering event", *currentScanner())));
+	}
+}
 
+std::pair<boogie::Expr::Ref, std::string> BoogieContext::getEventLoppInvariant(EventDefinition const* event) const
+{
+	std::pair<boogie::Expr::Ref, std::string> result;
+	auto eventData = m_eventData.find(event);
+	if (eventData != m_eventData.end() && eventData->second.size())
+	{
+		std::vector<bg::Expr::Ref> dataSavedDisjuncts;
+		for (auto e: eventData->second)
+		{
+			auto dataInfo = m_allEventData.find(e);
+			solAssert(dataInfo != m_allEventData.end(), "Should have been added");
+			dataSavedDisjuncts.push_back(dataInfo->second.oldDataSavedVar);
+		}
+		bg::Expr::Ref dataNotSaved =  bg::Expr::not_(bg::Expr::or_(dataSavedDisjuncts));
+		result.first = dataNotSaved,
+		result.second = "event " + event->name() + " must be triggered if event tracked data was modified";
+	}
+	return result;
 }
 
 }
 }
+
+

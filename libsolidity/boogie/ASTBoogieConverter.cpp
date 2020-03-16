@@ -1297,6 +1297,13 @@ bool ASTBoogieConverter::visit(WhileStatement const& _node)
 	}
 	// TODO: check that invariants did not introduce new sum variables
 
+	// Add invariants for events that have been declared
+	for (auto const& e: m_currentEmits)
+	{
+		auto invar = m_context.getEventLoppInvariant(e.first);
+		invars.push_back(invar);
+	}
+
 	// Get condition recursively (create block for side effects)
 	m_currentBlocks.push(bg::Block::block());
 	bg::Expr::Ref cond = convertExpression(_node.condition());
@@ -1416,6 +1423,14 @@ bool ASTBoogieConverter::visit(ForStatement const& _node)
 		invars.push_back(bg::Specification::spec(invar.expr, ASTBoogieUtils::createAttrs(_node.location(), invar.exprStr, *m_context.currentScanner())));
 	}
 	// TODO: check that invariants did not introduce new sum variables
+
+	// Add invariants for events that have been declared
+	for (auto const& e: m_currentEmits)
+	{
+		auto invar = m_context.getEventLoppInvariant(e.first);
+		invars.push_back(bg::Specification::spec(invar.first,
+				ASTBoogieUtils::createAttrs(_node.location(), invar.second, *m_context.currentScanner())));
+	}
 
 	m_currentBlocks.top()->addStmt(bg::Stmt::while_(cond, body, invars));
 	m_currentBlocks.top()->addStmt(bg::Stmt::label(m_currentBreakLabel));
