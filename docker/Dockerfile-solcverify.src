@@ -1,6 +1,6 @@
 FROM ubuntu:bionic
 
-RUN apt update && apt install software-properties-common gnupg ca-certificates git python3-pip wget lsb-release sudo -y
+RUN apt update && apt install software-properties-common unzip gnupg ca-certificates git python3-pip wget lsb-release sudo -y
 
 RUN wget http://cvc4.cs.stanford.edu/downloads/builds/x86_64-linux-opt/cvc4-1.7-x86_64-linux-opt \
         && chmod a+x cvc4-1.7-x86_64-linux-opt \
