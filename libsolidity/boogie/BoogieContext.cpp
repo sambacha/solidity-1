@@ -1442,7 +1442,7 @@ void BoogieContext::addFunctionSpecsForEvent(EventDefinition const* event, bg::P
 	}
 }
 
-std::pair<boogie::Expr::Ref, std::string> BoogieContext::getEventLoppInvariant(EventDefinition const* event) const
+std::pair<boogie::Expr::Ref, std::string> BoogieContext::getEventLoopInvariant(EventDefinition const* event) const
 {
 	std::pair<boogie::Expr::Ref, std::string> result;
 	auto eventData = m_eventData.find(event);

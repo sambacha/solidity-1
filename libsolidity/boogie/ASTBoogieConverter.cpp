@@ -1300,7 +1300,7 @@ bool ASTBoogieConverter::visit(WhileStatement const& _node)
 	// Add invariants for events that have been declared
 	for (auto const& e: m_currentEmits)
 	{
-		auto invar = m_context.getEventLoppInvariant(e.first);
+		auto invar = m_context.getEventLoopInvariant(e.first);
 		invars.push_back(invar);
 	}
 
@@ -1427,7 +1427,7 @@ bool ASTBoogieConverter::visit(ForStatement const& _node)
 	// Add invariants for events that have been declared
 	for (auto const& e: m_currentEmits)
 	{
-		auto invar = m_context.getEventLoppInvariant(e.first);
+		auto invar = m_context.getEventLoopInvariant(e.first);
 		invars.push_back(bg::Specification::spec(invar.first,
 				ASTBoogieUtils::createAttrs(_node.location(), invar.second, *m_context.currentScanner())));
 	}
