@@ -1,7 +1,7 @@
 if (BOOGIE_BIN)
-  find_file(BOOGIE_EXE Boogie.exe "${BOOGIE_BIN}")
+  find_file(BOOGIE_EXE BoogieDriver.dll "${BOOGIE_BIN}")
 else()
-  find_file(BOOGIE_EXE Boogie.exe)
+  find_file(BOOGIE_EXE BoogieDriver.dll)
 endif()
 
 include(FindPackageHandleStandardArgs)
