@@ -63,9 +63,9 @@ defaults:
         dpkg -i packages-microsoft-prod.deb
         add-apt-repository universe
         apt-get update
-        apt-get install apt-transport-https
+        apt-get install apt-transport-https -y
         apt-get update
-        apt-get install aspnetcore-runtime-3.1
+        apt-get install aspnetcore-runtime-3.1 -y
         # Boogie
         wget https://github.com/boogie-org/boogie/releases/download/v2.5.10/Boogie.2.5.10.nupkg
         unzip Boogie.2.5.10.nupkg -d Boogie
