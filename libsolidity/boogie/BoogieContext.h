@@ -240,7 +240,7 @@ public:
 	 */
 	void addFunctionSpecsForEvent(EventDefinition const* event, boogie::ProcDeclRef procedure);
 
-	/** Add loop invariant fro the given event. */
+	/** Add loop invariant for the given event. */
 	std::pair<boogie::Expr::Ref, std::string> getEventLoppInvariant(EventDefinition const* event) const;
 
 	// Sum function related
