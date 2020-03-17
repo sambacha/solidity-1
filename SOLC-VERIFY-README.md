@@ -18,24 +18,23 @@ chmod a+x cvc4-1.7-x86_64-linux-opt
 sudo cp cvc4-1.7-x86_64-linux-opt /usr/local/bin/cvc4
 ```
 
-**[Mono](https://www.mono-project.com/download/stable/#download-lin)** (required for Boogie)
+CVC4 (or Z3) should be on the `PATH`.
+
+**[.NET Core runtime 3.1](https://docs.microsoft.com/dotnet/core/install/linux-package-managers)** (required for Boogie)
 ```
-sudo apt install gnupg ca-certificates -y
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
-echo "deb https://download.mono-project.com/repo/ubuntu stable-bionic main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list
-sudo apt update
-sudo apt install mono-devel -y
+wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+sudo add-apt-repository universe
+sudo apt-get update
+sudo apt-get install apt-transport-https
+sudo apt-get update
+sudo apt-get install dotnet-runtime-3.1
 ```
 
 **[Boogie](https://github.com/boogie-org/boogie)**
 ```
-git clone https://github.com/boogie-org/boogie.git
-cd boogie
-git checkout 9e74c3271f430adb958908400c6f6fce5b59000a
-wget https://nuget.org/nuget.exe
-mono ./nuget.exe restore Source/Boogie.sln
-xbuild Source/Boogie.sln
-cd ..
+wget https://github.com/boogie-org/boogie/releases/download/v2.5.10/Boogie.2.5.10.nupkg
+unzip Boogie.2.5.10.nupkg -d Boogie
 ```
 
 **solc-verify**
@@ -47,11 +46,13 @@ cd solidity
 ./scripts/install_deps.sh
 mkdir build
 cd build
-cmake -DBOOGIE_BIN="<PATH TO BOOGIE BINARIES FOLDER>" ..
+cmake -DBOOGIE_BIN="../../Boogie/tools/netcoreapp3.1/any/" ..
 make
 sudo make install
 cd ../..
 ```
+
+(Change `-DBOOGIE_BIN` if Boogie is located in a different directory.)
 
 ## Running solc-verify
 
@@ -73,7 +74,6 @@ After successful installation, solc-verify can be run by `solc-verify.py <solidi
 - `--solc SOLC`: Path to the Solidity compiler to use (which must include our Boogie translator extension) (by default it is the one that includes the Python script).
 - `--boogie BOOGIE`: Path to the Boogie verifier binary to use (by default it is the one given during building the tool).
 - `--solver {z3,cvc4}`: SMT solver used by the verifier (default is detected during compile time).
-- `--solver-bin`: Path to the solver to be used, if not given, the solver is searched on the system path (not given by default).
 
 ## Examples
 
