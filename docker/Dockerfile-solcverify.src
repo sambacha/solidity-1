@@ -1,11 +1,14 @@
 FROM ubuntu:bionic
 
-RUN apt update && apt install software-properties-common unzip gnupg git python3-pip wget lsb-release sudo -y
+# Generic packages
+RUN apt update && apt install software-properties-common unzip git python3-pip wget sudo -y
 
+# CVC4
 RUN wget http://cvc4.cs.stanford.edu/downloads/builds/x86_64-linux-opt/cvc4-1.7-x86_64-linux-opt \
         && chmod a+x cvc4-1.7-x86_64-linux-opt \
         && cp cvc4-1.7-x86_64-linux-opt /usr/local/bin/cvc4
 
+# .NET Core runtime (for Boogie)
 RUN wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb \
         && dpkg -i packages-microsoft-prod.deb \
         && add-apt-repository universe \
@@ -14,11 +17,12 @@ RUN wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsof
         && apt-get update \
         && apt-get install dotnet-runtime-3.1 -y
 
+# Boogie
 RUN wget https://github.com/boogie-org/boogie/releases/download/v2.5.10/Boogie.2.5.10.nupkg \
         && unzip Boogie.2.5.10.nupkg -d Boogie
 
+# solc-verify
 RUN pip3 install psutil
-
 RUN git clone https://github.com/SRI-CSL/solidity.git \
         && cd solidity \
         && git checkout netcore \
