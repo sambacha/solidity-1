@@ -9,7 +9,9 @@ Finally we discuss available [specification annotations](#specification-annotati
 
 ## Build and Install
 
-Solc-verify is mainly developed and tested on Ubuntu and OS X. It requires [CVC4](http://cvc4.cs.stanford.edu) (or [Z3](https://github.com/Z3Prover/z3)) and [Boogie](https://github.com/boogie-org/boogie) as a verification backend. On a standard Ubuntu system (18.04), solc-verify can be built and installed as follows.
+Solc-verify is mainly developed and tested on Ubuntu and OS X. It requires [CVC4](http://cvc4.cs.stanford.edu) (or [Z3](https://github.com/Z3Prover/z3)) and [Boogie](https://github.com/boogie-org/boogie) as a verification backend.
+On a standard Ubuntu system (18.04), solc-verify can be built and installed as follows.
+Alternatively, you can also use our [docker image](docker/README.md) to quickly try the tool.
 
 **[CVC4](http://cvc4.cs.stanford.edu)** (>=1.6 required)
 ```
@@ -74,6 +76,7 @@ After successful installation, solc-verify can be run by `solc-verify.py <solidi
 - `--solc SOLC`: Path to the Solidity compiler to use (which must include our Boogie translator extension) (by default it is the one that includes the Python script).
 - `--boogie BOOGIE`: Path to the Boogie verifier binary to use (by default it is the one given during building the tool).
 - `--solver {z3,cvc4}`: SMT solver used by the verifier (default is detected during compile time).
+- `--solver-bin`: Path to the solver to be used, if not given, the solver is searched on the system path (not given by default).
 
 ## Examples
 
