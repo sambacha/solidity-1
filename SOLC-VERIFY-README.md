@@ -65,6 +65,7 @@ After successful installation, solc-verify can be run by `solc-verify.py <solidi
   - `mod` is modular arithmetic mode, encoding arithmetic operations using mathematical integers with range assertions and precise wraparound semantics
   - `mod-overflow` is modular arithmetic with overflow checking enabled
 - `--modifies-analysis`: State variables and balances are checked for modifications if there are modification annotations or if this flag is explicitly given.
+- `--event-analysis`: Checking emitting events and tracking data changes related to events is only performed if there are event annotations or if this flag is explicitly given.
 - `--output OUTPUT`: Output directory where the intermediate (e.g., Boogie) files are created (tmp directory by default).
 - `--verbose`: Print all output of the compiler and the verifier.
 - `--smt-log SMTLOG`: Log the inputs given by Boogie to the SMT solver into a file (not given by default).

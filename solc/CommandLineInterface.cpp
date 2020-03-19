@@ -119,6 +119,7 @@ static string const g_strAstBoogieArithBv = "bv";
 static string const g_strAstBoogieArithMod = "mod";
 static string const g_strAstBoogieArithModOverflow = "mod-overflow";
 static string const g_strAstBoogieModAnalysis = "boogie-mod-analysis";
+static string const g_strAstBoogieEventAnalysis = "boogie-event-analysis";
 static string const g_strBinary = "bin";
 static string const g_strBinaryRuntime = "bin-runtime";
 static string const g_strCombinedJson = "combined-json";
@@ -181,6 +182,7 @@ static string const g_argCompactJSON = g_strCompactJSON;
 static string const g_argAstBoogie = g_strAstBoogie;
 static string const g_argAstBoogieArith = g_strAstBoogieArith;
 static string const g_argAstBoogieModAnalysis = g_strAstBoogieModAnalysis;
+static string const g_argAstBoogieEventAnalysis = g_strAstBoogieEventAnalysis;
 static string const g_argErrorRecovery = g_strErrorRecovery;
 static string const g_argGas = g_strGas;
 static string const g_argHelp = g_strHelp;
@@ -766,6 +768,7 @@ Allowed options)",
 				"Encoding used for arithmetic data types and operations in Boogie."
 		)
 		(g_argAstBoogieModAnalysis.c_str(), "Enable modifies analysis in Boogie even if there is no spec.")
+		(g_argAstBoogieEventAnalysis.c_str(), "Enable event analysis in Boogie even if there is no spec.")
 		(g_argAsm.c_str(), "EVM assembly of the contracts.")
 		(g_argAsmJson.c_str(), "EVM assembly of the contracts in JSON format.")
 		(g_argOpcodes.c_str(), "Opcodes of the contracts.")
@@ -1306,7 +1309,11 @@ void CommandLineInterface::handleBoogie()
 		m_compiler->ast(sourceCode.first).accept(emitsChecker);
 	}
 
-	if (emitsChecker.check())
+	bool eventsOk = true;
+	if (m_args.count(g_strAstBoogieEventAnalysis) || stats.hasEventSpecs())
+		eventsOk = emitsChecker.check();
+
+	if (eventsOk)
 	{
 		for (auto const& sourceCode: m_sourceCodes)
 		{

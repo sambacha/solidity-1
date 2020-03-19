@@ -54,6 +54,7 @@ def main(tmpDir):
     parser.add_argument('--timeout', type=int, help='Timeout for running Boogie (in seconds)', default=10)
     parser.add_argument('--arithmetic', type=str, help='Encoding used for arithmetic data types and operations in the verifier', default='int', choices=['int', 'bv', 'mod', 'mod-overflow'])
     parser.add_argument('--modifies-analysis', action='store_true', help='Perform modification analysis on state variables')
+    parser.add_argument('--event-analysis', action='store_true', help='Perform analysis on emitted events and data changes')
 
     parser.add_argument('--output', type=str, help='Output directory for the Boogie program')
     parser.add_argument('--verbose', action='store_true', help='Print all output of the compiler and the verifier')
@@ -78,6 +79,8 @@ def main(tmpDir):
     solcArgs = ' --boogie %s -o %s --overwrite --boogie-arith %s' % (solFile, outDir, args.arithmetic)
     if args.modifies_analysis:
         solcArgs += ' --boogie-mod-analysis'
+    if args.event_analysis:
+        solcArgs += ' --boogie-event-analysis'
     convertCommand = args.solc + ' ' + solcArgs
     if args.verbose:
         print(blueTxt('Solc command: ') + convertCommand)
