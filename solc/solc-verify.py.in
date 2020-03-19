@@ -123,7 +123,7 @@ def main(tmpDir):
             boogieArgs += ' /proverOpt:C:"--incremental --decision=justification --no-arrays-eager-index --arrays-eager-lemmas"'
             boogieArgs += ' /proverOpt:LOGIC=QF_AUFDTNIA'
 
-    verifyCommand = 'dotnet ' + args.boogie + ' ' + bplFile + ' ' + boogieArgs
+    verifyCommand = args.boogie + ' ' + bplFile + ' ' + boogieArgs
     if args.verbose:
         print(blueTxt('Verifier command: ') + verifyCommand)
     try:
