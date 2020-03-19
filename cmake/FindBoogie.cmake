@@ -14,11 +14,9 @@ if (NOT BOOGIE_EXE)
   endif()
   # If found, prepend 'dotnet' and add to BOOGIE_EXE
   if (BOOGIE_DLL)
-    set(BOOGIE_EXE "dotnet ${BOOGIE_DLL}" CACHE STRING "Boogie executable to use")
+    set(BOOGIE_EXE "dotnet ${BOOGIE_DLL}" CACHE STRING "Boogie executable to use" FORCE)
   endif()
 endif()
-
-message(STATUS "EXE: ${BOOGIE_EXE}")
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(BOOGIE DEFAULT_MSG BOOGIE_EXE)
