@@ -1,6 +1,6 @@
 # solc-verify
 
-This is an extended version of the compiler (v0.5.16) that is able to perform **automated formal verification** on Solidity smart contracts using **specification annotations** and **modular program verification**. More information can be found in this readme and in our [papers](#papers).
+This is an extended version of the compiler (v0.5.17) that is able to perform **automated formal verification** on Solidity smart contracts using **specification annotations** and **modular program verification**. More information can be found in this readme and in our [papers](#papers).
 
 First, we present how to [build, install](#build-and-install) and [run](#running-solc-verify) solc-verify including its options.
 Then we illustrate the features of solc-verify through some [examples](#examples).
