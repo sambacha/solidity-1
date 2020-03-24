@@ -58,21 +58,17 @@ defaults:
   - setup_sverif_boogie: &setup_sverif_boogie
       name: Install Boogie
       command: |
-        # Mono (https://www.mono-project.com/download/stable/#download-lin)
-        apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
-        echo "deb https://download.mono-project.com/repo/ubuntu stable-bionic main" | tee /etc/apt/sources.list.d/mono-official-stable.list
-        apt-get -qq update
-        apt-get -qy install mono-devel
+        # dotnet core
+        wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+        dpkg -i packages-microsoft-prod.deb
+        add-apt-repository universe
+        apt-get update
+        apt-get install apt-transport-https -y
+        apt-get update
+        apt-get install netcore-runtime-3.1 -y
         # Boogie
-        pushd .
-        git clone https://github.com/boogie-org/boogie.git
-        cd boogie
-        git checkout 9e74c3271f430adb958908400c6f6fce5b59000a
-        mozroots --import --sync
-        wget https://nuget.org/nuget.exe
-        mono ./nuget.exe restore Source/Boogie.sln
-        xbuild Source/Boogie.sln
-        popd
+        wget https://github.com/boogie-org/boogie/releases/download/v2.5.10/Boogie.2.5.10.nupkg
+        unzip Boogie.2.5.10.nupkg -d Boogie
 
   # --------------------------------------------------------------------------
   # Artifacts Templates
@@ -753,7 +749,7 @@ jobs:
           name: Install build dependencies
           command: |
             # TODO: try to set cmake options in the environment variable
-            echo 'export CMAKE_OPTIONS="-DBOOGIE_BIN=$HOME/project/boogie/Binaries"' >> $BASH_ENV
+            echo 'export CMAKE_OPTIONS="-DBOOGIE_BIN=$HOME/project/Boogie/tools/netcoreapp3.1/any"' >> $BASH_ENV
       - run: *setup_prerelease_commit_hash
       - run: *run_build
       - store_artifacts: *artifacts_solc
@@ -869,7 +865,8 @@ workflows:
       # - t_ems_solcjs: *workflow_emscripten
       - t_ems_compile_ext_colony: *workflow_emscripten
       - t_ems_compile_ext_gnosis: *workflow_emscripten
-      - t_ems_compile_ext_zeppelin: *workflow_emscripten
+      # TODO: failing due to upgrade to 0.6, re-enable when we upgrade
+      # - t_ems_compile_ext_zeppelin: *workflow_emscripten
 
       # solc-verify build and tests
       - b_ubu_sverif: *workflow_trigger_on_tags
