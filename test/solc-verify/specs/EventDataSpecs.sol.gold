@@ -1,6 +1,6 @@
 C::test_new_entry: OK
 C::test_updated_entry: ERROR
- - test/solc-verify/specs/EventDataSpecs.sol:26:3: Function can end without triggering event
+ - test/solc-verify/specs/EventDataSpecs.sol:22:3: Function can end without triggering event
 C::test_a_b_changed: OK
 C::emit_no_data_changed: OK
 C::test_a_b_loop: OK
