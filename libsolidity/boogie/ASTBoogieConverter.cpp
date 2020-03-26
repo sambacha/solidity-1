@@ -1093,6 +1093,37 @@ bool ASTBoogieConverter::visit(ModifierInvocation const& _node)
 	return false;
 }
 
+/** Helper class to compute all state variables in an spec expression */
+class ExprStateComputation : private ASTConstVisitor
+{
+private:
+
+	std::set<Identifier const*>& m_stateExpressions;
+
+public:
+
+	/**
+	 * Create a new instance with a given context.
+	 */
+	ExprStateComputation(std::set<Identifier const*>& modified)
+	: m_stateExpressions(modified) {}
+
+	/**	Get the base field variable of a lvale. */
+	void run(Expression const& _node)
+	{
+		_node.accept(*this);
+	}
+
+	bool visit(Identifier const& _node) override
+	{
+		// Only state variables
+		if (_node.annotation().type->dataStoredIn(DataLocation::Storage))
+			m_stateExpressions.insert(&_node);
+		return false;
+	}
+
+};
+
 void ASTBoogieConverter::processEventDefinition(EventDefinition const& _event)
 {
 	rememberScope(_event);
@@ -1112,10 +1143,16 @@ void ASTBoogieConverter::processEventDefinition(EventDefinition const& _event)
 
 	// Add all the tracked data
 	for (auto e: eventTracks)
-	{
-		std::cerr << "tracking " << e.expr << std::endl;
 		m_context.addEventData(e.exprSol.get(), &_event);
-	}
+	// Also add all variables appearing in pre- condition
+	std::set<Identifier const*> stateVars;
+	ExprStateComputation stateVarCompuatation(stateVars);
+	for (auto pre: eventPreconditions)
+		stateVarCompuatation.run(*pre.exprSol);
+	for (auto post: eventPostconditions)
+		stateVarCompuatation.run(*post.exprSol);
+	for (auto e: stateVars)
+		m_context.addEventData(e, &_event);
 
 	// Name of the event
 	string eventName = m_context.mapDeclName(_event);
@@ -1301,7 +1338,8 @@ bool ASTBoogieConverter::visit(WhileStatement const& _node)
 	for (auto const& e: m_currentEmits)
 	{
 		auto invar = m_context.getEventLoopInvariant(e.first);
-		invars.push_back(invar);
+		if (invar.first)
+			invars.push_back(invar);
 	}
 
 	// Get condition recursively (create block for side effects)
@@ -1428,8 +1466,11 @@ bool ASTBoogieConverter::visit(ForStatement const& _node)
 	for (auto const& e: m_currentEmits)
 	{
 		auto invar = m_context.getEventLoopInvariant(e.first);
-		invars.push_back(bg::Specification::spec(invar.first,
-				ASTBoogieUtils::createAttrs(_node.location(), invar.second, *m_context.currentScanner())));
+		if (invar.first)
+		{
+			auto invarAttrs = ASTBoogieUtils::createAttrs(_node.location(), invar.second, *m_context.currentScanner());
+			invars.push_back(bg::Specification::spec(invar.first, invarAttrs));
+		}
 	}
 
 	m_currentBlocks.top()->addStmt(bg::Stmt::while_(cond, body, invars));

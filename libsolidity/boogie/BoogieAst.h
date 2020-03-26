@@ -741,8 +741,7 @@ public:
 
 	using Ref = std::shared_ptr<Specification const>;
 
-	Specification(Expr::Ref e, std::vector<Attr::Ref> const& ax)
-		: expr(e), attrs(ax) {}
+	Specification(Expr::Ref e, std::vector<Attr::Ref> const& ax);
 
 	void print(std::ostream& os, std::string kind) const;
 	static Ref spec(Expr::Ref e, std::vector<Attr::Ref> const& ax);

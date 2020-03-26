@@ -1225,7 +1225,6 @@ void BoogieContext::addEventData(Expression const* expr, EventDefinition const* 
 	solAssert(dataExpr, "We only accept members");
 	std::string dataVarName =  mapDeclName(*dataExpr->annotation().referencedDeclaration);
 	auto dataDecl = dataExpr->annotation().referencedDeclaration;
-	std::cerr << "Adding event data for " << event << std::endl;
 
 	// If expression already there, we can skip
 	if (m_eventData[event].count(dataDecl) > 0)
@@ -1254,13 +1253,11 @@ void BoogieContext::addEventData(Expression const* expr, EventDefinition const* 
 
 	// Record the data and the substitution
 	m_eventData[event].insert(dataDecl);
-	std::cerr << "Adding member " << dataExpr->name() << "(" << dataExpr << ")" << std::endl;
 }
 
 void BoogieContext::enableEventDataTrackingFor(EventDefinition const* event)
 {
 	// If the
-	std::cerr << "Enabling tracking for " << event << std::endl;
 	solAssert(m_eventData.count(event), "Events need to be processed before enabling them");
 	m_eventDataCurrent.insert(event);
 }
@@ -1270,20 +1267,20 @@ void BoogieContext::disableEventDataTracking()
 	m_eventDataCurrent.clear();
 }
 
-/** Helper class to compute all modified expressions in an assignment */
-class ExprBaseCompatation : private ASTConstVisitor
+/** Helper class to compute all base expressions in LValue */
+class ExprBaseComputation : private ASTConstVisitor
 {
 private:
 
-	std::set<Identifier const*>& m_modified;
+	std::set<Identifier const*>& m_baseExpressions;
 
 public:
 
 	/**
 	 * Create a new instance with a given context.
 	 */
-	ExprBaseCompatation(std::set<Identifier const*>& modified)
-	: m_modified(modified) {}
+	ExprBaseComputation(std::set<Identifier const*>& modified)
+	: m_baseExpressions(modified) {}
 
 	/**	Get the base field variable of a lvale. */
 	void run(Expression const& _node)
@@ -1335,7 +1332,7 @@ public:
 
 	bool visit(Identifier const& _node) override
 	{
-		m_modified.insert(&_node);
+		m_baseExpressions.insert(&_node);
 		return false;
 	}
 
@@ -1345,17 +1342,14 @@ std::list<bg::Stmt::Ref> BoogieContext::checkForEventDataSave(Expression const* 
 {
 	// Get the base expressions and their declaration
 	std::set<Identifier const*> baseExpressions;
-	ExprBaseCompatation computeBase(baseExpressions);
+	ExprBaseComputation computeBase(baseExpressions);
 	computeBase.run(*lhsExpr);
 	// TODO: go through the found identifiers and see which ones are storage pointers
 	// those need to have special treatment
 	std::set<Declaration const*> baseDeclarations;
 	std::set<Declaration const*> updatedExpressions;
 	for (auto const& id: baseExpressions)
-	{
-		std::cerr << "base: " << id->name() << " (" << id << ")" << std::endl;
 		baseDeclarations.insert(id->annotation().referencedDeclaration);
-	}
 
 	// Collect all events where the base expression is watched to see if it needs saving
 	for (auto event: m_eventDataCurrent)

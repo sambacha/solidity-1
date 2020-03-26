@@ -11,15 +11,11 @@ contract C {
 
   address lastUpdate;
 
-  /// @notice tracks-changes-in data
-  /// @notice tracks-changes-in lastUpdate
   /// @notice precondition !data[i].initialized
   /// @notice postcondition data[i].initialized && data[i].value == value
   /// @notice postcondition lastUpdate == msg.sender
   event new_entry(uint i, uint value);
 
-  /// @notice tracks-changes-in data
-  /// @notice tracks-changes-in lastUpdate
   /// @notice precondition data[i].initialized
   /// @notice postcondition data[i].initialized && data[i].value == value
   /// @notice postcondition lastUpdate == msg.sender
@@ -51,8 +47,6 @@ contract C {
   int a;
   int b;
 
-  /// @notice tracks-changes-in a
-  /// @notice tracks-changes-in b
   /// @notice precondition a < b
   /// @notice postcndition a < b
   event a_b_changed();

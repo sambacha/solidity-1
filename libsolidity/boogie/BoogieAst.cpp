@@ -1024,6 +1024,12 @@ void VarDecl::print(std::ostream& os) const
 	os << name << ": " << type->getName() << ";";
 }
 
+Specification::Specification(Expr::Ref e, std::vector<Attr::Ref> const& ax)
+: expr(e), attrs(ax)
+{
+	solAssert(e, "Specification cannot be null");
+}
+
 void Specification::print(std::ostream& os, std::string kind) const
 {
 	os << "	" << kind << " ";
