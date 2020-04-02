@@ -299,23 +299,76 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 
 	try
 	{
+		// solidity side quantifier info
+		std::vector<ASTPointer<ParameterList>> sQuantifierVars;
+		std::vector<bool> sQuantifierIsForall;
+		// boogie side quantifier info
+		std::vector<std::vector<boogie::Binding>> bgQuantifierVars;
+		std::vector<boogie::QuantExpr::Quantifier> bgQuantifierType;
+
 		// Parse
 		CharStream exprStream(exprStr, "Annotation");
 		ASTPointer<Expression> expr = Parser(*m_context.errorReporter(), m_context.evmVersion())
-			.parseExpression(std::make_shared<Scanner>(exprStream));
+			.parseQuantifiedExpression(std::make_shared<Scanner>(exprStream), sQuantifierVars, sQuantifierIsForall);
 		if (!expr)
 			throw langutil::FatalError();
 
 		// Resolve references, using the given scope
-		m_context.scopes()[expr.get()] = m_context.scopes()[_scope];
-		NameAndTypeResolver resolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
-		if (resolver.resolveNamesAndTypes(*expr))
+		auto scopeDecls = m_context.scopes()[_scope];
+		if (sQuantifierVars.size() > 0)
+		{
+			// Resolve types in the variable declaration first
+			NameAndTypeResolver typeResolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
+			// Add all the quantified variables to the scope and create Boogie bindings
+			scopeDecls = std::make_shared<DeclarationContainer>(_scope, scopeDecls.get());
+			for (size_t i = 0; i < sQuantifierVars.size(); ++ i)
+			{
+				bool isForall = sQuantifierIsForall[i];
+				auto varsBlock = sQuantifierVars[i];
+				if (typeResolver.resolveNamesAndTypes(*varsBlock))
+				{
+					auto vars = varsBlock->parameters();
+					bgQuantifierVars.push_back({});
+					bgQuantifierType.push_back(isForall ? boogie::QuantExpr::Forall : boogie::QuantExpr::Exists);
+					for (auto varDecl: vars)
+					{
+						scopeDecls->registerDeclaration(*varDecl);
+						auto varName = m_context.mapDeclName(*varDecl);
+						auto varType = m_context.toBoogieType(varDecl->type(), varDecl.get());
+						auto varExpr = boogie::Expr::id(varName);
+						bgQuantifierVars.back().push_back({varExpr, varType});
+					}
+				}
+			}
+		}
+		m_context.scopes()[expr.get()] = scopeDecls;
+
+		NameAndTypeResolver exprResolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
+		if (exprResolver.resolveNamesAndTypes(*expr))
 		{
 			// Do type checking
 			if (typeChecker.checkTypeRequirements(*expr))
 			{
 				// Convert expression to Boogie representation
 				auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr, true);
+				// Add quantifiers if necessary
+				while (bgQuantifierType.size() > 0)
+				{
+					auto type = bgQuantifierType.back();
+					auto const& bindings = bgQuantifierVars.back();
+					switch (type)
+					{
+					case boogie::QuantExpr::Forall:
+						convResult.expr = boogie::Expr::forall(bindings, convResult.expr);
+						break;
+					case boogie::QuantExpr::Exists:
+						convResult.expr = boogie::Expr::exists(bindings, convResult.expr);
+						break;
+					}
+					bgQuantifierType.pop_back();
+					bgQuantifierVars.pop_back();
+				}
+
 				result.expr = convResult.expr;
 				result.exprStr = exprStr;
 				result.exprSol = expr;

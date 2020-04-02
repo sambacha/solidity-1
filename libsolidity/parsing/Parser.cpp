@@ -23,6 +23,7 @@
 #include <libsolidity/parsing/Parser.h>
 
 #include <libsolidity/interface/Version.h>
+#include <libsolidity/ast/AST.h>
 #include <libyul/AsmParser.h>
 #include <libyul/backends/evm/EVMDialect.h>
 #include <liblangutil/ErrorReporter.h>
@@ -1914,6 +1915,47 @@ ASTPointer<ASTString> Parser::getLiteralAndAdvance()
 	ASTPointer<ASTString> identifier = make_shared<ASTString>(m_scanner->currentLiteral());
 	m_scanner->next();
 	return identifier;
+}
+
+ASTPointer<Expression> Parser::parseQuantifiedExpression(std::shared_ptr<langutil::Scanner> const& _scanner,
+			std::vector<ASTPointer<ParameterList>>& quantifierList, std::vector<bool>& isForall)
+{
+	try
+	{
+		m_recursionDepth = 0;
+		m_scanner = _scanner;
+
+		// Parse any quantifiers
+		while (m_scanner->currentToken() == Token::Identifier)
+		{
+			// Check the quantifier type
+			if (m_scanner->currentLiteral() == "forall")
+				isForall.push_back(true);
+			else if (m_scanner->currentLiteral() == "exists")
+				isForall.push_back(false);
+			else
+				break;
+			m_scanner->next();
+
+			// Parse the variables
+			VarDeclParserOptions options;
+			auto vars = parseParameterList(options, false);
+			quantifierList.push_back(vars);
+		}
+
+		// Parse the expression
+		auto result = parseExpression();
+		solAssert(m_recursionDepth == 0, "");
+		if (m_scanner->currentToken() != Token::EOS)
+			parserError(string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
+		return result;
+	}
+	catch (FatalError const&)
+	{
+		if (m_errorReporter.errors().empty())
+			throw; // Something is weird here, rather throw again.
+		return nullptr;
+	}
 }
 
 }

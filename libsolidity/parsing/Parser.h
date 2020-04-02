@@ -51,6 +51,10 @@ public:
 	ASTPointer<SourceUnit> parse(std::shared_ptr<langutil::Scanner> const& _scanner);
 	ASTPointer<Expression> parseExpression(std::shared_ptr<langutil::Scanner> const& _scanner);
 
+	/// Parses expressions, e.g., of the form forall (int i) exist (int j) a[i][j] > 0
+	ASTPointer<Expression> parseQuantifiedExpression(std::shared_ptr<langutil::Scanner> const& _scanner,
+			std::vector<ASTPointer<ParameterList>>& quantifierList, std::vector<bool>& isForall);
+
 private:
 	class ASTNodeFactory;
 
