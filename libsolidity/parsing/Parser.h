@@ -104,6 +104,7 @@ private:
 		VarDeclParserOptions const& _options = {},
 		ASTPointer<TypeName> const& _lookAheadArrayType = ASTPointer<TypeName>()
 	);
+	ASTPointer<VariableDeclaration> parseQuantifiedVariableDeclaration();
 	ASTPointer<ModifierDefinition> parseModifierDefinition();
 	ASTPointer<EventDefinition> parseEventDefinition();
 	ASTPointer<UsingForDirective> parseUsingDirective();
@@ -118,6 +119,7 @@ private:
 		VarDeclParserOptions const& _options = {},
 		bool _allowEmpty = true
 	);
+	ASTPointer<ParameterList> parseQuantifierParameterList();
 	ASTPointer<Block> parseBlock(ASTPointer<ASTString> const& _docString = {});
 	ASTPointer<Statement> parseStatement();
 	ASTPointer<InlineAssembly> parseInlineAssembly(ASTPointer<ASTString> const& _docString = {});

@@ -999,6 +999,73 @@ ASTPointer<ParameterList> Parser::parseParameterList(
 	return nodeFactory.createNode<ParameterList>(parameters);
 }
 
+ASTPointer<VariableDeclaration> Parser::parseQuantifiedVariableDeclaration()
+{
+	RecursionGuard recursionGuard(*this);
+	ASTNodeFactory nodeFactory = ASTNodeFactory(*this);
+
+	// Parse type name
+	ASTPointer<TypeName> type = parseTypeName(false);
+	if (type != nullptr)
+		nodeFactory.setEndPositionFromNode(type);
+
+	// Set location for complex types and check for errors
+	bool isStateVariable = false;
+	VariableDeclaration::Location location = VariableDeclaration::Unspecified;
+	if (dynamic_cast<ElementaryTypeName*>(type.get()))
+	{
+		// Elementary types are OK
+	}
+	else if (dynamic_cast<Mapping*>(type.get()))
+	{
+		// Mappings are OK, but we mark as storage
+		isStateVariable = true;
+	}
+	else if (dynamic_cast<ArrayTypeName*>(type.get()))
+	{
+		// Arrays are OK, but we mark as storage
+		isStateVariable = true;
+	}
+	else
+	{
+		// Not supported
+		parserError("Unsupported type for quantifier variable.");
+	}
+
+	ASTPointer<ASTString> identifier = expectIdentifierToken();
+	nodeFactory.markEndPosition();
+
+	return nodeFactory.createNode<VariableDeclaration>(
+		type,
+		identifier,
+		nullptr,
+		Declaration::Visibility::Default,
+		isStateVariable,
+		false,
+		false,
+		location
+	);
+}
+
+ASTPointer<ParameterList> Parser::parseQuantifierParameterList()
+{
+	RecursionGuard recursionGuard(*this);
+	ASTNodeFactory nodeFactory(*this);
+	vector<ASTPointer<VariableDeclaration>> parameters;
+	expectToken(Token::LParen);
+	parameters.push_back(parseQuantifiedVariableDeclaration());
+	while (m_scanner->currentToken() != Token::RParen)
+	{
+		if (m_scanner->currentToken() == Token::Comma && m_scanner->peekNextToken() == Token::RParen)
+			fatalParserError("Unexpected trailing comma in quantifier variable list.");
+		expectToken(Token::Comma);
+		parameters.push_back(parseQuantifiedVariableDeclaration());
+	}
+	nodeFactory.markEndPosition();
+	m_scanner->next();
+	return nodeFactory.createNode<ParameterList>(parameters);
+}
+
 ASTPointer<Block> Parser::parseBlock(ASTPointer<ASTString> const& _docString)
 {
 	RecursionGuard recursionGuard(*this);
@@ -1938,8 +2005,7 @@ ASTPointer<Expression> Parser::parseQuantifiedExpression(std::shared_ptr<languti
 			m_scanner->next();
 
 			// Parse the variables
-			VarDeclParserOptions options;
-			auto vars = parseParameterList(options, false);
+			auto vars = parseQuantifierParameterList();
 			quantifierList.push_back(vars);
 		}
 

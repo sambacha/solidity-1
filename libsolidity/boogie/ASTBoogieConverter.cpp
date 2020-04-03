@@ -325,6 +325,7 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 			{
 				bool isForall = sQuantifierIsForall[i];
 				auto varsBlock = sQuantifierVars[i];
+				// Resolve types of the variables
 				if (typeResolver.resolveNamesAndTypes(*varsBlock))
 				{
 					auto vars = varsBlock->parameters();

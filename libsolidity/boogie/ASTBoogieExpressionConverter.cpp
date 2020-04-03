@@ -1494,8 +1494,9 @@ bool ASTBoogieExpressionConverter::visit(Identifier const& _node)
 	string declName = m_context.mapDeclName(*(decl));
 
 	// State variables must be referenced by accessing the map
+	// Unless it's a declaration within a specification (scope == nullptr)
 	auto varDecl = dynamic_cast<VariableDeclaration const*>(decl);
-	if (varDecl && varDecl->isStateVariable())
+	if (varDecl && varDecl->isStateVariable() && varDecl->scope())
 		m_currentExpr = bg::Expr::arrsel(bg::Expr::id(declName), m_context.boogieThis()->getRefTo());
 	// Other identifiers can be referenced by their name
 	else
