@@ -48,7 +48,7 @@ contract C {
   int b;
 
   /// @notice precondition a < b
-  /// @notice postcndition a < b
+  /// @notice postcondition a < b
   event a_b_changed();
 
   /// @notice emits a_b_changed
