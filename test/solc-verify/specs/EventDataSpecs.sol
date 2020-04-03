@@ -60,6 +60,14 @@ contract C {
     emit a_b_changed();
   }
 
+  /// @notice emits a_b_changed
+  function test_a_b_changed_wrongpost() public {
+    require(a < b);
+    b ++;
+    a += 2;
+    emit a_b_changed();
+  }
+
   event no_data_changed();
 
   /// @notice emits no_data_changed

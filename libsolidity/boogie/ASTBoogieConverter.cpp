@@ -1117,8 +1117,9 @@ public:
 	bool visit(Identifier const& _node) override
 	{
 		// Only state variables
-		if (_node.annotation().type->dataStoredIn(DataLocation::Storage))
-			m_stateExpressions.insert(&_node);
+		if (auto varDecl = dynamic_cast<VariableDeclaration const*>(_node.annotation().referencedDeclaration))
+			if (varDecl && varDecl->isStateVariable())
+				m_stateExpressions.insert(&_node);
 		return false;
 	}
 
