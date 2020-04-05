@@ -396,6 +396,7 @@ ASTPointer<Expression> BoogieContext::parseAnnotation(string exprStr, ASTNode co
 	catch (langutil::FatalError const& fe)
 	{
 		reportError(&_node, "Fatal error while parsing annotation.");
+		expr = nullptr;
 	}
 
 	// Print errors relating to the expression string
