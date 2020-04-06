@@ -1,0 +1,5 @@
+Base::[implicit_constructor]: OK
+Derived::f: OK
+Derived::g: OK
+Derived::[implicit_constructor]: OK
+No errors found.

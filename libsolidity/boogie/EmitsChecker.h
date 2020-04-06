@@ -24,9 +24,16 @@ private:
 	// Directly emitted events
 	std::map<CallableDeclaration const*, std::set<EventDefinition const*>> m_directlyEmitted;
 
-	std::list<FunctionDefinition const*> m_allFunctions;
+	std::map<FunctionDefinition const*, ContractDefinition const*> m_allFunctions;
 	CallableDeclaration const* m_currentScope;
 	ContractDefinition const* m_currentContract;
+
+	// Helper structure to store a list of overloaded events (with the same name)
+	// and a flag to indicate whether any of them have been already emitted
+	struct EmitsSpec {
+		std::set<EventDefinition const*> events;
+		bool alreadyEmitted;
+	};
 
 	/**
 	 * Helper function to collect 'emits' specification for a function.
@@ -34,7 +41,9 @@ private:
 	 * @param specs Collect events here
 	 * @returns True if there are no syntax errors, false otherwise
 	 */
-	bool collectEmitsSpecs(FunctionDefinition const* fn, std::set<EventDefinition const*>& specs);
+	bool collectEmitsSpecs(FunctionDefinition const* fn, std::list<EmitsSpec>& specs);
+
+	bool checkIfSpecified(std::list<EmitsSpec>& specs, EventDefinition const* ev);
 
 public:
 	/**

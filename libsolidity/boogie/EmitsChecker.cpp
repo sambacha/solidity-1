@@ -1,4 +1,5 @@
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/algorithm/string/trim.hpp>
 #include <libsolidity/boogie/ASTBoogieUtils.h>
 #include <libsolidity/boogie/EmitsChecker.h>
 
@@ -6,34 +7,41 @@ using namespace dev;
 using namespace dev::solidity;
 using namespace std;
 
-bool EmitsChecker::collectEmitsSpecs(FunctionDefinition const* fn, set<EventDefinition const*>& specs)
+bool EmitsChecker::collectEmitsSpecs(FunctionDefinition const* fn, list<EmitsSpec>& specs)
 {
 	for (auto docTag: fn->annotation().docTags)
 	{
 		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, ASTBoogieUtils::DOCTAG_EMITS))
 		{
-			if (auto expr = m_context.parseAnnotation(docTag.second.content.substr(ASTBoogieUtils::DOCTAG_EMITS.length() + 1), *fn, fn))
+			string eventName = docTag.second.content.substr(ASTBoogieUtils::DOCTAG_EMITS.length() + 1);
+			boost::trim(eventName);
+			specs.push_back(EmitsSpec{ {}, false});
+			for (auto cd: m_allFunctions[fn]->annotation().linearizedBaseContracts)
+				for (auto ev: ASTNode::filteredNodes<EventDefinition const>(cd->subNodes()))
+					if (ev->name() == eventName)
+						specs.back().events.insert(ev);
+			if (specs.back().events.empty())
 			{
-				if (auto id = dynamic_pointer_cast<Identifier>(expr))
-				{
-					auto decl = id->annotation().referencedDeclaration;
-					if (auto event = dynamic_cast<EventDefinition const*>(decl))
-						specs.insert(event);
-					else
-					{
-						m_context.reportError(fn, "Expected event in emits specification.");
-						return false;
-					}
-				}
-				else
-				{
-					m_context.reportError(fn, "Expected event in emits specification.");
-					return false;
-				}
+				m_context.reportError(fn, "No event found with name '" + eventName + "'.");
+				return false;
 			}
 		}
 	}
 	return true;
+}
+
+bool EmitsChecker::checkIfSpecified(std::list<EmitsSpec>& specs, EventDefinition const* ev)
+{
+	bool ok = false;
+	for (auto& spec: specs)
+	{
+		if (spec.events.find(ev) != spec.events.end())
+		{
+			spec.alreadyEmitted = true;
+			ok = true;
+		}
+	}
+	return ok;
 }
 
 EmitsChecker::EmitsChecker(BoogieContext& context) :
@@ -47,62 +55,53 @@ bool EmitsChecker::check()
 	bool specsSatisfied = true;
 
 	// First go through all functions and parse specs
-	map<FunctionDefinition const*, set<EventDefinition const*>> specified;
+	map<FunctionDefinition const*, list<EmitsSpec>> specified;
 	for (auto fn: m_allFunctions)
-		if (!collectEmitsSpecs(fn, specified[fn]))
+		if (!collectEmitsSpecs(fn.first, specified[fn.first]))
 			return false;
 
 	// Then go through functions again and check specs
 	for (auto fn: m_allFunctions)
 	{
-		// Collect the specs for the current function with a flag
-		// indicating whether the event can indeed be emitted
-		map<EventDefinition const*, bool> currentFuncSpec;
-		for (auto ev: specified[fn])
-			currentFuncSpec[ev] = false; // Initially assume that it is not emitted
-
 		// Check directly emitted events
-		for (auto ev: m_directlyEmitted[fn])
+		for (auto ev: m_directlyEmitted[fn.first])
 		{
-			if (currentFuncSpec.find(ev) != currentFuncSpec.end())
-				currentFuncSpec[ev] = true;
-			else
+			if (!checkIfSpecified(specified[fn.first], ev))
 			{
-				m_context.reportError(fn, "Function possibly emits '" + ev->name() + "' without specifying");
+				m_context.reportError(fn.first, "Function possibly emits '" + ev->name() + "' without specifying");
 				specsSatisfied = false;
 			}
 		}
 
 		// Check specs of called functions (incl. base constructors)
-		for (auto called: m_calledFuncs[fn])
+		for (auto called: m_calledFuncs[fn.first])
 		{
 			string calledName = called->isConstructor() ? "base constructor" : called->name();
 
-			for (auto ev: specified[called])
+			for (auto& spec: specified[called])
 			{
-				if (currentFuncSpec.find(ev) != currentFuncSpec.end())
-					currentFuncSpec[ev] = true;
-				else
+				for (auto ev: spec.events)
 				{
-					m_context.reportError(fn, "Function possibly emits '" + ev->name() + "' (via calling " + calledName + ") without specifying");
-					specsSatisfied = false;
+					if (!checkIfSpecified(specified[fn.first], ev))
+					{
+						m_context.reportError(fn.first, "Function possibly emits '" + ev->name() + "' (via calling " + calledName + ") without specifying");
+						specsSatisfied = false;
+					}
 				}
 			}
 		}
 
 		// Check what called modifiers emit
-		for (auto modif: fn->modifiers())
+		for (auto modif: fn.first->modifiers())
 		{
 			auto modifierDecl = dynamic_cast<ModifierDefinition const*>(modif->name()->annotation().referencedDeclaration);
 			if (modifierDecl)
 			{
 				for (auto ev: m_directlyEmitted[modifierDecl])
 				{
-					if (currentFuncSpec.find(ev) != currentFuncSpec.end())
-						currentFuncSpec[ev] = true;
-					else
+					if (!checkIfSpecified(specified[fn.first], ev))
 					{
-						m_context.reportError(fn, "Function possibly emits '" + ev->name() +
+						m_context.reportError(fn.first, "Function possibly emits '" + ev->name() +
 								"' (via modifier " + modifierDecl->name() + ") without specifying");
 						specsSatisfied = false;
 					}
@@ -112,10 +111,10 @@ bool EmitsChecker::check()
 		}
 
 		// Finally give warnings for specified but not emitted events
-		for (auto entry: currentFuncSpec)
+		for (auto entry: specified[fn.first])
 		{
-			if (!entry.second)
-				m_context.reportWarning(fn, "Function specifies '" + entry.first->name() + "' but never emits.");
+			if (!entry.alreadyEmitted)
+				m_context.reportWarning(fn.first, "Function specifies '" + (*entry.events.begin())->name() + "' but never emits.");
 		}
 	}
 
@@ -130,11 +129,12 @@ bool EmitsChecker::visit(ContractDefinition const& _node)
 
 bool EmitsChecker::visit(FunctionDefinition const& _node)
 {
+	solAssert(m_currentContract, "FunctionDefinition without ContractDefinition");
+
 	m_currentScope = &_node;
-	m_allFunctions.push_back(&_node);
+	m_allFunctions[&_node] = m_currentContract;
 
 	// Add base constructor calls
-	solAssert(m_currentContract, "FunctionDefinition without ContractDefinition");
 	if (_node.isConstructor())
 		for (auto base: m_currentContract->annotation().linearizedBaseContracts)
 			for (auto fn: ASTNode::filteredNodes<FunctionDefinition>(base->subNodes()))

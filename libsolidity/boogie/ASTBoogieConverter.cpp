@@ -397,30 +397,22 @@ bool ASTBoogieConverter::collectEmitsSpecs(FunctionDefinition const& _node)
 	{
 		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, ASTBoogieUtils::DOCTAG_EMITS))
 		{
-			if (auto expr = m_context.parseAnnotation(docTag.second.content.substr(ASTBoogieUtils::DOCTAG_EMITS.length() + 1), _node, &_node))
+			bool ok = false;
+			string eventName = docTag.second.content.substr(ASTBoogieUtils::DOCTAG_EMITS.length() + 1);
+			boost::trim(eventName);
+			for (auto cd: m_context.currentContract()->annotation().linearizedBaseContracts)
+				for (auto ev: ASTNode::filteredNodes<EventDefinition const>(cd->subNodes()))
+					if (ev->name() == eventName)
+					{
+						m_currentEmits.insert(ev);
+						m_context.enableEventDataTrackingFor(ev);
+						ok = true;
+					}
+			if (!ok)
 			{
-				if (auto id = dynamic_pointer_cast<Identifier>(expr))
-				{
-					auto decl = id->annotation().referencedDeclaration;
-					if (auto event = dynamic_cast<EventDefinition const*>(decl))
-					{
-						m_currentEmits[event] = false;
-						m_context.enableEventDataTrackingFor(event);
-					}
-					else
-					{
-						m_context.reportError(&_node, "Expected event in emits specification.");
-						return false;
-					}
-				}
-				else
-				{
-					m_context.reportError(&_node, "Expected event in emits specification.");
-					return false;
-				}
-			}
-			else
+				m_context.reportError(&_node, "No event found with name '" + eventName + "'.");
 				return false;
+			}
 		}
 	}
 
@@ -1018,10 +1010,9 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	// TODO: check that no new sum variables were introduced
 
 	// Add all specs for events that have been declared
-	for (auto const& e: m_currentEmits)
+	for (auto ev: m_currentEmits)
 	{
-		auto event = e.first;
-		m_context.addFunctionSpecsForEvent(event, procDecl);
+		m_context.addFunctionSpecsForEvent(ev, procDecl);
 	}
 
 	// Modifies specifications
@@ -1336,9 +1327,9 @@ bool ASTBoogieConverter::visit(WhileStatement const& _node)
 	// TODO: check that invariants did not introduce new sum variables
 
 	// Add invariants for events that have been declared
-	for (auto const& e: m_currentEmits)
+	for (auto ev: m_currentEmits)
 	{
-		auto invar = m_context.getEventLoopInvariant(e.first);
+		auto invar = m_context.getEventLoopInvariant(ev);
 		if (invar.first)
 			invars.push_back(invar);
 	}
@@ -1464,9 +1455,9 @@ bool ASTBoogieConverter::visit(ForStatement const& _node)
 	// TODO: check that invariants did not introduce new sum variables
 
 	// Add invariants for events that have been declared
-	for (auto const& e: m_currentEmits)
+	for (auto ev: m_currentEmits)
 	{
-		auto invar = m_context.getEventLoopInvariant(e.first);
+		auto invar = m_context.getEventLoopInvariant(ev);
 		if (invar.first)
 		{
 			auto invarAttrs = ASTBoogieUtils::createAttrs(_node.location(), invar.second, *m_context.currentScanner());
