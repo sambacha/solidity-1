@@ -10,4 +10,12 @@ contract EmitsEvents {
         x++;
         emit Increased();
     }
+
+    /// @notice emits Increased
+    /// @notice emits Increased
+    /// @notice emits Increased
+    function increaseWarning() public {
+        x++;
+        emit Increased();
+    }
 }

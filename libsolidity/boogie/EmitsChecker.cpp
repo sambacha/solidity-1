@@ -9,12 +9,20 @@ using namespace std;
 
 bool EmitsChecker::collectEmitsSpecs(FunctionDefinition const* fn, list<EmitsSpec>& specs)
 {
+	set<string> specified;
 	for (auto docTag: fn->annotation().docTags)
 	{
 		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, ASTBoogieUtils::DOCTAG_EMITS))
 		{
 			string eventName = docTag.second.content.substr(ASTBoogieUtils::DOCTAG_EMITS.length() + 1);
 			boost::trim(eventName);
+
+			if (specified.find(eventName) != specified.end())
+			{
+				m_context.reportWarning(fn, "Event '" + eventName + "' already specified.");
+				continue;
+			}
+
 			specs.push_back(EmitsSpec{ {}, false});
 			for (auto cd: m_allFunctions[fn]->annotation().linearizedBaseContracts)
 				for (auto ev: ASTNode::filteredNodes<EventDefinition const>(cd->subNodes()))
@@ -25,6 +33,7 @@ bool EmitsChecker::collectEmitsSpecs(FunctionDefinition const* fn, list<EmitsSpe
 				m_context.reportError(fn, "No event found with name '" + eventName + "'.");
 				return false;
 			}
+			specified.insert(eventName);
 		}
 	}
 	return true;
