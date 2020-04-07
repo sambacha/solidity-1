@@ -54,6 +54,16 @@ Expr::Ref Expr::and_(Ref l, Ref r)
 	return std::make_shared<BinExpr const>(BinExpr::And, l, r);
 }
 
+Expr::Ref Expr::and_(std::vector<Expr::Ref> const& es)
+{
+	if (es.size() == 0)
+		return lit(true);
+	Expr::Ref result = es[0];
+	for (size_t i = 1; i < es.size(); ++ i)
+		result = and_(result, es[i]);
+	return result;
+}
+
 Expr::Ref Expr::or_(Ref l, Ref r)
 {
 	return std::make_shared<BinExpr const>(BinExpr::Or, l, r);

@@ -300,31 +300,35 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 	try
 	{
 		// solidity side quantifier info
-		std::vector<ASTPointer<ParameterList>> sQuantifierVars;
-		std::vector<bool> sQuantifierIsForall;
+		Parser::SpecificationExpressionInfo specInfo;
 		// boogie side quantifier info
 		std::vector<std::vector<boogie::Binding>> bgQuantifierVars;
 		std::vector<boogie::QuantExpr::Quantifier> bgQuantifierType;
 
 		// Parse
 		CharStream exprStream(exprStr, "Annotation");
-		ASTPointer<Expression> expr = Parser(*m_context.errorReporter(), m_context.evmVersion())
-			.parseQuantifiedExpression(std::make_shared<Scanner>(exprStream), sQuantifierVars, sQuantifierIsForall);
+		Parser parser(*m_context.errorReporter(), m_context.evmVersion());
+		auto scanner = std::make_shared<Scanner>(exprStream);
+		ASTPointer<Expression> expr = parser.parseSpecificationExpression(scanner, specInfo);
 		if (!expr)
 			throw langutil::FatalError();
 
 		// Resolve references, using the given scope
 		auto scopeDecls = m_context.scopes()[_scope];
-		if (sQuantifierVars.size() > 0)
+		if (specInfo.quantifierList.size() > 0)
 		{
 			// Resolve types in the variable declaration first
+			if (specInfo.arrayId)
+				m_context.scopes()[specInfo.arrayId.get()] = m_context.scopes()[_scope];
 			NameAndTypeResolver typeResolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
+			if (specInfo.arrayId)
+				typeResolver.resolveNamesAndTypes(*specInfo.arrayId);
 			// Add all the quantified variables to the scope and create Boogie bindings
 			scopeDecls = std::make_shared<DeclarationContainer>(_scope, scopeDecls.get());
-			for (size_t i = 0; i < sQuantifierVars.size(); ++ i)
+			for (size_t i = 0; i < specInfo.quantifierList.size(); ++ i)
 			{
-				bool isForall = sQuantifierIsForall[i];
-				auto varsBlock = sQuantifierVars[i];
+				bool isForall = specInfo.isForall[i];
+				auto varsBlock = specInfo.quantifierList[i];
 				// Resolve types of the variables
 				if (typeResolver.resolveNamesAndTypes(*varsBlock))
 				{
@@ -352,6 +356,27 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 			{
 				// Convert expression to Boogie representation
 				auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr, true);
+				// Add index bounds if array is there
+				if (specInfo.arrayId)
+				{
+					std::vector<boogie::Expr::Ref> guards;
+					solAssert(bgQuantifierType.size() == 1 && bgQuantifierVars.size() == 1, "");
+					solAssert(bgQuantifierType.back() == boogie::QuantExpr::Forall, "");
+					auto arrayType = specInfo.arrayId->annotation().referencedDeclaration->type();
+					auto arrayTypeSpec = dynamic_cast<ArrayType const*>(arrayType);
+					auto arrayBaseType = arrayTypeSpec->baseType();
+					auto arrayBaseTypeBg = m_context.toBoogieType(arrayBaseType, specInfo.arrayId.get());
+					auto arrayExpr = ASTBoogieExpressionConverter(m_context).convert(*specInfo.arrayId, false).expr;
+					auto arrayLength = m_context.getArrayLength(arrayExpr, arrayBaseTypeBg);
+					auto const& bindings = bgQuantifierVars.back();
+					for (auto const& b: bindings)
+					{
+						guards.push_back(boogie::Expr::lte(boogie::Expr::lit((unsigned)0), b.id));
+						guards.push_back(boogie::Expr::lte(b.id, arrayLength));
+					}
+					auto guard = boogie::Expr::and_(guards);
+					convResult.expr = boogie::Expr::impl(guard, convResult.expr);
+				}
 				// Add quantifiers if necessary
 				while (bgQuantifierType.size() > 0)
 				{

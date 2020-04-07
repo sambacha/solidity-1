@@ -49,6 +49,7 @@ public:
 	static Ref exists(std::vector<Binding> const&, Ref e);
 	static Ref forall(std::vector<Binding> const&, Ref e);
 	static Ref and_(Ref l, Ref r);
+	static Ref and_(std::vector<Expr::Ref> const& es);
 	static Ref or_(Ref l, Ref r);
 	static Ref cond(Ref c, Ref t, Ref e);
 	static Ref eq(Ref l, Ref r);

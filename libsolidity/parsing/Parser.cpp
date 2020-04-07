@@ -999,15 +999,18 @@ ASTPointer<ParameterList> Parser::parseParameterList(
 	return nodeFactory.createNode<ParameterList>(parameters);
 }
 
-ASTPointer<VariableDeclaration> Parser::parseQuantifiedVariableDeclaration()
+ASTPointer<VariableDeclaration> Parser::parseSpecificationVariableDeclaration(ASTPointer<TypeName> type)
 {
 	RecursionGuard recursionGuard(*this);
 	ASTNodeFactory nodeFactory = ASTNodeFactory(*this);
 
-	// Parse type name
-	ASTPointer<TypeName> type = parseTypeName(false);
-	if (type != nullptr)
-		nodeFactory.setEndPositionFromNode(type);
+	// Parse type name if not given
+	if (type == nullptr)
+	{
+		type = parseTypeName(false);
+		if (type != nullptr)
+			nodeFactory.setEndPositionFromNode(type);
+	}
 
 	// Set location for complex types and check for errors
 	bool isStateVariable = false;
@@ -1047,19 +1050,19 @@ ASTPointer<VariableDeclaration> Parser::parseQuantifiedVariableDeclaration()
 	);
 }
 
-ASTPointer<ParameterList> Parser::parseQuantifierParameterList()
+ASTPointer<ParameterList> Parser::parseSpecificationParameterList(ASTPointer<TypeName> type)
 {
 	RecursionGuard recursionGuard(*this);
 	ASTNodeFactory nodeFactory(*this);
 	vector<ASTPointer<VariableDeclaration>> parameters;
 	expectToken(Token::LParen);
-	parameters.push_back(parseQuantifiedVariableDeclaration());
+	parameters.push_back(parseSpecificationVariableDeclaration(type));
 	while (m_scanner->currentToken() != Token::RParen)
 	{
 		if (m_scanner->currentToken() == Token::Comma && m_scanner->peekNextToken() == Token::RParen)
 			fatalParserError("Unexpected trailing comma in quantifier variable list.");
 		expectToken(Token::Comma);
-		parameters.push_back(parseQuantifiedVariableDeclaration());
+		parameters.push_back(parseSpecificationVariableDeclaration(type));
 	}
 	nodeFactory.markEndPosition();
 	m_scanner->next();
@@ -1984,30 +1987,53 @@ ASTPointer<ASTString> Parser::getLiteralAndAdvance()
 	return identifier;
 }
 
-ASTPointer<Expression> Parser::parseQuantifiedExpression(std::shared_ptr<langutil::Scanner> const& _scanner,
-			std::vector<ASTPointer<ParameterList>>& quantifierList, std::vector<bool>& isForall)
+ASTPointer<Expression> Parser::parseSpecificationExpression(std::shared_ptr<langutil::Scanner> const& _scanner,
+			SpecificationExpressionInfo& info)
 {
 	try
 	{
 		m_recursionDepth = 0;
 		m_scanner = _scanner;
 
-		// Parse any quantifiers
-		while (m_scanner->currentToken() == Token::Identifier)
+		// Check if it is an array property
+		if (m_scanner->currentToken() == Token::Identifier && m_scanner->currentLiteral() == "property")
 		{
-			// Check the quantifier type
-			if (m_scanner->currentLiteral() == "forall")
-				isForall.push_back(true);
-			else if (m_scanner->currentLiteral() == "exists")
-				isForall.push_back(false);
-			else
-				break;
+			Token typeToken;
+			unsigned int firstNum, secondNum;
+			tie(typeToken, firstNum, secondNum) = TokenTraits::fromIdentifierOrKeyword("uint");
+			ElementaryTypeNameToken uintToken(typeToken, firstNum, secondNum);
+			auto type = ASTNodeFactory(*this).createNode<ElementaryTypeName>(uintToken);
 			m_scanner->next();
 
-			// Parse the variables
-			auto vars = parseQuantifierParameterList();
-			quantifierList.push_back(vars);
+			// Parse the array identifier
+			expectToken(Token::LParen);
+			info.arrayId = parseIdentifier();
+			expectToken(Token::RParen);
+
+			// Parse the variables with uint type
+			auto vars = parseSpecificationParameterList(type);
+			info.quantifierList.push_back(vars);
+			info.isForall.push_back(true);
 		}
+		else
+		{
+			// Parse any quantifiers
+			while (m_scanner->currentToken() == Token::Identifier)
+			{
+				// Check the quantifier type
+				if (m_scanner->currentLiteral() == "forall")
+					info.isForall.push_back(true);
+				else if (m_scanner->currentLiteral() == "exists")
+					info.isForall.push_back(false);
+				else
+					break;
+				m_scanner->next();
+
+				// Parse the variables
+				auto vars = parseSpecificationParameterList(nullptr);
+				info.quantifierList.push_back(vars);
+			}
+			}
 
 		// Parse the expression
 		auto result = parseExpression();
