@@ -302,8 +302,8 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 		// solidity side quantifier info
 		Parser::SpecificationExpressionInfo specInfo;
 		// boogie side quantifier info
-		std::vector<std::vector<boogie::Binding>> bgQuantifierVars;
-		std::vector<boogie::QuantExpr::Quantifier> bgQuantifierType;
+		std::vector<std::vector<bg::Binding>> bgQuantifierVars;
+		std::vector<bg::QuantExpr::Quantifier> bgQuantifierType;
 
 		// Parse
 		CharStream exprStream(exprStr, "Annotation");
@@ -334,13 +334,13 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 				{
 					auto vars = varsBlock->parameters();
 					bgQuantifierVars.push_back({});
-					bgQuantifierType.push_back(isForall ? boogie::QuantExpr::Forall : boogie::QuantExpr::Exists);
+					bgQuantifierType.push_back(isForall ? bg::QuantExpr::Forall : bg::QuantExpr::Exists);
 					for (auto varDecl: vars)
 					{
 						scopeDecls->registerDeclaration(*varDecl);
 						auto varName = m_context.mapDeclName(*varDecl);
 						auto varType = m_context.toBoogieType(varDecl->type(), varDecl.get());
-						auto varExpr = boogie::Expr::id(varName);
+						auto varExpr = bg::Expr::id(varName);
 						bgQuantifierVars.back().push_back({varExpr, varType});
 					}
 				}
@@ -359,24 +359,30 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 				// Add index bounds if array is there
 				if (specInfo.arrayId)
 				{
-					std::vector<boogie::Expr::Ref> guards;
+					std::vector<bg::Expr::Ref> guards;
 					solAssert(bgQuantifierType.size() == 1 && bgQuantifierVars.size() == 1, "");
-					solAssert(bgQuantifierType.back() == boogie::QuantExpr::Forall, "");
+					solAssert(bgQuantifierType.back() == bg::QuantExpr::Forall, "");
 					auto arrayType = specInfo.arrayId->annotation().referencedDeclaration->type();
 					auto arrayTypeSpec = dynamic_cast<ArrayType const*>(arrayType);
-					auto arrayBaseType = arrayTypeSpec->baseType();
-					auto arrayBaseTypeBg = m_context.toBoogieType(arrayBaseType, specInfo.arrayId.get());
-					auto arrayExpr = ASTBoogieExpressionConverter(m_context).convert(*specInfo.arrayId, false).expr;
-					auto arrayLength = m_context.getArrayLength(arrayExpr, arrayBaseTypeBg);
-					auto const& bindings = bgQuantifierVars.back();
-					for (auto const& b: bindings)
+					if (arrayTypeSpec)
 					{
-						guards.push_back(boogie::Expr::lte(boogie::Expr::lit((unsigned)0), b.id));
-						guards.push_back(boogie::Expr::lte(b.id, arrayLength));
+						auto arrayBaseType = arrayTypeSpec->baseType();
+						auto arrayBaseTypeBg = m_context.toBoogieType(arrayBaseType, specInfo.arrayId.get());
+						auto arrayExpr = ASTBoogieExpressionConverter(m_context).convert(*specInfo.arrayId, false).expr;
+						auto arrayLength = m_context.getArrayLength(arrayExpr, arrayBaseTypeBg);
+						auto const &bindings = bgQuantifierVars.back();
+						for (auto const &b : bindings)
+						{
+							guards.push_back(bg::Expr::lte(bg::Expr::lit((unsigned) 0), b.id));
+							guards.push_back(bg::Expr::lte(b.id, arrayLength));
+						}
+						auto guard = bg::Expr::and_(guards);
+						convResult.expr = bg::Expr::impl(guard, convResult.expr);
 					}
-					auto guard = boogie::Expr::and_(guards);
-					convResult.expr = boogie::Expr::impl(guard, convResult.expr);
+					else
+						m_context.reportError(&_node, "Specification of an array property must be over an array");
 				}
+
 				// Add quantifiers if necessary
 				while (bgQuantifierType.size() > 0)
 				{
@@ -384,11 +390,11 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 					auto const& bindings = bgQuantifierVars.back();
 					switch (type)
 					{
-					case boogie::QuantExpr::Forall:
-						convResult.expr = boogie::Expr::forall(bindings, convResult.expr);
+					case bg::QuantExpr::Forall:
+						convResult.expr = bg::Expr::forall(bindings, convResult.expr);
 						break;
-					case boogie::QuantExpr::Exists:
-						convResult.expr = boogie::Expr::exists(bindings, convResult.expr);
+					case bg::QuantExpr::Exists:
+						convResult.expr = bg::Expr::exists(bindings, convResult.expr);
 						break;
 					}
 					bgQuantifierType.pop_back();
