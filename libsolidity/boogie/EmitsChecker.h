@@ -24,7 +24,7 @@ private:
 	// Directly emitted events
 	std::map<CallableDeclaration const*, std::set<EventDefinition const*>> m_directlyEmitted;
 
-	std::map<FunctionDefinition const*, ContractDefinition const*> m_allFunctions;
+	std::set<FunctionDefinition const*> m_allFunctions;
 	CallableDeclaration const* m_currentScope;
 	ContractDefinition const* m_currentContract;
 

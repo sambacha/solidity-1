@@ -24,10 +24,16 @@ bool EmitsChecker::collectEmitsSpecs(FunctionDefinition const* fn, list<EmitsSpe
 			}
 
 			specs.push_back(EmitsSpec{ {}, false});
-			for (auto cd: m_allFunctions[fn]->annotation().linearizedBaseContracts)
-				for (auto ev: ASTNode::filteredNodes<EventDefinition const>(cd->subNodes()))
-					if (ev->name() == eventName)
-						specs.back().events.insert(ev);
+			DeclarationContainer const* container = m_context.scopes()[fn].get();
+			while (container)
+			{
+				if (container->declarations().find(eventName) != container->declarations().end())
+					for (auto const decl: container->declarations().at(eventName))
+						if (auto eventDecl = dynamic_cast<EventDefinition const*>(decl))
+							specs.back().events.insert(eventDecl);
+
+				container = container->enclosingContainer();
+			}
 			if (specs.back().events.empty())
 			{
 				m_context.reportError(fn, "No event found with name '" + eventName + "'.");
@@ -66,24 +72,24 @@ bool EmitsChecker::check()
 	// First go through all functions and parse specs
 	map<FunctionDefinition const*, list<EmitsSpec>> specified;
 	for (auto fn: m_allFunctions)
-		if (!collectEmitsSpecs(fn.first, specified[fn.first]))
+		if (!collectEmitsSpecs(fn, specified[fn]))
 			return false;
 
 	// Then go through functions again and check specs
 	for (auto fn: m_allFunctions)
 	{
 		// Check directly emitted events
-		for (auto ev: m_directlyEmitted[fn.first])
+		for (auto ev: m_directlyEmitted[fn])
 		{
-			if (!checkIfSpecified(specified[fn.first], ev))
+			if (!checkIfSpecified(specified[fn], ev))
 			{
-				m_context.reportError(fn.first, "Function possibly emits '" + ev->name() + "' without specifying");
+				m_context.reportError(fn, "Function possibly emits '" + ev->name() + "' without specifying");
 				specsSatisfied = false;
 			}
 		}
 
 		// Check specs of called functions (incl. base constructors)
-		for (auto called: m_calledFuncs[fn.first])
+		for (auto called: m_calledFuncs[fn])
 		{
 			string calledName = called->isConstructor() ? "base constructor" : called->name();
 
@@ -91,9 +97,9 @@ bool EmitsChecker::check()
 			{
 				for (auto ev: spec.events)
 				{
-					if (!checkIfSpecified(specified[fn.first], ev))
+					if (!checkIfSpecified(specified[fn], ev))
 					{
-						m_context.reportError(fn.first, "Function possibly emits '" + ev->name() + "' (via calling " + calledName + ") without specifying");
+						m_context.reportError(fn, "Function possibly emits '" + ev->name() + "' (via calling " + calledName + ") without specifying");
 						specsSatisfied = false;
 					}
 				}
@@ -101,16 +107,16 @@ bool EmitsChecker::check()
 		}
 
 		// Check what called modifiers emit
-		for (auto modif: fn.first->modifiers())
+		for (auto modif: fn->modifiers())
 		{
 			auto modifierDecl = dynamic_cast<ModifierDefinition const*>(modif->name()->annotation().referencedDeclaration);
 			if (modifierDecl)
 			{
 				for (auto ev: m_directlyEmitted[modifierDecl])
 				{
-					if (!checkIfSpecified(specified[fn.first], ev))
+					if (!checkIfSpecified(specified[fn], ev))
 					{
-						m_context.reportError(fn.first, "Function possibly emits '" + ev->name() +
+						m_context.reportError(fn, "Function possibly emits '" + ev->name() +
 								"' (via modifier " + modifierDecl->name() + ") without specifying");
 						specsSatisfied = false;
 					}
@@ -120,10 +126,10 @@ bool EmitsChecker::check()
 		}
 
 		// Finally give warnings for specified but not emitted events
-		for (auto entry: specified[fn.first])
+		for (auto entry: specified[fn])
 		{
 			if (!entry.alreadyEmitted)
-				m_context.reportWarning(fn.first, "Function specifies '" + (*entry.events.begin())->name() + "' but never emits.");
+				m_context.reportWarning(fn, "Function specifies '" + (*entry.events.begin())->name() + "' but never emits.");
 		}
 	}
 
@@ -141,7 +147,7 @@ bool EmitsChecker::visit(FunctionDefinition const& _node)
 	solAssert(m_currentContract, "FunctionDefinition without ContractDefinition");
 
 	m_currentScope = &_node;
-	m_allFunctions[&_node] = m_currentContract;
+	m_allFunctions.insert(&_node);
 
 	// Add base constructor calls
 	if (_node.isConstructor())

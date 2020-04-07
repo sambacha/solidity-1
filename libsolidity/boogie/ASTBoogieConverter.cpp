@@ -400,14 +400,22 @@ bool ASTBoogieConverter::collectEmitsSpecs(FunctionDefinition const& _node)
 			bool ok = false;
 			string eventName = docTag.second.content.substr(ASTBoogieUtils::DOCTAG_EMITS.length() + 1);
 			boost::trim(eventName);
-			for (auto cd: m_context.currentContract()->annotation().linearizedBaseContracts)
-				for (auto ev: ASTNode::filteredNodes<EventDefinition const>(cd->subNodes()))
-					if (ev->name() == eventName)
-					{
-						m_currentEmits.insert(ev);
-						m_context.enableEventDataTrackingFor(ev);
-						ok = true;
-					}
+
+			DeclarationContainer const* container = m_context.scopes()[&_node].get();
+			while (container)
+			{
+				if (container->declarations().find(eventName) != container->declarations().end())
+					for (auto const decl: container->declarations().at(eventName))
+						if (auto eventDecl = dynamic_cast<EventDefinition const*>(decl))
+						{
+							m_currentEmits.insert(eventDecl);
+							m_context.enableEventDataTrackingFor(eventDecl);
+							ok = true;
+						}
+
+				container = container->enclosingContainer();
+			}
+
 			if (!ok)
 			{
 				m_context.reportError(&_node, "No event found with name '" + eventName + "'.");
