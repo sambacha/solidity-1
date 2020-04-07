@@ -1,5 +1,6 @@
 Base::[implicit_constructor]: OK
 Derived::f: OK
-Derived::g: OK
+Derived::g: ERROR
+ - test/solc-verify/specs/EmitsEventsOverload.sol:28:14: Event postcondition '_x == x' might not hold before emit ev.
 Derived::[implicit_constructor]: OK
-No errors found.
+Errors were found by the verifier.
