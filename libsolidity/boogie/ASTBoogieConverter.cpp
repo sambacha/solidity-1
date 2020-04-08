@@ -374,7 +374,7 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 						for (const auto &b : bindings)
 						{
 							guards.push_back(bg::Expr::lte(bg::Expr::lit((unsigned) 0), b.id));
-							guards.push_back(bg::Expr::lte(b.id, arrayLength));
+							guards.push_back(bg::Expr::lt(b.id, arrayLength));
 						}
 						auto guard = bg::Expr::and_(guards);
 						convResult.expr = bg::Expr::impl(guard, convResult.expr);
