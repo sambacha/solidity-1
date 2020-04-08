@@ -371,7 +371,7 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 						auto arrayExpr = ASTBoogieExpressionConverter(m_context).convert(*specInfo.arrayId, false).expr;
 						auto arrayLength = m_context.getArrayLength(arrayExpr, arrayBaseTypeBg);
 						auto const &bindings = bgQuantifierVars.back();
-						for (auto const &b : bindings)
+						for (auto const& b: bindings)
 						{
 							guards.push_back(bg::Expr::lte(bg::Expr::lit((unsigned) 0), b.id));
 							guards.push_back(bg::Expr::lt(b.id, arrayLength));
