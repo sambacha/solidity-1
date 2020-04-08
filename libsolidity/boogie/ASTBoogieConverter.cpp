@@ -370,8 +370,8 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 						auto arrayBaseTypeBg = m_context.toBoogieType(arrayBaseType, specInfo.arrayId.get());
 						auto arrayExpr = ASTBoogieExpressionConverter(m_context).convert(*specInfo.arrayId, false).expr;
 						auto arrayLength = m_context.getArrayLength(arrayExpr, arrayBaseTypeBg);
-						auto const &bindings = bgQuantifierVars.back();
-						for (auto const &b : bindings)
+						const auto &bindings = bgQuantifierVars.back();
+						for (const auto &b : bindings)
 						{
 							guards.push_back(bg::Expr::lte(bg::Expr::lit((unsigned) 0), b.id));
 							guards.push_back(bg::Expr::lte(b.id, arrayLength));
@@ -387,7 +387,7 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 				while (bgQuantifierType.size() > 0)
 				{
 					auto type = bgQuantifierType.back();
-					auto const& bindings = bgQuantifierVars.back();
+					const auto& bindings = bgQuantifierVars.back();
 					switch (type)
 					{
 					case bg::QuantExpr::Forall:
@@ -1401,7 +1401,7 @@ bool ASTBoogieConverter::visit(Return const& _node)
 
 		// Return type
 		TypePointer returnType = nullptr;
-		auto const& returnParams = m_currentFunc->returnParameters();
+		const auto& returnParams = m_currentFunc->returnParameters();
 		if (returnParams.size() > 1)
 		{
 			std::vector<TypePointer> elems;
@@ -1450,7 +1450,7 @@ bool ASTBoogieConverter::visit(VariableDeclarationStatement const& _node)
 {
 	rememberScope(_node);
 
-	auto const& declarations = _node.declarations();
+	const auto& declarations = _node.declarations();
 	auto initialValue = _node.initialValue();
 
 	if (declarations.size() == 1)
