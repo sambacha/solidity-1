@@ -764,38 +764,49 @@ bg::Expr::Ref ASTBoogieUtils::checkExplicitBvConversion(bg::Expr::Ref expr, Type
 	return expr;
 }
 
-bg::Expr::Ref ASTBoogieUtils::getTCCforExpr(bg::Expr::Ref expr, TypePointer tp)
+bg::Expr::Ref ASTBoogieUtils::getTCCforExpr(bg::Expr::Ref expr, TypePointer tp, ASTBoogieUtils::TCCType type)
 {
+	bg::Expr::Ref upperBound = nullptr;
+	bg::Expr::Ref lowerBound = nullptr;
+
 	// For enums we know the number of members
 	if (tp->category() == Type::Category::Enum)
 	{
 		auto enumTp = dynamic_cast<EnumType const *>(tp);
 		solAssert(enumTp, "");
-		return bg::Expr::and_(
-				bg::Expr::lte(bg::Expr::lit((long)0), expr),
-				bg::Expr::lt(expr, bg::Expr::lit(enumTp->enumDefinition().members().size())));
-
+		lowerBound = bg::Expr::lte(bg::Expr::lit((long)0), expr);
+		upperBound = bg::Expr::lt(expr, bg::Expr::lit(enumTp->enumDefinition().members().size()));
 	}
 	// Otherwise get smallest and largest
-	if (isBitPreciseType(tp))
+	else if (isBitPreciseType(tp))
 	{
 		unsigned bits = getBits(tp);
 		if (isSigned(tp))
 		{
 			auto largestSigned = bg::Expr::lit(boost::multiprecision::pow(bg::bigint(2), bits - 1) - 1);
 			auto smallestSigned = bg::Expr::lit(-boost::multiprecision::pow(bg::bigint(2), bits - 1));
-			return bg::Expr::and_(
-					bg::Expr::lte(smallestSigned, expr),
-					bg::Expr::lte(expr, largestSigned));
+			lowerBound = bg::Expr::lte(smallestSigned, expr);
+			upperBound = bg::Expr::lte(expr, largestSigned);
 		}
 		else
 		{
 			auto largestUnsigned = bg::Expr::lit(boost::multiprecision::pow(bg::bigint(2), bits) - 1);
 			auto smallestUnsigned = bg::Expr::lit(long(0));
-			return bg::Expr::and_(
-					bg::Expr::lte(smallestUnsigned, expr),
-					bg::Expr::lte(expr, largestUnsigned));
+			lowerBound = bg::Expr::lte(smallestUnsigned, expr);
+			upperBound = bg::Expr::lte(expr, largestUnsigned);
 		}
+	}
+
+	// Return the TCC
+	switch (type) {
+	case LowerBound:
+		return lowerBound;
+	case UpperBound:
+		return upperBound;
+	case BothBounds:
+		return bg::Expr::and_(lowerBound, upperBound);
+	default:
+		solAssert(false, "");
 	}
 	return bg::Expr::lit(true);
 }

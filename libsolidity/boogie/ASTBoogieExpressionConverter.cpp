@@ -19,10 +19,12 @@ namespace dev
 namespace solidity
 {
 
-void ASTBoogieExpressionConverter::addTCC(bg::Expr::Ref expr, TypePointer tp)
+void ASTBoogieExpressionConverter::addTCC(bg::Expr::Ref expr, TypePointer tp, bool isArrayLength)
 {
-	if (m_context.encoding() == BoogieContext::Encoding::MOD && ASTBoogieUtils::isBitPreciseType(tp))
-		m_tccs.push_back(ASTBoogieUtils::getTCCforExpr(expr, tp));
+	if (isArrayLength)
+		m_tccs.push_back(ASTBoogieUtils::getTCCforExpr(expr, tp, ASTBoogieUtils::LowerBound));
+	else if (m_context.encoding() == BoogieContext::Encoding::MOD && ASTBoogieUtils::isBitPreciseType(tp))
+		m_tccs.push_back(ASTBoogieUtils::getTCCforExpr(expr, tp, ASTBoogieUtils::BothBounds));
 }
 
 void ASTBoogieExpressionConverter::addSideEffect(bg::Stmt::Ref stmt)
@@ -1259,7 +1261,7 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 			m_currentExpr = StoragePtrHelper::unpackLocalPtr(&_node.expression(), m_currentExpr, m_context);
 		}
 		m_currentExpr = m_context.getArrayLength(m_currentExpr, m_context.toBoogieType(arrType->baseType(), &_node));
-		addTCC(m_currentExpr, tp_uint256);
+		addTCC(m_currentExpr, tp_uint256, true);
 		return false;
 	}
 	// fixed size byte array length

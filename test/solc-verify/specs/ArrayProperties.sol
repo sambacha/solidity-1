@@ -12,7 +12,6 @@ contract ArrayProperties {
 
   /// @notice modifies unique
   function addUnique(int x) public {
-    require(unique.length >= 0);
     /// @notice invariant 0 <= i && i <= unique.length
     /// @notice invariant property(unique) (j) (j >= i) || (unique[j] != x)
     for (uint i = 0; i < unique.length; ++ i) {

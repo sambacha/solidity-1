@@ -181,6 +181,16 @@ public:
 	static
 	boogie::Expr::Ref checkExplicitBvConversion(boogie::Expr::Ref expr, TypePointer exprType, TypePointer targetType, BoogieContext& context);
 
+	/** Type of TCC to add */
+	enum TCCType {
+		/** Add only lower bound */
+		LowerBound,
+		/** Add only upper bound */
+		UpperBound,
+		/** Add both bounds */
+		BothBounds
+	};
+
 	/**
 	 * Depending on the context, the returned TCC can be assumed or asserted.
 	 * @param expr Expression
@@ -188,7 +198,7 @@ public:
 	 * @returns The type checking condition for an expression with a given type.
 	 */
 	static
-	boogie::Expr::Ref getTCCforExpr(boogie::Expr::Ref expr, TypePointer tp);
+	boogie::Expr::Ref getTCCforExpr(boogie::Expr::Ref expr, TypePointer tp, TCCType type = BothBounds);
 
 	/**
 	 * @param _type Type
