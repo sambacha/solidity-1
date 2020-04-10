@@ -19,11 +19,9 @@ namespace dev
 namespace solidity
 {
 
-void ASTBoogieExpressionConverter::addTCC(bg::Expr::Ref expr, TypePointer tp, bool isArrayLength)
+void ASTBoogieExpressionConverter::addTCC(bg::Expr::Ref expr, TypePointer tp, bool force)
 {
-	if (isArrayLength)
-		m_tccs.push_back(ASTBoogieUtils::getTCCforExpr(expr, tp, ASTBoogieUtils::LowerBound));
-	else if (m_context.encoding() == BoogieContext::Encoding::MOD && ASTBoogieUtils::isBitPreciseType(tp))
+	if ((m_context.encoding() == BoogieContext::Encoding::MOD && ASTBoogieUtils::isBitPreciseType(tp)) || force)
 		m_tccs.push_back(ASTBoogieUtils::getTCCforExpr(expr, tp, ASTBoogieUtils::BothBounds));
 }
 
@@ -1094,6 +1092,8 @@ void ASTBoogieExpressionConverter::functionCallPushPop(MemberAccess const* memAc
 		for (auto stmt: res.newStmts)
 			addSideEffect(stmt);
 		addSideEffect(bg::Stmt::assume(ASTBoogieUtils::getTCCforExpr(len, TypeProvider::integer(256, IntegerType::Modifier::Unsigned))));
+		addSideEffect(bg::Stmt::comment("Implicit assumption that push cannot overflow length."));
+		addSideEffect(bg::Stmt::assume(bg::Expr::lt(len, m_context.intLit(boost::multiprecision::pow(bg::bigint(2), 256) -1 , 256))));
 		lenUpd = ASTBoogieUtils::encodeArithBinaryOp(m_context, &_node, Token::Add, len, m_context.intLit(1, 256), 256, false);
 	}
 	else
