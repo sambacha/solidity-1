@@ -951,12 +951,19 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	// Restore error reporter
 	m_context.errorReporter() = originalErrReporter;
 
+
+	// Create a separate block for TCCs
+	bg::Block::Ref tccAssumes = bg::Block::block();
+	tccAssumes->addStmt(bg::Stmt::comment("TCC assumptions"));
 	// Add function body if there were no errors and is implemented
 	vector<bg::Block::Ref> blocks;
 	if (Error::containsOnlyWarnings(errorList))
 	{
 		if (_node.isImplemented())
+		{
+			blocks.push_back(tccAssumes);
 			blocks.push_back(m_currentBlocks.top());
+		}
 	}
 	else
 		m_context.reportWarning(&_node, "Errors while translating function body, will be skipped");
@@ -1033,8 +1040,8 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 							ASTBoogieUtils::createAttrs(_node.location(), "Postcondition '" + post.exprStr + "' might not hold at end of function.", *m_context.currentScanner())));
 		for (auto tcc: post.tccs)
 		{
-			procDecl->getRequires().push_back(bg::Specification::spec(tcc,
-									ASTBoogieUtils::createAttrs(_node.location(), "Variables in postcondition '" + post.exprStr + "' might be out of range when entering function.", *m_context.currentScanner())));
+			// TCC might contain return variable, cannot be added as precondition
+			tccAssumes->addStmt(bg::Stmt::assume(tcc));
 			procDecl->getEnsures().push_back(bg::Specification::spec(tcc,
 						ASTBoogieUtils::createAttrs(_node.location(), "Variables in postcondition '" + post.exprStr + "' might be out of range at end of function.", *m_context.currentScanner())));
 		}
