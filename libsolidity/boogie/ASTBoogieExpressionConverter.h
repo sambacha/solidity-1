@@ -39,8 +39,9 @@ private:
 	 * Helper method to add a type checking condition for an expression with a given type.
 	 * @param expr Boogie expression
 	 * @param tp Type of the expression
+	 * @Param isArrrayLengt If true add TCC regardless of integer encoding
 	 */
-	void addTCC(boogie::Expr::Ref expr, TypePointer tp);
+	void addTCC(boogie::Expr::Ref expr, TypePointer tp, bool isArrayLength = false);
 
 	/** Helper method to add a side effect (statement) */
 	void addSideEffect(boogie::Stmt::Ref stmt);

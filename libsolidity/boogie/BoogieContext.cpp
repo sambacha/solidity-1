@@ -1,11 +1,8 @@
-#include <libsolidity/analysis/NameAndTypeResolver.h>
-#include <libsolidity/analysis/TypeChecker.h>
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/ast/TypeProvider.h>
 #include <libsolidity/boogie/ASTBoogieUtils.h>
 #include <libsolidity/boogie/BoogieContext.h>
 #include <libsolidity/boogie/BoogieAst.h>
-#include <libsolidity/parsing/Parser.h>
 
 #include <liblangutil/ErrorReporter.h>
 #include <liblangutil/SourceReferenceFormatter.h>
@@ -360,59 +357,6 @@ string BoogieContext::mapDeclName(Declaration const& decl)
 	}
 
 	return name;
-}
-
-ASTPointer<Expression> BoogieContext::parseAnnotation(string exprStr, ASTNode const& _node, ASTNode const* _scope)
-{
-	// We temporarily replace the error reporter, because the locations
-	// are pointing to positions in the docstring
-	ErrorList errorList;
-	ErrorReporter errorReporter(errorList);
-
-	ErrorReporter* originalErrReporter = m_errorReporter;
-	m_errorReporter = &errorReporter;
-
-	CharStream exprStream(exprStr, "Annotation");
-	ASTPointer<Expression> expr = nullptr;
-	try
-	{
-		// Parse
-		expr = Parser(*m_errorReporter, m_evmVersion).parseExpression(std::make_shared<Scanner>(exprStream));
-		if (!expr)
-			throw langutil::FatalError();
-
-		// Resolve references, using the given scope
-		m_scopes[expr.get()] = m_scopes[_scope];
-		NameAndTypeResolver resolver(m_globalContext, m_evmVersion, m_scopes, *m_errorReporter);
-		if (resolver.resolveNamesAndTypes(*expr))
-		{
-			// Do type checking
-			TypeChecker typeChecker(m_evmVersion, *m_errorReporter, m_currentContract);
-			if (!typeChecker.checkTypeRequirements(*expr)) expr = nullptr;
-		}
-		else
-			expr = nullptr;
-	}
-	catch (langutil::FatalError const& fe)
-	{
-		reportError(&_node, "Fatal error while parsing annotation.");
-		expr = nullptr;
-	}
-
-	// Print errors relating to the expression string
-	printErrors(cerr);
-
-	// Restore error reporter
-	m_errorReporter = originalErrReporter;
-	// Add a single error in the original reporter if there were errors
-	if (!Error::containsOnlyWarnings(errorList))
-		reportError(&_node, "Error(s) while parsing annotation for node");
-	else if (errorList.size() > 0)
-		reportWarning(&_node, "Warning(s) while parsing annotation for node");
-
-	solAssert(!Error::containsOnlyWarnings(errorList) || expr, "Returning null with no errors");
-	solAssert(!expr || Error::containsOnlyWarnings(errorList), "Returning non-null with errors");
-	return expr;
 }
 
 void BoogieContext::warnForBalances()

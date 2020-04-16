@@ -121,7 +121,7 @@ def main(tmpDir):
     if args.solver == 'z3':
         boogieArgs += ' /proverOpt:PROVER_PATH=%s' % solverPath
     if args.solver == 'cvc4':
-        boogieArgs += ' /proverOpt:PROVER_PATH=%s /proverOpt:SOLVER=CVC4 /proverOpt:C:"--produce-models"' % solverPath
+        boogieArgs += ' /proverOpt:PROVER_PATH=%s /proverOpt:SOLVER=CVC4 /proverOpt:C:"--produce-models --quiet"' % solverPath
         if args.arithmetic == 'mod' or args.arithmetic == 'mod-overflow':
             boogieArgs += ' /proverOpt:C:"--incremental --decision=justification --no-arrays-eager-index --arrays-eager-lemmas"'
             boogieArgs += ' /proverOpt:LOGIC=QF_AUFDTNIA'

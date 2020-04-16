@@ -76,15 +76,14 @@ private:
 	void initializeStateVar(VariableDeclaration const& _node);
 
 	/**
-	 * Helper method to parse an expression from a string with a given scope
-	 * and convert it into a Boogie expression.
+	 * Helper method to parse an expression from a string with a given scope.
 	 * @param exprStr Expression as a string
 	 * @param _node Corresponding node (for error reporting)
 	 * @param _scope Scope
 	 * @param result Parsed expression
 	 * @returns True if parsing was successful
 	 */
-	bool parseBoogieExpr(std::string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result);
+	bool parseExpr(std::string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result);
 
 	/**
 	 * Parse expressions from documentation for a given tag.

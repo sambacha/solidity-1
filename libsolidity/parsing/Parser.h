@@ -51,6 +51,19 @@ public:
 	ASTPointer<SourceUnit> parse(std::shared_ptr<langutil::Scanner> const& _scanner);
 	ASTPointer<Expression> parseExpression(std::shared_ptr<langutil::Scanner> const& _scanner);
 
+	struct SpecificationExpressionInfo {
+		// List of parameters for each quantifier
+		std::vector<ASTPointer<ParameterList>> quantifierList;
+		// Boolean flag for each quantifier
+		std::vector<bool> isForall;
+		// The identifier of the array, if this is a property expression
+		ASTPointer<Identifier> arrayId;
+	};
+
+
+	/// Parses expressions, e.g., of the form forall (int i) exist (int j) a[i][j] > 0
+	ASTPointer<Expression> parseSpecificationExpression(std::shared_ptr<langutil::Scanner> const& _scanner, SpecificationExpressionInfo& info);
+
 private:
 	class ASTNodeFactory;
 
@@ -100,6 +113,7 @@ private:
 		VarDeclParserOptions const& _options = {},
 		ASTPointer<TypeName> const& _lookAheadArrayType = ASTPointer<TypeName>()
 	);
+	ASTPointer<VariableDeclaration> parseSpecificationVariableDeclaration(ASTPointer<TypeName> type);
 	ASTPointer<ModifierDefinition> parseModifierDefinition();
 	ASTPointer<EventDefinition> parseEventDefinition();
 	ASTPointer<UsingForDirective> parseUsingDirective();
@@ -114,6 +128,7 @@ private:
 		VarDeclParserOptions const& _options = {},
 		bool _allowEmpty = true
 	);
+	ASTPointer<ParameterList> parseSpecificationParameterList(ASTPointer<TypeName> type);
 	ASTPointer<Block> parseBlock(ASTPointer<ASTString> const& _docString = {});
 	ASTPointer<Statement> parseStatement();
 	ASTPointer<InlineAssembly> parseInlineAssembly(ASTPointer<ASTString> const& _docString = {});

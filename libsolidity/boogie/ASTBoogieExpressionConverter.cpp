@@ -19,10 +19,10 @@ namespace dev
 namespace solidity
 {
 
-void ASTBoogieExpressionConverter::addTCC(bg::Expr::Ref expr, TypePointer tp)
+void ASTBoogieExpressionConverter::addTCC(bg::Expr::Ref expr, TypePointer tp, bool force)
 {
-	if (m_context.encoding() == BoogieContext::Encoding::MOD && ASTBoogieUtils::isBitPreciseType(tp))
-		m_tccs.push_back(ASTBoogieUtils::getTCCforExpr(expr, tp));
+	if ((m_context.encoding() == BoogieContext::Encoding::MOD && ASTBoogieUtils::isBitPreciseType(tp)) || force)
+		m_tccs.push_back(ASTBoogieUtils::getTCCforExpr(expr, tp, ASTBoogieUtils::BothBounds));
 }
 
 void ASTBoogieExpressionConverter::addSideEffect(bg::Stmt::Ref stmt)
@@ -1092,6 +1092,8 @@ void ASTBoogieExpressionConverter::functionCallPushPop(MemberAccess const* memAc
 		for (auto stmt: res.newStmts)
 			addSideEffect(stmt);
 		addSideEffect(bg::Stmt::assume(ASTBoogieUtils::getTCCforExpr(len, TypeProvider::integer(256, IntegerType::Modifier::Unsigned))));
+		addSideEffect(bg::Stmt::comment("Implicit assumption that push cannot overflow length."));
+		addSideEffect(bg::Stmt::assume(bg::Expr::lt(len, m_context.intLit(boost::multiprecision::pow(bg::bigint(2), 256) -1 , 256))));
 		lenUpd = ASTBoogieUtils::encodeArithBinaryOp(m_context, &_node, Token::Add, len, m_context.intLit(1, 256), 256, false);
 	}
 	else
@@ -1259,7 +1261,7 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 			m_currentExpr = StoragePtrHelper::unpackLocalPtr(&_node.expression(), m_currentExpr, m_context);
 		}
 		m_currentExpr = m_context.getArrayLength(m_currentExpr, m_context.toBoogieType(arrType->baseType(), &_node));
-		addTCC(m_currentExpr, tp_uint256);
+		addTCC(m_currentExpr, tp_uint256, true);
 		return false;
 	}
 	// fixed size byte array length
@@ -1494,8 +1496,9 @@ bool ASTBoogieExpressionConverter::visit(Identifier const& _node)
 	string declName = m_context.mapDeclName(*(decl));
 
 	// State variables must be referenced by accessing the map
+	// Unless it's a declaration within a specification (scope == nullptr)
 	auto varDecl = dynamic_cast<VariableDeclaration const*>(decl);
-	if (varDecl && varDecl->isStateVariable())
+	if (varDecl && varDecl->isStateVariable() && varDecl->scope())
 		m_currentExpr = bg::Expr::arrsel(bg::Expr::id(declName), m_context.boogieThis()->getRefTo());
 	// Other identifiers can be referenced by their name
 	else
