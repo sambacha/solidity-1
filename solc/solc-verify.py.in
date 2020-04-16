@@ -99,7 +99,7 @@ def main(tmpDir):
     timer = threading.Timer(args.timeout, kill)
     # Run verification, get result
     timer.start()
-    boogieArgs = '/nologo /doModSetAnalysis /errorTrace:0 /useArrayTheory /trace'
+    boogieArgs = '/nologo /doModSetAnalysis /errorTrace:0 /useArrayTheory /trace /infer:j'
     if args.smt_log:
         boogieArgs += ' /proverLog:%s' % args.smt_log
 
