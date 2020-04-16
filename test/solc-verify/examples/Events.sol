@@ -1,7 +1,7 @@
 pragma solidity >=0.5.0;
 
 // Example on specifying events. Users of the contract can add register a number
-// correspoinding to their address and then update it but only with a greater number.
+// corresponding to their address and then update it but only with a greater number.
 // Events keep track of such changes in the data and the verifier checks whether
 // they are properly emitted.
 contract Registry{
