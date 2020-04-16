@@ -38,6 +38,9 @@ private:
 	std::string m_currentContinueLabel;
 	std::string m_currentBreakLabel;
 
+	// Events specified by the current function and whether they are indeed emitted
+	std::set<EventDefinition const*> m_currentEmits;
+
 	/**
 	 * Helper method to convert an expression using the dedicated expression converter class,
 	 * it also handles side-effect statements and declarations introduced by the conversion.
@@ -73,14 +76,15 @@ private:
 	void initializeStateVar(VariableDeclaration const& _node);
 
 	/**
-	 * Helper method to parse an expression from a string with a given scope.
+	 * Helper method to parse an expression from a string with a given scope
+	 * and convert it into a Boogie expression.
 	 * @param exprStr Expression as a string
 	 * @param _node Corresponding node (for error reporting)
 	 * @param _scope Scope
 	 * @param result Parsed expression
 	 * @returns True if parsing was successful
 	 */
-	bool parseExpr(std::string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result);
+	bool parseBoogieExpr(std::string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result);
 
 	/**
 	 * Parse expressions from documentation for a given tag.
@@ -98,6 +102,13 @@ private:
 	 * @param _annot Annotations
 	 */
 	bool includeContractInvars(DocumentedAnnotation const& _annot);
+
+	/**
+	 * Collect the events that the current function specifies to emit.
+	 * @param _node Solidity function
+	 * @returns Whether emits specs are syntactically correct
+	 */
+	bool collectEmitsSpecs(FunctionDefinition const& _node);
 
 	/**
 	 * Helper method to extract the variable to which the modifies specification corresponds.
@@ -159,6 +170,9 @@ private:
 		else
 			return nullptr;
 	}
+
+	/** Process event definition */
+	void processEventDefinition(EventDefinition const& event);
 
 public:
 	/**

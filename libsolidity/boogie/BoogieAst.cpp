@@ -54,15 +54,49 @@ Expr::Ref Expr::and_(Ref l, Ref r)
 	return std::make_shared<BinExpr const>(BinExpr::And, l, r);
 }
 
+Expr::Ref Expr::and_(std::vector<Expr::Ref> const& es)
+{
+	if (es.size() == 0)
+		return lit(true);
+	Expr::Ref result = es[0];
+	for (size_t i = 1; i < es.size(); ++ i)
+		result = and_(result, es[i]);
+	return result;
+}
+
 Expr::Ref Expr::or_(Ref l, Ref r)
 {
 	return std::make_shared<BinExpr const>(BinExpr::Or, l, r);
+}
+
+Expr::Ref Expr::or_(std::vector<Expr::Ref> const& es)
+{
+	if (es.size() == 0)
+		return lit(false);
+	Expr::Ref result = es[0];
+	for (size_t i = 1; i < es.size(); ++ i)
+		result = or_(result, es[i]);
+	return result;
 }
 
 Expr::Ref Expr::cond(Ref c, Ref t, Ref e)
 {
 	return std::make_shared<CondExpr const>(c,t,e);
 }
+
+Expr::Ref Expr::oneOf(std::vector<Expr::Ref> const& es)
+{
+	std::vector<Expr::Ref> conjuncts(es);
+	std::vector<Expr::Ref> disjuncts;
+	for (size_t i = 0; i < es.size(); ++ i) {
+		Expr::Ref pick = es[i];
+		conjuncts[i] = not_(pick);
+		disjuncts.push_back(and_(conjuncts));
+		conjuncts[i] = pick;
+	}
+	return or_(disjuncts);
+}
+
 
 Expr::Ref Expr::eq(Ref l, Ref r)
 {
@@ -990,6 +1024,12 @@ void VarDecl::print(std::ostream& os) const
 	os << name << ": " << type->getName() << ";";
 }
 
+Specification::Specification(Expr::Ref e, std::vector<Attr::Ref> const& ax)
+: expr(e), attrs(ax)
+{
+	solAssert(e, "Specification cannot be null");
+}
+
 void Specification::print(std::ostream& os, std::string kind) const
 {
 	os << "	" << kind << " ";
@@ -1082,4 +1122,164 @@ void Program::print(std::ostream& os) const
 	print_seq(os, decls, "\n");
 	os << "\n";
 }
+
+//
+// Substitution stuff
+//
+
+Expr::Ref ErrorExpr::substitute(Expr::substitution const& s) const
+{
+	(void)s;
+	return Expr::error();
+}
+
+Expr::Ref BinExpr::substitute(Expr::substitution const& s) const
+{
+	Ref lhs1 = lhs->substitute(s);
+	Ref rhs1 = rhs->substitute(s);
+	return std::make_shared<BinExpr const>(op, lhs1, rhs1);
+}
+
+Expr::Ref CondExpr::substitute(Expr::substitution const& s) const
+{
+	Ref cond1 = cond->substitute(s);
+	Ref then1 = then->substitute(s);
+	Ref else1 = else_->substitute(s);
+	return std::make_shared<CondExpr const>(cond1, then1, else1);
+}
+
+Expr::Ref FunExpr::substitute(Expr::substitution const& s) const
+{
+	std::vector<Ref> args1;
+	for (Ref a: args)
+		args1.push_back(a->substitute(s));
+	return std::make_shared<FunExpr const>(fun, args1);
+}
+
+Expr::Ref BoolLit::substitute(Expr::substitution const& s) const
+{
+	(void)s;
+	return std::make_shared<BoolLit const>(val);
+}
+
+Expr::Ref IntLit::substitute(Expr::substitution const& s) const
+{
+	(void)s;
+	return std::make_shared<IntLit const>(val);
+}
+
+Expr::Ref BvLit::substitute(Expr::substitution const& s) const
+{
+	(void)s;
+	return std::make_shared<BvLit const>(val, width);
+}
+
+Expr::Ref FPLit::substitute(Expr::substitution const& s) const
+{
+	(void)s;
+	return std::make_shared<FPLit const>(neg, sig, expo, sigSize, expSize);
+}
+
+Expr::Ref NegExpr::substitute(Expr::substitution const& s) const
+{
+	Ref expr1 = expr->substitute(s);
+	return std::make_shared<NegExpr const>(expr1);
+}
+
+Expr::Ref NotExpr::substitute(Expr::substitution const& s) const
+{
+	Ref expr1 = expr->substitute(s);
+	return std::make_shared<NotExpr const>(expr1);
+}
+
+Expr::Ref QuantExpr::substitute(Expr::substitution const& s) const
+{
+	Expr::substitution s1(s);
+
+	// Setup the binding (remove any bound variables from substitution)
+	for (Binding b: vars)
+	{
+		auto varExpr = std::dynamic_pointer_cast<VarExpr const>(b.id);
+		solAssert(varExpr, "Binding is not a variable");
+		std::string id = varExpr->name();
+		auto idFind = s.find(id);
+		if (idFind != s.end())
+			s1.erase(idFind);
+	}
+
+	// Substitute the expression
+	Ref expr1 = expr->substitute(s1);
+	return std::make_shared<QuantExpr const>(quant, vars, expr1);
+}
+
+Expr::Ref ArrConstExpr::substitute(Expr::substitution const& s) const
+{
+	Ref val1 = val->substitute(s);
+	return std::make_shared<ArrConstExpr const>(arrType, val1);
+}
+
+Expr::Ref ArrSelExpr::substitute(Expr::substitution const& s) const
+{
+	Ref base1 = base->substitute(s);
+	Ref idx1 = idx->substitute(s);
+	return std::make_shared<ArrSelExpr const>(base1, idx1);
+}
+
+Expr::Ref ArrUpdExpr::substitute(Expr::substitution const& s) const
+{
+	Ref base1 = base->substitute(s);
+	Ref idx1 = idx->substitute(s);
+	Ref val1 = val->substitute(s);
+	return std::make_shared<ArrUpdExpr const>(base1, idx1, val1);
+}
+
+Expr::Ref VarExpr::substitute(Expr::substitution const& s) const
+{
+	auto find = s.find(var);
+	if (find != s.end())
+		return find->second;
+	else
+		return std::make_shared<VarExpr const>(var);
+}
+
+Expr::Ref OldExpr::substitute(Expr::substitution const& s) const
+{
+	Ref expr1 = expr->substitute(s);
+	return std::make_shared<OldExpr const>(expr1);
+}
+
+Expr::Ref CodeExpr::substitute(Expr::substitution const& s) const
+{
+	(void)s;
+	solAssert(false, "CodeExpr not supported for substitution");
+	return Expr::error();
+}
+
+Expr::Ref TupleExpr::substitute(Expr::substitution const& s) const
+{
+	std::vector<Ref> es1;
+	for (Ref e: es)
+		es1.push_back(e->substitute(s));
+	return std::make_shared<TupleExpr const>(es1);
+}
+
+Expr::Ref StringLit::substitute(Expr::substitution const& s) const
+{
+	(void)s;
+	return std::make_shared<StringLit const>(val);
+}
+
+Expr::Ref DtSelExpr::substitute(Expr::substitution const& s) const
+{
+	Ref base1 = base->substitute(s);
+	return std::make_shared<DtSelExpr const>(base1, member, constr, dt);
+}
+
+Expr::Ref DtUpdExpr::substitute(Expr::substitution const& s) const
+{
+	Ref base1 = base->substitute(s);
+	Ref val1 = val->substitute(s);
+	return std::make_shared<DtUpdExpr const>(base1, member, val1, constr, dt);
+}
+
 }

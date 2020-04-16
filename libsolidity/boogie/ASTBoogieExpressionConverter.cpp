@@ -533,7 +533,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	auto sender = m_context.boogieThis()->getRefTo();
 	bool internal = false;
 	if (auto funcType = dynamic_cast<FunctionType const*>(_node.expression().annotation().type))
-		internal = funcType->kind() == FunctionType::Kind::Internal;
+		internal = funcType->kind() == FunctionType::Kind::Internal || funcType->kind() == FunctionType::Kind::Event;
 	if (internal)
 		sender = m_context.boogieMsgSender()->getRefTo();
 	allArgs.push_back(sender); // msg.sender

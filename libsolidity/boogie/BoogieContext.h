@@ -170,7 +170,78 @@ public:
 	/** Maps a declaration name to a name in Boogie, including extra scoping if needed. */
 	std::string mapDeclName(Declaration const& decl);
 
+	/**
+	 * Helper method to parse an expression from a string with a given scope.
+	 * @param exprStr Expression as a string
+	 * @param _node Corresponding node (for error reporting)
+	 * @param _scope Scope
+	 * @returns The parsed expression
+	 */
+	ASTPointer<Expression> parseAnnotation(std::string exprStr, ASTNode const& _node, ASTNode const* _scope);
+
 	void warnForBalances();
+
+private:
+
+	//
+	// Data related to Event tracking
+	//
+
+	using EventDataSet = std::set<Declaration const*>;
+
+	struct EventDataInfo {
+		boogie::Expr::Ref dataVar; // Data tracked
+		boogie::Expr::Ref oldDataVar; // Same type, to save data
+		boogie::Expr::Ref oldDataSavedVar; // Bool type, whether to update
+	};
+
+	// Information about events we're tracking
+	std::map<EventDefinition const*, EventDataSet> m_eventData;
+	// Set of all id's that we're tracking old values for
+	std::map<Declaration const*, EventDataInfo> m_allEventData;
+	// Set of solidity events that we're watching at the moment
+	std::set<EventDefinition const*> m_eventDataCurrent;
+	// Set of solidity events we're currently watching
+	// Substitution from data members to old data members for events
+	boogie::Expr::substitution m_eventDataSubstitution;
+
+public:
+
+	//
+	// Methods related to Event tracking.
+	//
+
+	/** Returns the substitution for data tracked by events */
+	boogie::Expr::substitution const& getEventDataSubstitution() const;
+
+	/** Add new data tracked by an event */
+	void addEventData(Expression const* expr, EventDefinition const* event);
+
+	/** Enable tracking of data related to given event */
+	void enableEventDataTrackingFor(EventDefinition const* event);
+
+	/** Clear tracking of events */
+	void disableEventDataTracking();
+
+	/**
+	 * Given LHS of an assignment, check if it's an update tracked by an event. Returns a statement
+	 * to save the data, if not saved already.
+	 */
+	std::list<boogie::Stmt::Ref> checkForEventDataSave(Expression const* lhsExpr);
+
+	/**
+	 * Sets up the event procedure with the right pre- and post-conditions and body to capture
+	 * trigger and data-update variables
+	 */
+	boogie::ProcDeclRef declareEventProcedure(EventDefinition const* event, std::string eventName, std::vector<boogie::Binding> const& params);
+
+	/**
+	 * Adds entry and exit specs for the given function.
+	 */
+	void addFunctionSpecsForEvent(EventDefinition const* event, boogie::ProcDeclRef procedure);
+
+	/** Add loop invariant for the given event. Returns null if none. */
+	std::pair<boogie::Expr::Ref, std::string> getEventLoopInvariant(EventDefinition const* event) const;
 
 	// Sum function related
 private:

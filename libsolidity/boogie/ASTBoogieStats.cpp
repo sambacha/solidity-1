@@ -32,6 +32,17 @@ bool ASTBoogieStats::visit(FunctionDefinition const& _node)
 		m_hasModifiesSpecs = m_hasModifiesSpecs || hasDocTag(_node.annotation(), ASTBoogieUtils::DOCTAG_MODIFIES);
 		m_hasModifiesSpecs = m_hasModifiesSpecs || hasDocTag(_node.annotation(), ASTBoogieUtils::DOCTAG_MODIFIES_ALL);
 	}
+	if (!m_hasEventSpecs)
+	{
+		m_hasEventSpecs = m_hasEventSpecs || hasDocTag(_node.annotation(), ASTBoogieUtils::DOCTAG_EMITS);
+	}
+	return true;
+}
+
+bool ASTBoogieStats::visit(EventDefinition const& _node)
+{
+	if (!m_hasEventSpecs)
+		m_hasEventSpecs = m_hasEventSpecs || hasDocTag(_node.annotation(), ASTBoogieUtils::DOCTAG_EVENT_TRACKS_CHANGES);
 	return true;
 }
 

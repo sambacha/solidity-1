@@ -32,6 +32,8 @@ contract Secondary {
 
     /**
      * @dev Emitted when the primary contract changes.
+     * @notice tracks-changes-in _primary
+     * @notice postcondition _primary == recipient
      */
     event PrimaryTransferred(
         address recipient
@@ -39,6 +41,8 @@ contract Secondary {
 
     /**
      * @dev Sets the primary account to the one that is creating the Secondary contract.
+     *
+     * @notice emits PrimaryTransferred
      */
     constructor () internal {
         address msgSender = msg.sender;
@@ -66,6 +70,7 @@ contract Secondary {
      * @param recipient The address of new primary.
      *
      * @notice modifies _primary if msg.sender == _primary
+     * @notice emits PrimaryTransferred
      */
     function transferPrimary(address recipient) public onlyPrimary {
         require(recipient != address(0), "Secondary: new primary is the zero address");
@@ -78,10 +83,16 @@ contract Secondary {
 contract Escrow is Secondary {
     using SafeMath for uint256;
 
+    /// @notice tracks-changes-in _deposits
     event Deposited(address indexed payee, uint256 weiAmount);
+
+    /// @notice tracks-changes-in _deposits
     event Withdrawn(address indexed payee, uint256 weiAmount);
 
     mapping(address => uint256) internal _deposits;
+
+    /** @notice emits PrimaryTransferred */
+    constructor() internal {}
 
     function depositsOf(address payee) public view returns (uint256) {
         return _deposits[payee];
@@ -93,6 +104,7 @@ contract Escrow is Secondary {
      *
      * @notice modifies _deposits[payee]
      * @notice modifies address(this).balance
+     * @notice emits Deposited
      */
     function deposit(address payee) public onlyPrimary payable {
         uint256 amount = msg.value;
@@ -108,6 +120,7 @@ contract Escrow is Secondary {
      * @notice modifies _deposits[payee]
      * @notice modifies address(this).balance
      * @notice modifies payee.balance
+     * @notice emits Withdrawn
      */
     function withdraw(address payable payee) public onlyPrimary {
         uint256 payment = _deposits[payee];
@@ -126,6 +139,10 @@ contract Escrow is Secondary {
  * @notice invariant __verifier_sum_uint(_deposits) <= address(this).balance
  */
 contract ConditionalEscrow is Escrow {
+
+    /** @notice emits PrimaryTransferred */
+    constructor() internal {}
+
     /**
      * @dev Returns whether an address is allowed to withdraw their funds. To be
      * implemented by derived contracts.
@@ -134,6 +151,7 @@ contract ConditionalEscrow is Escrow {
     function withdrawalAllowed(address payee) public view returns (bool);
 
     /**
+     * @notice emits Withdrawn
      * @notice modifies _deposits[payee]
      * @notice modifies address(this).balance
      * @notice modifies payee.balance
@@ -160,7 +178,16 @@ contract ConditionalEscrow is Escrow {
 contract RefundEscrow is ConditionalEscrow {
     enum State { Active, Refunding, Closed }
 
+    /// @notice tracks-changes-in _state
+    /// @notice tracks-changes-in _primary
+    /// @notice precondition _state == State.Active && msg.sender == _primary
+    /// @notice postcondition _state == State.Closed
     event RefundsClosed();
+
+    /// @notice tracks-changes-in _state
+    /// @notice tracks-changes-in _primary
+    /// @notice precondition _state == State.Active && msg.sender == _primary
+    /// @notice postcondition _state == State.Refunding
     event RefundsEnabled();
 
     State private _state;
@@ -169,6 +196,7 @@ contract RefundEscrow is ConditionalEscrow {
     /**
      * @dev Constructor.
      * @param beneficiary The beneficiary of the deposits.
+     * @notice emits PrimaryTransferred
      */
     constructor (address payable beneficiary) public {
         require(beneficiary != address(0), "RefundEscrow: beneficiary is the zero address");
@@ -194,6 +222,7 @@ contract RefundEscrow is ConditionalEscrow {
      * @dev Stores funds that may later be refunded.
      * @param refundee The address funds will be sent to if a refund occurs.
      *
+     * @notice emits Deposited
      * @notice modifies _deposits[refundee] if _state == State.Active
      * @notice modifies address(this).balance
      */
@@ -207,6 +236,7 @@ contract RefundEscrow is ConditionalEscrow {
      * further deposits.
      *
      * @notice modifies _state if _state == State.Active && msg.sender == _primary
+     * @notice emits RefundsClosed
      */
     function close() public onlyPrimary {
         require(_state == State.Active, "RefundEscrow: can only close while active");
@@ -218,6 +248,7 @@ contract RefundEscrow is ConditionalEscrow {
      * @dev Allows for refunds to take place, rejecting further deposits.
      *
      * @notice modifies _state if _state == State.Active && msg.sender == _primary
+     * @notice emits RefundsEnabled
      */
     function enableRefunds() public onlyPrimary {
         require(_state == State.Active, "RefundEscrow: can only enable refunds while active");

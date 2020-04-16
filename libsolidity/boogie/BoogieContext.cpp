@@ -1,8 +1,11 @@
+#include <libsolidity/analysis/NameAndTypeResolver.h>
+#include <libsolidity/analysis/TypeChecker.h>
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/ast/TypeProvider.h>
 #include <libsolidity/boogie/ASTBoogieUtils.h>
 #include <libsolidity/boogie/BoogieContext.h>
 #include <libsolidity/boogie/BoogieAst.h>
+#include <libsolidity/parsing/Parser.h>
 
 #include <liblangutil/ErrorReporter.h>
 #include <liblangutil/SourceReferenceFormatter.h>
@@ -357,6 +360,59 @@ string BoogieContext::mapDeclName(Declaration const& decl)
 	}
 
 	return name;
+}
+
+ASTPointer<Expression> BoogieContext::parseAnnotation(string exprStr, ASTNode const& _node, ASTNode const* _scope)
+{
+	// We temporarily replace the error reporter, because the locations
+	// are pointing to positions in the docstring
+	ErrorList errorList;
+	ErrorReporter errorReporter(errorList);
+
+	ErrorReporter* originalErrReporter = m_errorReporter;
+	m_errorReporter = &errorReporter;
+
+	CharStream exprStream(exprStr, "Annotation");
+	ASTPointer<Expression> expr = nullptr;
+	try
+	{
+		// Parse
+		expr = Parser(*m_errorReporter, m_evmVersion).parseExpression(std::make_shared<Scanner>(exprStream));
+		if (!expr)
+			throw langutil::FatalError();
+
+		// Resolve references, using the given scope
+		m_scopes[expr.get()] = m_scopes[_scope];
+		NameAndTypeResolver resolver(m_globalContext, m_evmVersion, m_scopes, *m_errorReporter);
+		if (resolver.resolveNamesAndTypes(*expr))
+		{
+			// Do type checking
+			TypeChecker typeChecker(m_evmVersion, *m_errorReporter, m_currentContract);
+			if (!typeChecker.checkTypeRequirements(*expr)) expr = nullptr;
+		}
+		else
+			expr = nullptr;
+	}
+	catch (langutil::FatalError const& fe)
+	{
+		reportError(&_node, "Fatal error while parsing annotation.");
+		expr = nullptr;
+	}
+
+	// Print errors relating to the expression string
+	printErrors(cerr);
+
+	// Restore error reporter
+	m_errorReporter = originalErrReporter;
+	// Add a single error in the original reporter if there were errors
+	if (!Error::containsOnlyWarnings(errorList))
+		reportError(&_node, "Error(s) while parsing annotation for node");
+	else if (errorList.size() > 0)
+		reportWarning(&_node, "Warning(s) while parsing annotation for node");
+
+	solAssert(!Error::containsOnlyWarnings(errorList) || expr, "Returning null with no errors");
+	solAssert(!expr || Error::containsOnlyWarnings(errorList), "Returning non-null with errors");
+	return expr;
 }
 
 void BoogieContext::warnForBalances()
@@ -1158,5 +1214,250 @@ bg::Expr::Ref BoogieContext::ecrecover(bg::Expr::Ref hash, bg::Expr::Ref v, bg::
 	return bg::Expr::fn(fnName, {hash, v, r, s});
 }
 
+bg::Expr::substitution const& BoogieContext::getEventDataSubstitution() const
+{
+	return m_eventDataSubstitution;
+}
+
+void BoogieContext::addEventData(Expression const* expr, EventDefinition const* event)
+{
+	// Get the variable
+	auto dataExpr = dynamic_cast<Identifier const*>(expr);
+	solAssert(dataExpr, "We only accept members");
+	std::string dataVarName =  mapDeclName(*dataExpr->annotation().referencedDeclaration);
+	auto dataDecl = dataExpr->annotation().referencedDeclaration;
+
+	// If expression already there, we can skip
+	if (m_eventData[event].count(dataDecl) > 0)
+		return;
+
+	// Create the new variables and declare them
+	if (m_allEventData.count(dataDecl) == 0)
+	{
+		string oldDataName = dataVarName + "#event_old";
+		TypePointer type = dataExpr->annotation().type;
+		bg::TypeDeclRef oldDataType = bg::Decl::arraytype(addressType(), toBoogieType(type, expr));
+		bg::VarDeclRef oldDataDecl = bg::Decl::variable(oldDataName, oldDataType);
+		addDecl(oldDataDecl);
+		string oldUpdateName = dataVarName + "#event_old#saved";
+		bg::TypeDeclRef oldUpdateType = bg::Decl::elementarytype("bool");
+		bg::VarDeclRef oldUpdateDecl = bg::Decl::variable(oldUpdateName, oldUpdateType);
+		addDecl(oldUpdateDecl);
+		bg::Expr::Ref data = bg::Expr::id(dataVarName);
+		bg::Expr::Ref oldData = bg::Expr::id(oldDataName);
+		bg::Expr::Ref oldDataSaved = bg::Expr::id(oldUpdateName);
+		m_allEventData[dataDecl].dataVar = data;
+		m_allEventData[dataDecl].oldDataVar = oldData;
+		m_allEventData[dataDecl].oldDataSavedVar = oldDataSaved;
+		m_eventDataSubstitution[dataVarName] = bg::Expr::cond(oldDataSaved, oldData, data);
+	}
+
+	// Record the data and the substitution
+	m_eventData[event].insert(dataDecl);
+}
+
+void BoogieContext::enableEventDataTrackingFor(EventDefinition const* event)
+{
+	// If the
+	solAssert(m_eventData.count(event), "Events need to be processed before enabling them");
+	m_eventDataCurrent.insert(event);
+}
+
+void BoogieContext::disableEventDataTracking()
+{
+	m_eventDataCurrent.clear();
+}
+
+/** Helper class to compute all base expressions in LValue */
+class ExprBaseComputation : private ASTConstVisitor
+{
+private:
+
+	std::set<Identifier const*>& m_baseExpressions;
+
+public:
+
+	/**
+	 * Create a new instance with a given context.
+	 */
+	ExprBaseComputation(std::set<Identifier const*>& modified)
+	: m_baseExpressions(modified) {}
+
+	/**	Get the base field variable of a lvale. */
+	void run(Expression const& _node)
+	{
+		_node.accept(*this);
+	}
+
+	// Only need to handle expressions that have a base or where we
+	// should report errors because unsupported
+	bool visit(Conditional const& _node) override
+	{
+		_node.trueExpression().accept(*this);
+		_node.falseExpression().accept(*this);
+		return false;
+	}
+
+	bool visit(Assignment const& _node) override
+	{
+		(void)_node;
+		solAssert(false, "Assignment not allowed in LValue");
+		return false;
+	}
+
+	bool visit(FunctionCall const& _node) override
+	{
+		(void)_node;
+		solAssert(false, "Function calls not allowed in LValue");
+		return false;
+	}
+
+	bool visit(NewExpression const& _node) override
+	{
+		(void)_node;
+		solAssert(false, "Operator new not allowed in LValue");
+		return false;
+	}
+
+	bool visit(MemberAccess const& _node) override
+	{
+		_node.expression().accept(*this);
+		return false;
+	}
+
+	bool visit(IndexAccess const& _node) override
+	{
+		_node.baseExpression().accept(*this);
+		return false;
+	}
+
+	bool visit(Identifier const& _node) override
+	{
+		m_baseExpressions.insert(&_node);
+		return false;
+	}
+
+};
+
+std::list<bg::Stmt::Ref> BoogieContext::checkForEventDataSave(Expression const* lhsExpr)
+{
+	// Get the base expressions and their declaration
+	std::set<Identifier const*> baseExpressions;
+	ExprBaseComputation computeBase(baseExpressions);
+	computeBase.run(*lhsExpr);
+	// TODO: go through the found identifiers and see which ones are storage pointers
+	// those need to have special treatment
+	std::set<Declaration const*> baseDeclarations;
+	std::set<Declaration const*> updatedExpressions;
+	for (auto const& id: baseExpressions)
+		baseDeclarations.insert(id->annotation().referencedDeclaration);
+
+	// Collect all events where the base expression is watched to see if it needs saving
+	for (auto event: m_eventDataCurrent)
+	{
+		auto const& eventInfo = m_eventData[event];
+		for (auto expr: eventInfo)
+		{
+			if (baseDeclarations.count(expr))
+			{
+				updatedExpressions.insert(expr);
+				break;
+			}
+		}
+	}
+
+	// Make the statement if (!data_saved) { old_data = data; data_saved = true; }
+	std::list<bg::Stmt::Ref> stmts;
+	for (auto e: updatedExpressions)
+	{
+		auto const& info = m_allEventData[e];
+		std::string dataVarName = mapDeclName(*e);
+		bg::Expr::Ref dataVar = bg::Expr::id(dataVarName);
+		bg::Block::Ref update = bg::Block::block();
+		update->addStmts({
+			bg::Stmt::assign(info.oldDataVar, dataVar),
+			bg::Stmt::assign(info.oldDataSavedVar, bg::Expr::lit(true))
+		});
+		stmts.push_back(bg::Stmt::ifelse(bg::Expr::not_(info.oldDataSavedVar), update));
+	}
+
+	return stmts;
+}
+
+bg::ProcDeclRef BoogieContext::declareEventProcedure(EventDefinition const* event, std::string eventName, std::vector<bg::Binding> const& params)
+{
+	// Event body sets up the variables
+	vector<bg::Block::Ref> blocks;
+	blocks.push_back(bg::Block::block());
+
+	// Get event data and add the statements
+	auto const& eventData = m_eventData[event];
+	for (auto e: eventData)
+	{
+		bg::Expr::Ref dataSavedVar = m_allEventData[e].oldDataSavedVar;
+		blocks.back()->addStmt(bg::Stmt::assign(dataSavedVar, bg::Expr::lit(false)));
+	}
+
+	// Declare postconditions
+	auto procDecl = bg::Decl::procedure(eventName, params, {}, {}, blocks);
+
+	// At least one data entry has been saved on entry, none has been saved on exit
+	if (eventData.size())
+	{
+		std::vector<bg::Expr::Ref> dataSavedDisjuncts;
+		for (auto const& e: eventData)
+			dataSavedDisjuncts.push_back(m_allEventData[e].oldDataSavedVar);
+		bg::Expr::Ref dataSaved = bg::Expr::or_(dataSavedDisjuncts);
+
+		procDecl->getRequires().push_back(bg::Specification::spec(dataSaved,
+			ASTBoogieUtils::createAttrs(event->location(), "Event triggered without changes to data", *currentScanner())));
+		procDecl->getEnsures().push_back(bg::Specification::spec(bg::Expr::not_(dataSaved),
+			ASTBoogieUtils::createAttrs(event->location(), "Event triggered without changes to data", *currentScanner())));
+	}
+
+	procDecl->addAttr(bg::Attr::attr("inline", 1));
+
+	return procDecl;
+}
+
+void BoogieContext::addFunctionSpecsForEvent(EventDefinition const* event, bg::ProcDeclRef procDecl)
+{
+	auto eventData = m_eventData[event];
+	if (eventData.size())
+	{
+		std::vector<bg::Expr::Ref> dataSavedDisjuncts;
+		for (auto e: eventData)
+			dataSavedDisjuncts.push_back(m_allEventData[e].oldDataSavedVar);
+		bg::Expr::Ref dataNotSaved = bg::Expr::not_(bg::Expr::or_(dataSavedDisjuncts));
+
+		procDecl->getRequires().push_back(bg::Specification::spec(dataNotSaved,
+				ASTBoogieUtils::createAttrs(event->location(), "Function called without triggering event " + event->name(), *currentScanner())));
+		procDecl->getEnsures().push_back(bg::Specification::spec(dataNotSaved,
+				ASTBoogieUtils::createAttrs(event->location(), "Function can end without triggering event", *currentScanner())));
+	}
+}
+
+std::pair<boogie::Expr::Ref, std::string> BoogieContext::getEventLoopInvariant(EventDefinition const* event) const
+{
+	std::pair<boogie::Expr::Ref, std::string> result;
+	auto eventData = m_eventData.find(event);
+	if (eventData != m_eventData.end() && eventData->second.size())
+	{
+		std::vector<bg::Expr::Ref> dataSavedDisjuncts;
+		for (auto e: eventData->second)
+		{
+			auto dataInfo = m_allEventData.find(e);
+			solAssert(dataInfo != m_allEventData.end(), "Should have been added");
+			dataSavedDisjuncts.push_back(dataInfo->second.oldDataSavedVar);
+		}
+		bg::Expr::Ref dataNotSaved =  bg::Expr::not_(bg::Expr::or_(dataSavedDisjuncts));
+		result.first = dataNotSaved,
+		result.second = "event " + event->name() + " must be triggered if event tracked data was modified";
+	}
+	return result;
+}
+
 }
 }
+
+

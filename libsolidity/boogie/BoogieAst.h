@@ -34,12 +34,18 @@ public:
 	/** Reference to expressions */
 	using Ref = std::shared_ptr<Expr const>;
 
+	/** A substitution is a map from variable names to expressions to substitute */
+	using substitution = std::map<std::string, Ref>;
+
 	virtual ~Expr() {}
 	virtual void print(std::ostream& os) const = 0;
 	virtual void printSMT2(std::ostream& os) const;
 
 	std::string toString() const;
 	std::string toSMT2() const;
+
+	/** Substitutes s into the expression */
+	virtual Ref substitute(substitution const& s) const = 0;
 
 	virtual bool isError() const { return false; }
 
@@ -49,8 +55,11 @@ public:
 	static Ref exists(std::vector<Binding> const&, Ref e);
 	static Ref forall(std::vector<Binding> const&, Ref e);
 	static Ref and_(Ref l, Ref r);
+	static Ref and_(std::vector<Expr::Ref> const& es);
 	static Ref or_(Ref l, Ref r);
+	static Ref or_(std::vector<Expr::Ref> const& es);
 	static Ref cond(Ref c, Ref t, Ref e);
+	static Ref oneOf(std::vector<Expr::Ref> const& es);
 	static Ref eq(Ref l, Ref r);
 	static Ref lt(Ref l, Ref r);
 	static Ref gt(Ref l, Ref r);
@@ -104,6 +113,7 @@ class ErrorExpr : public Expr
 public:
 	bool isError() const override { return true; }
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class BinExpr : public Expr
@@ -121,6 +131,7 @@ private:
 public:
 	BinExpr(Binary const op, Expr::Ref l, Expr::Ref r) : op(op), lhs(l), rhs(r) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class CondExpr : public Expr {
@@ -131,6 +142,7 @@ public:
 	CondExpr(Expr::Ref c, Expr::Ref t, Expr::Ref e)
 		: cond(c), then(t), else_(e) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 
 	Expr::Ref getCond() const { return cond; }
 	Expr::Ref getThen() const { return then; }
@@ -143,6 +155,7 @@ class FunExpr : public Expr {
 public:
 	FunExpr(std::string f, std::vector<Ref> const& xs) : fun(f), args(xs) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class BoolLit : public Expr {
@@ -150,6 +163,7 @@ class BoolLit : public Expr {
 public:
 	BoolLit(bool b) : val(b) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class IntLit : public Expr {
@@ -161,6 +175,7 @@ public:
 	IntLit(bigint v) : val(v) {}
 	bigint getVal() const { return val; }
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class BvLit : public Expr {
@@ -176,6 +191,7 @@ public:
 	std::string getVal() const { return val; }
 	void print(std::ostream& os) const override;
 	void printSMT2(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class FPLit : public Expr {
@@ -187,6 +203,7 @@ class FPLit : public Expr {
 public:
 	FPLit(bool n, std::string s, std::string e, unsigned ss, unsigned es) : neg(n), sig(s), expo(e), sigSize(ss), expSize(es) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class StringLit : public Expr {
@@ -194,6 +211,7 @@ class StringLit : public Expr {
 public:
 	StringLit(std::string v) : val(v) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class NegExpr : public Expr {
@@ -201,6 +219,7 @@ class NegExpr : public Expr {
 public:
 	NegExpr(Expr::Ref e) : expr(e) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class NotExpr : public Expr {
@@ -208,6 +227,7 @@ class NotExpr : public Expr {
 public:
 	NotExpr(Expr::Ref e) : expr(e) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class QuantExpr : public Expr {
@@ -220,6 +240,7 @@ private:
 public:
 	QuantExpr(Quantifier q, std::vector<Binding> const& vs, Ref e) : quant(q), vars(vs), expr(e) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class SelExpr : public Expr {
@@ -247,6 +268,7 @@ class ArrConstExpr : public Expr {
 public:
 	ArrConstExpr(TypeDeclRef arrType, Ref val) : arrType(arrType), val(val) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class ArrSelExpr : public SelExpr {
@@ -255,8 +277,10 @@ public:
 	ArrSelExpr(Ref a, Ref i) : SelExpr(a), idx(i) {}
 	Ref const& getIdx() const { return idx; }
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 	Ref toUpdate(Ref v) const override { return Expr::arrupd(base, idx, v); }
 	Ref replaceBase(Ref b) const override { return Expr::arrsel(b, idx); }
+
 };
 
 class ArrUpdExpr : public UpdExpr {
@@ -265,6 +289,7 @@ public:
 	ArrUpdExpr(Ref a, Ref i, Ref v)
 		: UpdExpr(a, v), idx(i) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class VarExpr : public Expr {
@@ -273,6 +298,7 @@ public:
 	VarExpr(std::string v) : var(v) {}
 	std::string name() const { return var; }
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class OldExpr : public Expr {
@@ -280,6 +306,7 @@ class OldExpr : public Expr {
 public:
 	OldExpr(Ref expr) : expr(expr) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class TupleExpr : public Expr {
@@ -288,6 +315,7 @@ public:
 	TupleExpr(std::vector<Ref> const& elements): es(elements) {}
 	std::vector<Ref> const& elements() const { return es; }
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class Attr {
@@ -578,6 +606,7 @@ public:
 	FuncDeclRef getConstr() const { return constr; }
 	DataTypeDeclRef getDataType() const { return dt; }
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 	Ref toUpdate(Ref v) const override { return Expr::dtupd(base, member, v, constr, dt); }
 	Ref replaceBase(Ref b) const override { return Expr::dtsel(b, member, constr, dt); }
 };
@@ -594,6 +623,7 @@ public:
 	FuncDeclRef getConstr() const { return constr; }
 	DataTypeDeclRef getDataType() const { return dt; }
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class AxiomDecl : public Decl {
@@ -701,6 +731,7 @@ class CodeExpr : public Expr, public CodeContainer {
 public:
 	CodeExpr(DeclarationList ds, BlockList bs) : CodeContainer(ds, bs) {}
 	void print(std::ostream& os) const override;
+	Ref substitute(substitution const& s) const override;
 };
 
 class Specification {
@@ -710,8 +741,7 @@ public:
 
 	using Ref = std::shared_ptr<Specification const>;
 
-	Specification(Expr::Ref e, std::vector<Attr::Ref> const& ax)
-		: expr(e), attrs(ax) {}
+	Specification(Expr::Ref e, std::vector<Attr::Ref> const& ax);
 
 	void print(std::ostream& os, std::string kind) const;
 	static Ref spec(Expr::Ref e, std::vector<Attr::Ref> const& ax);

@@ -1,16 +1,12 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/trim.hpp>
-#include <libsolidity/analysis/NameAndTypeResolver.h>
-#include <libsolidity/analysis/TypeChecker.h>
 #include <libsolidity/boogie/AssignHelper.h>
 #include <libsolidity/boogie/ASTBoogieConverter.h>
 #include <libsolidity/boogie/ASTBoogieExpressionConverter.h>
 #include <libsolidity/boogie/ASTBoogieUtils.h>
 #include <libsolidity/boogie/StoragePtrHelper.h>
 #include <libsolidity/ast/TypeProvider.h>
-#include <libsolidity/parsing/Parser.h>
-#include <liblangutil/SourceReferenceFormatter.h>
 #include <liblangutil/ErrorReporter.h>
 
 #include <map>
@@ -50,10 +46,27 @@ void ASTBoogieConverter::createImplicitConstructor(ContractDefinition const& _no
 
 	m_localDecls.clear();
 
+	// Create a new error reporter to be able to recover
+	ErrorList errorList;
+	ErrorReporter errorReporter(errorList);
+	ErrorReporter* originalErrReporter = m_context.errorReporter();
+	m_context.errorReporter() = &errorReporter;
+
 	// Include preamble
 	m_currentBlocks.push(bg::Block::block());
 	constructorPreamble();
-	bg::Block::Ref block = m_currentBlocks.top();
+
+	// Print errors related to the function
+	m_context.printErrors(cerr);
+	// Restore error reporter
+	m_context.errorReporter() = originalErrReporter;
+
+	// Add function body if there were no errors
+	vector<bg::Block::Ref> blocks;
+	if (Error::containsOnlyWarnings(errorList))
+		blocks.push_back(m_currentBlocks.top());
+	else
+		m_context.reportWarning(&_node, "Errors while inlining base constructor(s) into implicit constructor, will be skipped");
 	m_currentBlocks.pop();
 	solAssert(m_currentBlocks.empty(), "Non-empty stack of blocks at the end of function.");
 
@@ -67,7 +80,7 @@ void ASTBoogieConverter::createImplicitConstructor(ContractDefinition const& _no
 	};
 
 	// Create the procedure
-	auto procDecl = bg::Decl::procedure(funcName, params, {}, m_localDecls, {block});
+	auto procDecl = bg::Decl::procedure(funcName, params, {}, m_localDecls, blocks);
 	for (auto invar: m_context.currentContractInvars())
 	{
 		auto attrs = ASTBoogieUtils::createAttrs(_node.location(), "State variable initializers might violate invariant '" + invar.exprStr + "'.", *m_context.currentScanner());
@@ -84,6 +97,17 @@ void ASTBoogieConverter::createImplicitConstructor(ContractDefinition const& _no
 	}
 	auto attrs = ASTBoogieUtils::createAttrs(_node.location(),  _node.name() + "::[implicit_constructor]", *m_context.currentScanner());
 	procDecl->addAttrs(attrs);
+
+	if (!Error::containsOnlyWarnings(errorList))
+		procDecl->addAttr(bg::Attr::attr("skipped"));
+
+	// Havoc state vars if skipped
+	if (!Error::containsOnlyWarnings(errorList))
+		for (auto contract: m_context.currentContract()->annotation().linearizedBaseContracts)
+			for (auto sv: ASTNode::filteredNodes<VariableDeclaration>(contract->subNodes()))
+				if (!sv->isConstant())
+					procDecl->getModifies().push_back(m_context.mapDeclName(*sv));
+
 	m_context.addDecl(procDecl);
 }
 
@@ -286,72 +310,56 @@ void ASTBoogieConverter::initializeStateVar(VariableDeclaration const& _node)
 	}
 }
 
-bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result)
+bool ASTBoogieConverter::parseBoogieExpr(string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result)
 {
-	// We temporarily replace the error reporter in the context, because the locations
-	// are pointing to positions in the docstring
-	ErrorList errorList;
-	ErrorReporter errorReporter(errorList);
-	TypeChecker typeChecker(m_context.evmVersion(), errorReporter, m_context.currentContract());
-
-	ErrorReporter* originalErrReporter = m_context.errorReporter();
-	m_context.errorReporter() = &errorReporter;
-
-	try
+	if (auto expr = m_context.parseAnnotation(exprStr, _node, _scope))
 	{
-		// Parse
-		CharStream exprStream(exprStr, "Annotation");
-		ASTPointer<Expression> expr = Parser(*m_context.errorReporter(), m_context.evmVersion())
-			.parseExpression(std::make_shared<Scanner>(exprStream));
-		if (!expr)
-			throw langutil::FatalError();
+		// Convert expression to Boogie representation
+		bool ok = true;
+		// We temporarily replace the error reporter, because the locations
+		// are pointing to positions in the docstring
+		ErrorList errorList;
+		ErrorReporter errorReporter(errorList);
+		ErrorReporter* originalErrReporter = m_context.errorReporter();
+		m_context.errorReporter() = &errorReporter;
 
-		// Resolve references, using the given scope
-		m_context.scopes()[expr.get()] = m_context.scopes()[_scope];
-		NameAndTypeResolver resolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
-		if (resolver.resolveNamesAndTypes(*expr))
+		auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr, true);
+		result.expr = convResult.expr;
+		result.exprStr = exprStr;
+		result.exprSol = expr;
+		result.tccs = convResult.tccs;
+		result.ocs = convResult.ocs;
+
+		// Print errors relating to the expression string
+		m_context.printErrors(cerr);
+
+		// Restore error reporter
+		m_context.errorReporter() = originalErrReporter;
+		// Add a single error in the original reporter if there were errors
+		if (!Error::containsOnlyWarnings(errorList))
 		{
-			// Do type checking
-			if (typeChecker.checkTypeRequirements(*expr))
-			{
-				// Convert expression to Boogie representation
-				auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr, true);
-				result.expr = convResult.expr;
-				result.exprStr = exprStr;
-				result.exprSol = expr;
-				result.tccs = convResult.tccs;
-				result.ocs = convResult.ocs;
-
-				// Report unsupported cases (side effects)
-				if (!convResult.newStatements.empty())
-					m_context.reportError(&_node, "Annotation expression introduces intermediate statements");
-				if (!convResult.newDecls.empty())
-					m_context.reportError(&_node, "Annotation expression introduces intermediate declarations");
-
-			}
+			m_context.reportError(&_node, "Error(s) while translating annotation for node");
+			ok = false;
 		}
-	}
-	catch (langutil::FatalError const& fe)
-	{
-		m_context.reportError(&_node, "Error while parsing annotation.");
-	}
+		else if (errorList.size() > 0)
+			m_context.reportWarning(&_node, "Warning(s) while translating annotation for node");
 
-	// Print errors relating to the expression string
-	m_context.printErrors(cerr);
+		// Report unsupported cases (side effects)
+		if (!convResult.newStatements.empty())
+		{
+			m_context.reportError(&_node, "Annotation expression introduces intermediate statements");
+			ok = false;
+		}
+		if (!convResult.newDecls.empty())
+		{
+			m_context.reportError(&_node, "Annotation expression introduces intermediate declarations");
+			ok = false;
+		}
 
-	// Restore error reporter
-	m_context.errorReporter() = originalErrReporter;
-	// Add a single error in the original reporter if there were errors
-	if (!Error::containsOnlyWarnings(errorList))
-	{
-		m_context.reportError(&_node, "Error(s) while processing annotation for node");
+		return ok;
+	}
+	else
 		return false;
-	}
-	else if (errorList.size() > 0)
-	{
-		m_context.reportWarning(&_node, "Warning(s) while processing annotation for node");
-	}
-	return true;
 }
 
 std::vector<BoogieContext::DocTagExpr> ASTBoogieConverter::getExprsFromDocTags(ASTNode const& _node, DocumentedAnnotation const& _annot,
@@ -363,7 +371,7 @@ std::vector<BoogieContext::DocTagExpr> ASTBoogieConverter::getExprsFromDocTags(A
 		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, _tag)) // Find expressions with the given tag
 		{
 			BoogieContext::DocTagExpr expr;
-			if (parseExpr(docTag.second.content.substr(_tag.length() + 1), _node, _scope, expr))
+			if (parseBoogieExpr(docTag.second.content.substr(_tag.length() + 1), _node, _scope, expr))
 				exprs.push_back(expr);
 		}
 	}
@@ -377,6 +385,46 @@ bool ASTBoogieConverter::includeContractInvars(DocumentedAnnotation const& _anno
 			return true;
 
 	return false;
+}
+
+bool ASTBoogieConverter::collectEmitsSpecs(FunctionDefinition const& _node)
+{
+	// TODO: this is a duplication, EmitsChecker already has this information
+
+	m_currentEmits.clear();
+	// Collect all the events from the docTags and enable tracking
+	for (auto docTag: _node.annotation().docTags)
+	{
+		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, ASTBoogieUtils::DOCTAG_EMITS))
+		{
+			bool ok = false;
+			string eventName = docTag.second.content.substr(ASTBoogieUtils::DOCTAG_EMITS.length() + 1);
+			boost::trim(eventName);
+
+			DeclarationContainer const* container = m_context.scopes()[&_node].get();
+			while (container)
+			{
+				if (container->declarations().find(eventName) != container->declarations().end())
+					for (auto const decl: container->declarations().at(eventName))
+						if (auto eventDecl = dynamic_cast<EventDefinition const*>(decl))
+						{
+							m_currentEmits.insert(eventDecl);
+							m_context.enableEventDataTrackingFor(eventDecl);
+							ok = true;
+						}
+
+				container = container->enclosingContainer();
+			}
+
+			if (!ok)
+			{
+				m_context.reportError(&_node, "No event found with name '" + eventName + "'.");
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 Declaration const* ASTBoogieConverter::getModifiesBase(Expression const* expr)
@@ -457,13 +505,13 @@ void ASTBoogieConverter::addModifiesSpecs(FunctionDefinition const& _node, bg::P
 				targetEnd = condStart;
 				// Parse the condition
 				BoogieContext::DocTagExpr cond;
-				if (parseExpr(docTag.second.content.substr(condStart + ASTBoogieUtils::DOCTAG_MODIFIES_COND.length()), _node, &_node, cond))
+				if (parseBoogieExpr(docTag.second.content.substr(condStart + ASTBoogieUtils::DOCTAG_MODIFIES_COND.length()), _node, &_node, cond))
 					condExpr = bg::Expr::old(cond.expr);
 			}
 			// Parse the target (identifier/selector)
 			BoogieContext::DocTagExpr target;
 			size_t targetStart = ASTBoogieUtils::DOCTAG_MODIFIES.length() + 1;
-			if (parseExpr(docTag.second.content.substr(targetStart, targetEnd - targetStart + 1), _node, &_node, target))
+			if (parseBoogieExpr(docTag.second.content.substr(targetStart, targetEnd - targetStart + 1), _node, &_node, target))
 			{
 				auto memAccExpr = dynamic_cast<MemberAccess const*>(target.exprSol.get());
 				if (memAccExpr && memAccExpr->memberName() == ASTBoogieUtils::BALANCE.solidity &&
@@ -666,6 +714,10 @@ bool ASTBoogieConverter::visit(ContractDefinition const& _node)
 	for (auto ispec: _node.baseContracts())
 		ispec->accept(*this);
 
+	// Process any event definitions
+	for (auto event: ASTNode::filteredNodes<EventDefinition>(_node.subNodes()))
+		processEventDefinition(*event);
+
 	// Process subnodes
 	for (auto sn: _node.subNodes())
 		sn->accept(*this);
@@ -807,6 +859,9 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	else
 		m_currentRet = bg::Expr::tuple(retIds);
 
+	// Collect emits specs before processing body
+	collectEmitsSpecs(_node);
+
 	// Create a new error reporter to be able to recover
 	ErrorList errorList;
 	ErrorReporter errorReporter(errorList);
@@ -878,6 +933,9 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 
 	m_currentBlocks.pop();
 	solAssert(m_currentBlocks.empty(), "Non-empty stack of blocks at the end of function.");
+
+	// Disable event tracking since we're done with the body
+	m_context.disableEventDataTracking();
 
 	// Get the name of the function
 	string funcName = _node.isConstructor() ?
@@ -959,6 +1017,12 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	}
 	// TODO: check that no new sum variables were introduced
 
+	// Add all specs for events that have been declared
+	for (auto ev: m_currentEmits)
+	{
+		m_context.addFunctionSpecsForEvent(ev, procDecl);
+	}
+
 	// Modifies specifications
 	addModifiesSpecs(_node, procDecl);
 
@@ -1028,11 +1092,117 @@ bool ASTBoogieConverter::visit(ModifierInvocation const& _node)
 	return false;
 }
 
+/** Helper class to compute all state variables in an spec expression */
+class ExprStateComputation : private ASTConstVisitor
+{
+private:
+
+	std::set<Identifier const*>& m_stateExpressions;
+
+public:
+
+	/**
+	 * Create a new instance with a given context.
+	 */
+	ExprStateComputation(std::set<Identifier const*>& modified)
+	: m_stateExpressions(modified) {}
+
+	/**	Get the base field variable of a lvale. */
+	void run(Expression const& _node)
+	{
+		_node.accept(*this);
+	}
+
+	bool visit(Identifier const& _node) override
+	{
+		// Only state variables
+		if (auto varDecl = dynamic_cast<VariableDeclaration const*>(_node.annotation().referencedDeclaration))
+			if (varDecl && varDecl->isStateVariable())
+				m_stateExpressions.insert(&_node);
+		return false;
+	}
+
+};
+
+void ASTBoogieConverter::processEventDefinition(EventDefinition const& _event)
+{
+	rememberScope(_event);
+
+	// For each event emit we add:
+	// - a precondition assertion: pre(saved_data)
+	// - a postcondition assertion: post
+	// To do so while reusing the Boogie infrastructure, we will:
+	// - add a member saved_data and a flag for when it has been changed
+	// - replace data in pre with saved_data
+	// - declare the event as an inline function with an empty body
+	// - treat both preconditions and postconditions as function preconditions in Boogie
+
+	auto eventTracks = getExprsFromDocTags(_event, _event.annotation(), scope(), ASTBoogieUtils::DOCTAG_EVENT_TRACKS_CHANGES);
+	auto eventPreconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), ASTBoogieUtils::DOCTAG_PRECOND);
+	auto eventPostconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), ASTBoogieUtils::DOCTAG_POSTCOND);
+
+	// Add all the tracked data
+	for (auto e: eventTracks)
+		m_context.addEventData(e.exprSol.get(), &_event);
+	// Also add all variables appearing in pre- condition
+	std::set<Identifier const*> stateVars;
+	ExprStateComputation stateVarCompuatation(stateVars);
+	for (auto pre: eventPreconditions)
+		stateVarCompuatation.run(*pre.exprSol);
+	for (auto post: eventPostconditions)
+		stateVarCompuatation.run(*post.exprSol);
+	for (auto e: stateVars)
+		m_context.addEventData(e, &_event);
+
+	// Name of the event
+	string eventName = m_context.mapDeclName(_event);
+
+	// Input parameters
+	std::vector<bg::Binding> params {
+		{m_context.boogieThis()->getRefTo(), m_context.boogieThis()->getType() }, // this
+		{m_context.boogieMsgSender()->getRefTo(), m_context.boogieMsgSender()->getType() }, // msg.sender
+		{m_context.boogieMsgValue()->getRefTo(), m_context.boogieMsgValue()->getType() } // msg.value
+	};
+	for (auto par: _event.parameters())
+		params.push_back({bg::Expr::id(m_context.mapDeclName(*par)), m_context.toBoogieType(par->type(), par.get())});
+
+	// Create the procedure
+	auto procDecl = m_context.declareEventProcedure(&_event, eventName, params);
+
+	// Add preconditions
+	for (auto eventPre: eventPreconditions)
+	{
+		auto attrs = ASTBoogieUtils::createAttrs(_event.location(), "Event precondition '" + eventPre.exprStr + "' might not hold before emit of " + _event.name() + ".", *m_context.currentScanner());
+		auto oldExpr = eventPre.expr->substitute(m_context.getEventDataSubstitution());
+		auto spec = bg::Specification::spec(oldExpr, attrs);
+		procDecl->getRequires().push_back(spec);
+	}
+	// Add postconditions
+	for (auto eventPost: eventPostconditions)
+	{
+		auto attrs = ASTBoogieUtils::createAttrs(_event.location(), "Event postcondition '" + eventPost.exprStr + "' might not hold before emit " + _event.name() + ".", *m_context.currentScanner());
+		auto spec = bg::Specification::spec(eventPost.expr, attrs);
+		procDecl->getRequires().push_back(spec);
+	}
+
+
+	// Add traceability info
+	string traceabilityName = _event.name();
+	traceabilityName = "[event] " + m_context.currentContract()->name() + "::" + traceabilityName;
+	procDecl->addAttrs(ASTBoogieUtils::createAttrs(_event.location(), traceabilityName, *m_context.currentScanner()));
+
+	m_context.addGlobalComment("\nEvent: " + _event.name());
+	m_context.addDecl(procDecl);
+
+	// Remove the scope
+	endVisitNode(_event);
+}
+
+
 bool ASTBoogieConverter::visit(EventDefinition const& _node)
 {
 	rememberScope(_node);
 
-	m_context.reportWarning(&_node, "Ignored event definition");
 	return false;
 }
 
@@ -1164,6 +1334,14 @@ bool ASTBoogieConverter::visit(WhileStatement const& _node)
 	}
 	// TODO: check that invariants did not introduce new sum variables
 
+	// Add invariants for events that have been declared
+	for (auto ev: m_currentEmits)
+	{
+		auto invar = m_context.getEventLoopInvariant(ev);
+		if (invar.first)
+			invars.push_back(invar);
+	}
+
 	// Get condition recursively (create block for side effects)
 	m_currentBlocks.push(bg::Block::block());
 	bg::Expr::Ref cond = convertExpression(_node.condition());
@@ -1284,6 +1462,17 @@ bool ASTBoogieConverter::visit(ForStatement const& _node)
 	}
 	// TODO: check that invariants did not introduce new sum variables
 
+	// Add invariants for events that have been declared
+	for (auto ev: m_currentEmits)
+	{
+		auto invar = m_context.getEventLoopInvariant(ev);
+		if (invar.first)
+		{
+			auto invarAttrs = ASTBoogieUtils::createAttrs(_node.location(), invar.second, *m_context.currentScanner());
+			invars.push_back(bg::Specification::spec(invar.first, invarAttrs));
+		}
+	}
+
 	m_currentBlocks.top()->addStmt(bg::Stmt::while_(cond, body, invars));
 	m_currentBlocks.top()->addStmt(bg::Stmt::label(m_currentBreakLabel));
 	m_currentBreakLabel = oldBreakLabel;
@@ -1357,7 +1546,10 @@ bool ASTBoogieConverter::visit(EmitStatement const& _node)
 {
 	rememberScope(_node);
 
-	m_context.reportWarning(&_node, "Ignored emit statement");
+	// Call the event "function"
+	FunctionCall const& eventCall = _node.eventCall();
+	convertExpression(eventCall);
+
 	return false;
 }
 

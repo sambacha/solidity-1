@@ -75,6 +75,7 @@ private:
 	static
 	std::list<boogie::Stmt::Ref> checkForSums(boogie::Expr::Ref lhs, boogie::Expr::Ref rhs, BoogieContext& context);
 
+
 	/** Helper method to deep copy a struct. */
 	static
 	void deepCopyStruct(StructDefinition const* structDef,
