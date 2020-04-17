@@ -44,6 +44,15 @@ BoogieContext::BoogieGlobalContext::BoogieGlobalContext()
 		m_magicVariables.push_back(shared_ptr<MagicVariableDeclaration const>(old));
 	}
 
+	// Add magic variables for the 'before' function
+	for (string befType: { "address", "bool", "int", "uint" })
+	{
+		auto funType = TypeProvider::function(strings { befType }, strings { befType },
+				FunctionType::Kind::Internal, false, StateMutability::Pure);
+		auto bef = new MagicVariableDeclaration(ASTBoogieUtils::VERIFIER_BEFORE + "_" + befType, funType);
+		m_magicVariables.push_back(shared_ptr<MagicVariableDeclaration const>(bef));
+	}
+
 	// Magic variable for 'eq' function
 	auto eqFunType = TypeProvider::function(strings { }, strings { "bool" },
 					FunctionType::Kind::Internal, true, StateMutability::Pure);

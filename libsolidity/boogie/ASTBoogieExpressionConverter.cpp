@@ -597,6 +597,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 			if (funcType->parameterTypes().size() > i && funcType->parameterTypes()[i] != arg->annotation().type &&
 					funcName != ASTBoogieUtils::CALL.boogie &&
 					!boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_OLD) &&
+					!boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_BEFORE) &&
 					!boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_SUM))
 			{
 				// Introduce temp variable, make the assignment, including conversions
@@ -720,6 +721,13 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	if (boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_OLD))
 	{
 		functionCallOld(_node, regularArgs);
+		return false;
+	}
+
+	// Before function
+	if (boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_BEFORE))
+	{
+		functionCallBefore(_node, regularArgs);
 		return false;
 	}
 
@@ -1002,6 +1010,13 @@ void ASTBoogieExpressionConverter::functionCallSum(FunctionCall const& _node, bg
 {
 	m_currentExpr = m_context.getSumVar(arg, _node.arguments()[0].get(), _node.annotation().type);
 	addTCC(m_currentExpr, _node.annotation().type);
+}
+
+void ASTBoogieExpressionConverter::functionCallBefore(FunctionCall const& _node, vector<bg::Expr::Ref> const& args)
+{
+	solAssert(args.size() == 1, "Verifier before function must have exactly one argument");
+	m_currentExpr = args[0]->substitute(m_context.getEventDataSubstitution());
+	addTCC(args[0], _node.arguments()[0]->annotation().type);
 }
 
 void ASTBoogieExpressionConverter::functionCallOld(FunctionCall const& _node, vector<bg::Expr::Ref> const& args)

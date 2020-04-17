@@ -1265,6 +1265,10 @@ void ASTBoogieConverter::processEventDefinition(EventDefinition const& _event)
 	for (auto e: stateVars)
 		m_context.addEventData(e, &_event);
 
+	// Postconditions require one more pass so that the 'before(..)' parts are correctly
+	// substituted
+	eventPostconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), ASTBoogieUtils::DOCTAG_POSTCOND);
+
 	// Name of the event
 	string eventName = m_context.mapDeclName(_event);
 
