@@ -1,0 +1,5 @@
+Registry::add: OK
+Registry::update: OK
+Registry::add_or_update: OK
+Registry::[implicit_constructor]: OK
+No errors found.
