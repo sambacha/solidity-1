@@ -1202,11 +1202,11 @@ void BoogieContext::addEventData(Expression const* expr, EventDefinition const* 
 		m_allEventData[dataDecl].dataVar = data;
 		m_allEventData[dataDecl].oldDataVar = oldData;
 		m_allEventData[dataDecl].oldDataSavedVar = oldDataSaved;
-		m_allEventData[dataDecl].events.insert(event);
+		m_allEventData[dataDecl].events.insert(event->name());
 		m_eventDataSubstitution[dataVarName] = bg::Expr::cond(oldDataSaved, oldData, data);
 	}
 	else
-		m_allEventData[dataDecl].events.insert(event);
+		m_allEventData[dataDecl].events.insert(event->name());
 
 	// Record the data and the substitution
 	m_eventData[event].insert(dataDecl);
@@ -1352,7 +1352,7 @@ std::list<bg::Stmt::Ref> BoogieContext::checkForEventDataSave(ASTNode const* lhs
 			{
 				auto const& events = find->second.events;
 				for (auto e: events)
-					reportError(lhsExpr, "Event '" + e->name() + "' tracks '" + decl->name() + "' but is not specificed.");
+					reportError(lhsExpr, "Event '" + e + "' tracks '" + decl->name() + "' but is not specified.");
 			}
 		}
 	}
