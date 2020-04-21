@@ -1240,7 +1240,7 @@ public:
 	: m_baseExpressions(modified) {}
 
 	/**	Get the base field variable of a lvale. */
-	void run(Expression const& _node)
+	void run(ASTNode const& _node)
 	{
 		_node.accept(*this);
 	}
@@ -1256,22 +1256,20 @@ public:
 
 	bool visit(Assignment const& _node) override
 	{
-		(void)_node;
-		solAssert(false, "Assignment not allowed in LValue");
+		_node.leftHandSide().accept(*this);
 		return false;
 	}
 
 	bool visit(FunctionCall const& _node) override
 	{
-		(void)_node;
-		solAssert(false, "Function calls not allowed in LValue");
+		_node.expression().accept(*this); // push/pop stuff
 		return false;
 	}
 
 	bool visit(NewExpression const& _node) override
 	{
 		(void)_node;
-		solAssert(false, "Operator new not allowed in LValue");
+		// new expressions can create assignments, we ignore
 		return false;
 	}
 
@@ -1293,9 +1291,29 @@ public:
 		return false;
 	}
 
+	bool visit(TupleExpression const& _node) override
+	{
+		for (auto c: _node.components())
+			if (c)
+				c->accept(*this);
+		return false;
+	}
+
+	bool visit(VariableDeclarationStatement const& _node) override
+	{
+		(void)_node;
+		return false; // No need to process local variable declarations
+	}
+
+	bool visit(Return const& _node) override
+	{
+		(void)_node;
+		return false; // No need to process return value assignments
+	}
+
 };
 
-std::list<bg::Stmt::Ref> BoogieContext::checkForEventDataSave(Expression const* lhsExpr)
+std::list<bg::Stmt::Ref> BoogieContext::checkForEventDataSave(ASTNode const* lhsExpr)
 {
 	// Get the base expressions and their declaration
 	std::set<Identifier const*> baseExpressions;

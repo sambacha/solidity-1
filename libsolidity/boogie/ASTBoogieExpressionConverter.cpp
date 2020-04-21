@@ -1082,9 +1082,6 @@ void ASTBoogieExpressionConverter::functionCallPushPop(MemberAccess const* memAc
 	auto bgType = m_context.toBoogieType(arrType->baseType(), &_node);
 	memAccExpr->expression().accept(*this);
 	auto arr = m_currentExpr;
-	// Check data updates in case event is tracking it
-	for (auto stmt: m_context.checkForEventDataSave(memAccExpr))
-		addSideEffect(stmt);
 	// Storage pointer: unpack first
 	if (arrType->isPointer())
 	{

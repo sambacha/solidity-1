@@ -23,6 +23,14 @@ AssignHelper::AssignResult AssignHelper::makeAssign(AssignParam lhs, AssignParam
 	if (lhs.bgExpr->isError() || rhs.bgExpr->isError())
 		return AssignResult{};
 	AssignResult res;
+
+	// Check if we require the event data to be saved
+	if (assocNode)
+	{
+		for (auto stmt: context.checkForEventDataSave(assocNode))
+				res.newStmts.push_back(stmt);
+	}
+
 	makeAssignInternal(lhs, rhs, op, assocNode, context, res);
 	return res;
 }
@@ -318,11 +326,6 @@ void AssignHelper::makeBasicAssign(AssignParam lhs, AssignParam rhs, langutil::T
 	// Then check if sum ghost variables need to be updated
 	for (auto stmt: checkForSums(lhs.bgExpr, rhsResult.expr, context))
 		result.newStmts.push_back(stmt);
-
-	// Check if we require the event data to be saved
-	if (lhs.expr)
-		for (auto stmt: context.checkForEventDataSave(lhs.expr))
-			result.newStmts.push_back(stmt);
 
 	result.newStmts.push_back(bg::Stmt::assign(lhs.bgExpr, rhsResult.expr));
 }

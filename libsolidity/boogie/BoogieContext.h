@@ -219,7 +219,7 @@ public:
 	 * Given LHS of an assignment, check if it's an update tracked by an event. Returns a statement
 	 * to save the data, if not saved already.
 	 */
-	std::list<boogie::Stmt::Ref> checkForEventDataSave(Expression const* lhsExpr);
+	std::list<boogie::Stmt::Ref> checkForEventDataSave(ASTNode const* lhsExpr);
 
 	/**
 	 * Sets up the event procedure with the right pre- and post-conditions and body to capture
