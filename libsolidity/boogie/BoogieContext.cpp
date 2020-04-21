@@ -1345,16 +1345,29 @@ std::list<bg::Stmt::Ref> BoogieContext::checkForEventDataSave(ASTNode const* lhs
 	else
 	{
 		// Check that there is no event tracking this data
+		std::set<string> errors;
 		for (auto decl: baseDeclarations)
 		{
 			auto find = m_allEventData.find(decl);
 			if (find != m_allEventData.end())
 			{
+				std::stringstream msg;
+				msg << "'" << decl->name() << "' is tracked by";
 				auto const& events = find->second.events;
+				bool plural = events.size() > 1;
+				msg << (plural ? " events" : " event");
+				bool first = true;
 				for (auto e: events)
-					reportError(lhsExpr, "Event '" + e + "' tracks '" + decl->name() + "' but is not specified.");
+				{
+					msg << (first ? " '" : ", '") << e << "'";
+					first = false;
+				}
+				msg << " but " << (plural ? "none are" : "it is not") << " specified to emit";
+				errors.insert(msg.str());
 			}
 		}
+		for (auto error: errors)
+			reportError(lhsExpr, error);
 	}
 
 	// Make the statement if (!data_saved) { old_data = data; data_saved = true; }
