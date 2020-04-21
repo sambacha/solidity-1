@@ -1202,8 +1202,11 @@ void BoogieContext::addEventData(Expression const* expr, EventDefinition const* 
 		m_allEventData[dataDecl].dataVar = data;
 		m_allEventData[dataDecl].oldDataVar = oldData;
 		m_allEventData[dataDecl].oldDataSavedVar = oldDataSaved;
+		m_allEventData[dataDecl].events.insert(event);
 		m_eventDataSubstitution[dataVarName] = bg::Expr::cond(oldDataSaved, oldData, data);
 	}
+	else
+		m_allEventData[dataDecl].events.insert(event);
 
 	// Record the data and the substitution
 	m_eventData[event].insert(dataDecl);
@@ -1306,15 +1309,32 @@ std::list<bg::Stmt::Ref> BoogieContext::checkForEventDataSave(Expression const* 
 		baseDeclarations.insert(id->annotation().referencedDeclaration);
 
 	// Collect all events where the base expression is watched to see if it needs saving
-	for (auto event: m_eventDataCurrent)
+	if (m_eventDataCurrent.size() > 0)
 	{
-		auto const& eventInfo = m_eventData[event];
-		for (auto expr: eventInfo)
+		for (auto event: m_eventDataCurrent)
 		{
-			if (baseDeclarations.count(expr))
+			auto const& eventInfo = m_eventData[event];
+			for (auto expr: eventInfo)
 			{
-				updatedExpressions.insert(expr);
-				break;
+				if (baseDeclarations.count(expr))
+				{
+					updatedExpressions.insert(expr);
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		// Check that there is no event tracking this data
+		for (auto decl: baseDeclarations)
+		{
+			auto find = m_allEventData.find(decl);
+			if (find != m_allEventData.end())
+			{
+				auto const& events = find->second.events;
+				for (auto e: events)
+					reportError(lhsExpr, "Event '" + e->name() + "' tracks '" + decl->name() + "' but is not specificed.");
 			}
 		}
 	}

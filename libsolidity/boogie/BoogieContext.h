@@ -184,6 +184,7 @@ private:
 		boogie::Expr::Ref dataVar; // Data tracked
 		boogie::Expr::Ref oldDataVar; // Same type, to save data
 		boogie::Expr::Ref oldDataSavedVar; // Bool type, whether to update
+		std::set<EventDefinition const*> events; // Events tracking this field
 	};
 
 	// Information about events we're tracking
