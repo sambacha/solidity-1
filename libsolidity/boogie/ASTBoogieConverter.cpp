@@ -84,6 +84,8 @@ void ASTBoogieConverter::createImplicitConstructor(ContractDefinition const& _no
 	}
 	auto attrs = ASTBoogieUtils::createAttrs(_node.location(),  _node.name() + "::[implicit_constructor]", *m_context.currentScanner());
 	procDecl->addAttrs(attrs);
+	if (_node.isLibrary()) // Inline for library so that it does not appear in output
+		procDecl->addAttr(bg::Attr::attr("inline", 1));
 	m_context.addDecl(procDecl);
 }
 
