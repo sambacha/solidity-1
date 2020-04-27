@@ -1,4 +1,3 @@
-SafeMath::[implicit_constructor]: OK
 BecTokenSimplified::[constructor]: OK
 BecTokenSimplified::balanceOf: OK
 BecTokenSimplified::transfer: OK

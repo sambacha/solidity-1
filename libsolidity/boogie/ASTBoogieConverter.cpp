@@ -111,6 +111,8 @@ void ASTBoogieConverter::createImplicitConstructor(ContractDefinition const& _no
 				if (!sv->isConstant())
 					procDecl->getModifies().push_back(m_context.mapDeclName(*sv));
 
+	if (_node.isLibrary()) // Inline for library so that it does not appear in output
+		procDecl->addAttr(bg::Attr::attr("inline", 1));
 	m_context.addDecl(procDecl);
 }
 
