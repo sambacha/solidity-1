@@ -13,7 +13,6 @@ test/solc-verify/examples/RefundEscrow.sol:46:9: solc-verify warning: Ignored em
 test/solc-verify/examples/RefundEscrow.sol:46:9: solc-verify warning: Ignored emit statement
 test/solc-verify/examples/RefundEscrow.sol:163:5: solc-verify warning: Ignored event definition
 test/solc-verify/examples/RefundEscrow.sol:164:5: solc-verify warning: Ignored event definition
-SafeMath::[implicit_constructor]: OK
 Secondary::primary: OK
 Secondary::transferPrimary: OK
 Escrow::depositsOf: OK
