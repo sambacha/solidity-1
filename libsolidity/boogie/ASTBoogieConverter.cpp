@@ -398,6 +398,9 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 						auto arrayBaseType = arrayTypeSpec->baseType();
 						auto arrayBaseTypeBg = m_context.toBoogieType(arrayBaseType, specInfo.arrayId.get());
 						auto arrayExpr = ASTBoogieExpressionConverter(m_context).convert(*specInfo.arrayId, false).expr;
+						auto arrayLocation = arrayTypeSpec->location();
+						if (arrayLocation == DataLocation::Memory || arrayLocation == DataLocation::CallData)
+							arrayExpr = m_context.getMemArray(arrayExpr, arrayBaseTypeBg);
 						auto arrayLength = m_context.getArrayLength(arrayExpr, arrayBaseTypeBg);
 						auto const& bindings = bgQuantifierVars.back();
 						for (auto const& b: bindings)
