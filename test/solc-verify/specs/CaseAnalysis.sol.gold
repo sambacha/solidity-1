@@ -1,0 +1,4 @@
+CaseAnalysis::add: OK
+CaseAnalysis::transfer: OK
+CaseAnalysis::[implicit_constructor]: OK
+No errors found.

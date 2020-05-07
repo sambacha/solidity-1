@@ -1987,6 +1987,52 @@ ASTPointer<ASTString> Parser::getLiteralAndAdvance()
 	return identifier;
 }
 
+ASTPointer<Expression> Parser::parseSpecificationExpression(SpecificationExpressionInfo& info)
+{
+	// Check if it is an array property
+	if (m_scanner->currentToken() == Token::Identifier && m_scanner->currentLiteral() == "property")
+	{
+		Token typeToken;
+		unsigned int firstNum, secondNum;
+		tie(typeToken, firstNum, secondNum) = TokenTraits::fromIdentifierOrKeyword("uint");
+		ElementaryTypeNameToken uintToken(typeToken, firstNum, secondNum);
+		auto type = ASTNodeFactory(*this).createNode<ElementaryTypeName>(uintToken);
+		m_scanner->next();
+
+		// Parse the array identifier
+		expectToken(Token::LParen);
+		info.arrayId = parseIdentifier();
+		expectToken(Token::RParen);
+
+		// Parse the variables with uint type
+		auto vars = parseSpecificationParameterList(type);
+		info.quantifierList.push_back(vars);
+		info.isForall.push_back(true);
+	}
+	else
+	{
+		// Parse any quantifiers
+		while (m_scanner->currentToken() == Token::Identifier)
+		{
+			// Check the quantifier type
+			if (m_scanner->currentLiteral() == "forall")
+				info.isForall.push_back(true);
+			else if (m_scanner->currentLiteral() == "exists")
+				info.isForall.push_back(false);
+			else
+				break;
+			m_scanner->next();
+
+			// Parse the variables
+			auto vars = parseSpecificationParameterList(nullptr);
+			info.quantifierList.push_back(vars);
+		}
+	}
+
+	// Parse the expression
+	return parseExpression();
+}
+
 ASTPointer<Expression> Parser::parseSpecificationExpression(std::shared_ptr<langutil::Scanner> const& _scanner,
 			SpecificationExpressionInfo& info)
 {
@@ -1994,49 +2040,7 @@ ASTPointer<Expression> Parser::parseSpecificationExpression(std::shared_ptr<lang
 	{
 		m_recursionDepth = 0;
 		m_scanner = _scanner;
-
-		// Check if it is an array property
-		if (m_scanner->currentToken() == Token::Identifier && m_scanner->currentLiteral() == "property")
-		{
-			Token typeToken;
-			unsigned int firstNum, secondNum;
-			tie(typeToken, firstNum, secondNum) = TokenTraits::fromIdentifierOrKeyword("uint");
-			ElementaryTypeNameToken uintToken(typeToken, firstNum, secondNum);
-			auto type = ASTNodeFactory(*this).createNode<ElementaryTypeName>(uintToken);
-			m_scanner->next();
-
-			// Parse the array identifier
-			expectToken(Token::LParen);
-			info.arrayId = parseIdentifier();
-			expectToken(Token::RParen);
-
-			// Parse the variables with uint type
-			auto vars = parseSpecificationParameterList(type);
-			info.quantifierList.push_back(vars);
-			info.isForall.push_back(true);
-		}
-		else
-		{
-			// Parse any quantifiers
-			while (m_scanner->currentToken() == Token::Identifier)
-			{
-				// Check the quantifier type
-				if (m_scanner->currentLiteral() == "forall")
-					info.isForall.push_back(true);
-				else if (m_scanner->currentLiteral() == "exists")
-					info.isForall.push_back(false);
-				else
-					break;
-				m_scanner->next();
-
-				// Parse the variables
-				auto vars = parseSpecificationParameterList(nullptr);
-				info.quantifierList.push_back(vars);
-			}
-			}
-
-		// Parse the expression
-		auto result = parseExpression();
+		auto result = parseSpecificationExpression(info);
 		solAssert(m_recursionDepth == 0, "");
 		if (m_scanner->currentToken() != Token::EOS)
 			parserError(string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
@@ -2047,6 +2051,37 @@ ASTPointer<Expression> Parser::parseSpecificationExpression(std::shared_ptr<lang
 		if (m_errorReporter.errors().empty())
 			throw; // Something is weird here, rather throw again.
 		return nullptr;
+	}
+}
+
+void Parser::parseSpecificationExpression(std::shared_ptr<langutil::Scanner> const& _scanner, std::vector<SpecificationCase>& cases)
+{
+	try
+	{
+		m_recursionDepth = 0;
+		m_scanner = _scanner;
+
+		expectToken(Token::LBrack);
+		while (m_scanner->currentToken() == Token::Case)
+		{
+			m_scanner->next();
+			SpecificationCase specCase;
+			specCase.precondition = parseSpecificationExpression(specCase.preconditionInfo);
+			expectToken(Token::Colon);
+			specCase.postcondition = parseSpecificationExpression(specCase.postconditionInfo);
+			expectToken(Token::Semicolon);
+			cases.push_back(specCase);
+		}
+		expectToken(Token::RBrack);
+
+		solAssert(m_recursionDepth == 0, "");
+		if (m_scanner->currentToken() != Token::EOS)
+			parserError(string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
+	}
+	catch (FatalError const&)
+	{
+		if (m_errorReporter.errors().empty())
+			throw; // Something is weird here, rather throw again.
 	}
 }
 
