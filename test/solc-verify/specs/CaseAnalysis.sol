@@ -55,7 +55,6 @@ contract Members {
   ///      (members[members.length-1] == member);
   /// ]
   function addMember(address member) public {
-    /// @notice invariant (0 <= i && i <= members.length)
     /// @notice invariant property(members) (j) (j >= i || members[j] != member)
     for (uint i = 0; i < members.length; ++ i) {
       if (members[i] == member) {
@@ -70,7 +69,6 @@ contract Members {
   ///      members.length == __verifier_old_uint(members.length) - 1;
   /// ]
   function removeMember(address member) public {
-    /// @notice invariant (0 <= i && i <= members.length)
     /// @notice invariant property(members) (j) (j >= i || members[j] != member)
     for (uint i = 0; i < members.length; ++ i) {
       if (members[i] == member) {
