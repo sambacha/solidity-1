@@ -41,6 +41,43 @@ contract CaseAnalysis {
     balances[msg.sender] -= value;
     balances[to] += value;
   }
+}
 
 
+/// @notice invariant property(members) (i, j) (i == j || members[i] != members[j])
+contract Members {
+
+  address[] members;
+
+  /// @notice specification [
+  ///   case property(members) (i) (members[i] != member):
+  ///      (members.length == __verifier_old_uint(members.length) + 1) &&
+  ///      (members[members.length-1] == member);
+  /// ]
+  function addMember(address member) public {
+    /// @notice invariant (0 <= i && i <= members.length)
+    /// @notice invariant property(members) (j) (j >= i || members[j] != member)
+    for (uint i = 0; i < members.length; ++ i) {
+      if (members[i] == member) {
+        return;
+      }
+    }
+    members.push(member);
+  }
+
+  /// @notice specification [
+  ///   case exists(uint i) (0 <= i && i < members.length && members[i] == member):
+  ///      members.length == __verifier_old_uint(members.length) - 1;
+  /// ]
+  function removeMember(address member) public {
+    /// @notice invariant (0 <= i && i <= members.length)
+    /// @notice invariant property(members) (j) (j >= i || members[j] != member)
+    for (uint i = 0; i < members.length; ++ i) {
+      if (members[i] == member) {
+        members[i] = members[members.length - 1];
+        members.pop();
+        return;
+      }
+    }
+  }
 }
