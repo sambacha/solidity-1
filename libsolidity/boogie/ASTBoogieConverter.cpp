@@ -424,7 +424,8 @@ void ASTBoogieConverter::processSpecificationExpression(ASTPointer<Expression> e
 				switch (type)
 				{
 				case bg::QuantExpr::Forall:
-					if (bindingConditions.size()) {
+					if (bindingConditions.size())
+					{
 						auto conditions = bg::Expr::and_(bindingConditions);
 						auto tccs = bg::Expr::and_(bindingTCCs);
 						convResult.expr = bg::Expr::and_(conditions, convResult.expr);
@@ -433,7 +434,8 @@ void ASTBoogieConverter::processSpecificationExpression(ASTPointer<Expression> e
 					convResult.expr = bg::Expr::forall(bindings, convResult.expr);
 					break;
 				case bg::QuantExpr::Exists:
-					if (bindingConditions.size()) {
+					if (bindingConditions.size())
+					{
 						auto conditions = bg::Expr::and_(bindingConditions);
 						auto tccs = bg::Expr::and_(bindingTCCs);
 						convResult.expr = bg::Expr::and_(conditions, convResult.expr);

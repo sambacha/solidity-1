@@ -1432,9 +1432,8 @@ struct CmpHelper {
 
 int Expr::cmp(Expr::Ref e1, Expr::Ref e2)
 {
-	if (e1->kind() != e2->kind()) {
+	if (e1->kind() != e2->kind())
 		return static_cast<int>(e1->kind()) - static_cast<int>(e2->kind());
-	}
 
 	Kind kind = e1->kind();
 
