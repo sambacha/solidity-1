@@ -16,6 +16,60 @@ namespace solidity
 {
 
 /**
+ * Utility class for storing various conditions on variables/terms. Examples
+ * include type-checking conditions (TCCs), overflow conditions (OCs), and
+ * potentially otehrs.
+ */
+class ExprConditionStore
+{
+public:
+
+	enum class ConditionType {
+		TYPE_CHECKING_CONDITION,
+		OVERFLOW_CONDITION,
+	};
+
+	typedef boogie::Expr::Set ConditionSet;
+
+	/** Add a condition related to a specific variable */
+	void addCondition(std::string id, ConditionType type, boogie::Expr::Ref ref);
+
+	/** Add general condition not related to a specific variable */
+	void addCondition(ConditionType type, boogie::Expr::Ref ref);
+
+	/** Add general condition not related to specific variable */
+	void addConditions(ExprConditionStore const& other);
+
+	/** Get all conditions of this type */
+	ConditionSet getConditions(ConditionType type) const;
+
+	/** Get all conditions containing the given variable (excluding direct conditions, see getConditionsOn) */
+	ConditionSet getConditionsContaining(ConditionType type, std::string id) const;
+
+	/** Get all conditions directly involving the given variable */
+	ConditionSet getConditionsOn(ConditionType type, std::string id) const;
+
+	/** Remove all conditions containing given variable */
+	void removeConditions(ConditionType type, std::string id);
+
+	/** Remove all conditions of this type */
+	void removeConditions(ConditionType type);
+
+	/** Remove all conditions */
+	void clear();
+
+private:
+
+	typedef std::map<ConditionType, ConditionSet> ConditionMap;
+
+	/** All conditions not involving a particular variable */
+	ConditionMap m_conditions;
+
+	/** Conditions per variable */
+	std::map<std::string, ConditionMap> m_conditionsOnVariables;
+};
+
+/**
  * Context class that is used to pass information around the different transformation classes.
  */
 class BoogieContext {
@@ -34,16 +88,14 @@ public:
 		boogie::Expr::Ref expr; // Expression converted to Boogie
 		std::string exprStr; // Expression in original format
 		ASTPointer<Expression> exprSol; // Expression in Solidity AST format
-		std::list<boogie::Expr::Ref> tccs; // TCCs for the expression
-		std::list<boogie::Expr::Ref> ocs; // OCs for the expression
+		ExprConditionStore conditions; // TCCs, OCs, and similar
 
 		DocTagExpr() {}
 
 		DocTagExpr(boogie::Expr::Ref expr, std::string exprStr,
 				ASTPointer<Expression> exprSol,
-				std::list<boogie::Expr::Ref> const& tccs,
-				std::list<boogie::Expr::Ref> const& ocs) :
-			expr(expr), exprStr(exprStr), exprSol(exprSol), tccs(tccs), ocs(ocs) {}
+				ExprConditionStore const& conditions) :
+			expr(expr), exprStr(exprStr), exprSol(exprSol), conditions(conditions) {}
 	};
 
 	/**

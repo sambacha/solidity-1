@@ -7,6 +7,7 @@
 #include <iostream>
 #include <set>
 #include <cassert>
+#include <cstring>
 #include <boost/algorithm/string/predicate.hpp>
 #include <liblangutil/Exceptions.h>
 
@@ -226,11 +227,6 @@ Expr::Ref Expr::lit(std::string v, unsigned w)
 Expr::Ref Expr::lit(bigint v, unsigned w)
 {
 	return std::make_shared<BvLit const>(v,w);
-}
-
-Expr::Ref Expr::lit(bool n, std::string s, std::string e, unsigned ss, unsigned es)
-{
-	return std::make_shared<FPLit const>(n, s, e, ss, es);
 }
 
 Expr::Ref Expr::neq(Ref l, Ref r)
@@ -726,11 +722,6 @@ void BvLit::printSMT2(std::ostream& os) const
 	os << "(_ bv" << val << " " << width << ")";
 }
 
-void FPLit::print(std::ostream& os) const
-{
-	os << (neg ? "-" : "") << sig << "e" << expo << "f" << sigSize << "e" << expSize;
-}
-
 void NegExpr::print(std::ostream& os) const
 {
 	os << "-(" << expr << ")";
@@ -1174,12 +1165,6 @@ Expr::Ref BvLit::substitute(Expr::substitution const& s) const
 	return std::make_shared<BvLit const>(val, width);
 }
 
-Expr::Ref FPLit::substitute(Expr::substitution const& s) const
-{
-	(void)s;
-	return std::make_shared<FPLit const>(neg, sig, expo, sigSize, expSize);
-}
-
 Expr::Ref NegExpr::substitute(Expr::substitution const& s) const
 {
 	Ref expr1 = expr->substitute(s);
@@ -1280,6 +1265,434 @@ Expr::Ref DtUpdExpr::substitute(Expr::substitution const& s) const
 	Ref base1 = base->substitute(s);
 	Ref val1 = val->substitute(s);
 	return std::make_shared<DtUpdExpr const>(base1, member, val1, constr, dt);
+}
+
+//
+// Containtment
+//
+
+bool ErrorExpr::contains(std::string id) const
+{
+	(void)id;
+	return false;
+}
+
+bool BinExpr::contains(std::string id) const
+{
+	if (lhs->contains(id))
+		return true;
+	if (rhs->contains(id))
+		return true;;
+	return false;
+}
+
+bool CondExpr::contains(std::string id) const
+{
+	if (cond->contains(id))
+		return true;
+	if (then->contains(id))
+		return true;
+	if (else_->contains(id))
+		return true;
+	return false;
+}
+
+bool FunExpr::contains(std::string id) const
+{
+	for (Ref a: args)
+		if (a->contains(id))
+			return true;
+	return false;
+}
+
+bool BoolLit::contains(std::string id) const
+{
+	(void) id;
+	return false;
+}
+
+bool IntLit::contains(std::string id) const
+{
+	(void) id;
+	return false;
+}
+
+bool BvLit::contains(std::string id) const
+{
+	(void) id;
+	return false;
+}
+
+bool NegExpr::contains(std::string id) const
+{
+	return expr->contains(id);
+}
+
+bool NotExpr::contains(std::string id) const
+{
+	return expr->contains(id);
+}
+
+bool QuantExpr::contains(std::string id) const
+{
+	for (Binding b: vars)
+	{
+		auto varExpr = std::dynamic_pointer_cast<VarExpr const>(b.id);
+		if (id == varExpr->name())
+			return false;
+	}
+	return expr->contains(id);
+}
+
+bool ArrConstExpr::contains(std::string id) const
+{
+	return val->contains(id);
+}
+
+bool ArrSelExpr::contains(std::string id) const
+{
+	if (base->contains(id))
+		return true;
+	if (idx->contains(id))
+		return true;
+	return false;
+}
+
+bool ArrUpdExpr::contains(std::string id) const
+{
+	if (base->contains(id))
+		return true;
+	if (idx->contains(id))
+		return true;
+	if (val->contains(id))
+		return true;
+	return false;
+}
+
+bool VarExpr::contains(std::string id) const
+{
+	return id == var;
+}
+
+bool OldExpr::contains(std::string id) const
+{
+	return expr->contains(id);
+}
+
+bool CodeExpr::contains(std::string id) const
+{
+	(void)id;
+	solAssert(false, "CodeExpr not supported for containment");
+	return false;
+}
+
+bool TupleExpr::contains(std::string id) const
+{
+	for (Ref e: es)
+		if (e->contains(id))
+			return true;
+	return false;
+}
+
+bool StringLit::contains(std::string id) const
+{
+	(void)id;
+	return false;
+}
+
+bool DtSelExpr::contains(std::string id) const
+{
+	return base->contains(id);
+}
+
+bool DtUpdExpr::contains(std::string id) const
+{
+	if (base->contains(id))
+		return true;
+	if (val->contains(id))
+		return true;
+	return false;
+}
+
+//
+// Comparison stuff
+//
+
+template<typename T>
+struct CmpHelper {
+	static int cmp(Expr::Ref e1, Expr::Ref e2)
+	{
+		auto ptr1 = dynamic_cast<T const*>(e1.get());
+		solAssert(ptr1, "Wrong type");
+		auto ptr2 = dynamic_cast<T const*>(e2.get());
+		solAssert(ptr1, "Wrong type");
+		return ptr1->cmp(*ptr2);
+	}
+};
+
+int Expr::cmp(Expr::Ref e1, Expr::Ref e2)
+{
+	if (e1->kind() != e2->kind()) {
+		return static_cast<int>(e1->kind()) - static_cast<int>(e2->kind());
+	}
+
+	Kind kind = e1->kind();
+
+	switch (kind)
+	{
+	case Kind::ERROR: return CmpHelper<ErrorExpr>::cmp(e1, e2);
+	case Kind::EXISTS: return CmpHelper<QuantExpr>::cmp(e1, e2);
+	case Kind::FORALL: return CmpHelper<QuantExpr>::cmp(e1, e2);
+	case Kind::AND: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::OR: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::COND: return CmpHelper<CondExpr>::cmp(e1, e2);
+	case Kind::EQ: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::LT: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::GT: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::LTE: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::GTE: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::PLUS: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::MINUS: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::SUB: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::DIV: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::INTDIV: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::TIMES: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::MOD: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::EXP: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::FN: return CmpHelper<FunExpr>::cmp(e1, e2);
+	case Kind::VARIABLE: return CmpHelper<VarExpr>::cmp(e1, e2);
+	case Kind::IMPL: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::IFF: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::LIT_BOOL: return CmpHelper<BoolLit>::cmp(e1, e2);
+	case Kind::LIT_STRING: return CmpHelper<StringLit>::cmp(e1, e2);
+	case Kind::LIT_INT: return CmpHelper<IntLit>::cmp(e1, e2);
+	case Kind::LIT_BV: return CmpHelper<BvLit>::cmp(e1, e2);
+	case Kind::NEQ: return CmpHelper<BinExpr>::cmp(e1, e2);
+	case Kind::NOT: return CmpHelper<NotExpr>::cmp(e1, e2);
+	case Kind::NEG: return CmpHelper<NegExpr>::cmp(e1, e2);
+	case Kind::ARRAY_CONST: return CmpHelper<ArrConstExpr>::cmp(e1, e2);
+	case Kind::ARRAY_SELECT: return CmpHelper<ArrSelExpr>::cmp(e1, e2);
+	case Kind::ARRAY_UPDATE: return CmpHelper<ArrUpdExpr>::cmp(e1, e2);
+	case Kind::DATATYPE_SELECT: return CmpHelper<DtSelExpr>::cmp(e1, e2);
+	case Kind::DATATYPE_UPDATE: return CmpHelper<DtUpdExpr>::cmp(e1, e2);
+	case Kind::OLD: return CmpHelper<OldExpr>::cmp(e1, e2);
+	case Kind::TUPLE: return CmpHelper<TupleExpr>::cmp(e1, e2);
+	case Kind::CODE: return CmpHelper<CodeExpr>::cmp(e1, e2);
+	case Kind::CONCAT: return CmpHelper<BinExpr>::cmp(e1, e2);
+	}
+
+	solAssert(false, "Unknown expression");
+	return 0;
+}
+
+Expr::Kind BinExpr::kind() const {
+	switch (op)
+	{
+	case Iff:
+		return Kind::IFF;
+	case Imp:
+		return Kind::IMPL;
+	case Or:
+		return Kind::OR;
+	case And:
+		return Kind::AND;
+	case Eq:
+		return Kind::EQ;
+	case Neq:
+		return Kind::NEG;
+	case Lt:
+		return Kind::LT;
+	case Gt:
+		return Kind::GT;
+	case Lte:
+		return Kind::LTE;
+	case Gte:
+		return Kind::GTE;
+	case Sub:
+		return Kind::SUB;
+	case Conc:
+		return Kind::CONCAT;
+	case Plus:
+		return Kind::PLUS;
+	case Minus:
+		return Kind::MINUS;
+	case Times:
+		return Kind::TIMES;
+	case Div:
+		return Kind::DIV;
+	case IntDiv:
+		return Kind::INTDIV;
+	case Mod:
+		return Kind::MOD;
+	case Exp:
+		return Kind::EXP;
+	}
+	return Kind::ERROR;
+}
+
+Expr::Kind QuantExpr::kind() const
+{
+	switch (quant)
+	{
+	case Exists:
+		return Kind::EXISTS;
+	case Forall:
+		return Kind::FORALL;
+	}
+	return Kind::ERROR;
+}
+
+int ErrorExpr::cmp(ErrorExpr const& e) const
+{
+	(void) e;
+	return 0;
+}
+
+int BinExpr::cmp(BinExpr const& e) const
+{
+	solAssert(op == e.op, "Must be same binary expression");
+	return Expr::cmp({lhs, rhs}, {e.lhs, e.rhs});
+}
+
+int CondExpr::cmp(CondExpr const& e) const
+{
+	return Expr::cmp({cond, then, else_}, {e.cond, e.then, e.else_});
+}
+
+int FunExpr::cmp(FunExpr const& e) const
+{
+	int cmp = std::strcmp(fun.c_str(), e.fun.c_str());
+	if (cmp != 0) return cmp;
+	if (args.size() != e.args.size())
+		return static_cast<int>(args.size()) - static_cast<int>(e.args.size());
+	return Expr::cmp(args, e.args);
+}
+
+int BoolLit::cmp(BoolLit const& e) const
+{
+	return static_cast<int>(val) - static_cast<int>(e.val);
+}
+
+int IntLit::cmp(IntLit const& e) const
+{
+	return val.compare(e.val);
+}
+
+int BvLit::cmp(BvLit const& e) const
+{
+	if (width != e.width)
+		return static_cast<int>(width) - static_cast<int>(e.width);
+	return std::strcmp(val.c_str(), e.val.c_str());
+}
+
+int NegExpr::cmp(NegExpr const& e) const
+{
+	return Expr::cmp(expr, e.expr);
+}
+
+int NotExpr::cmp(NotExpr const& e) const
+{
+	return Expr::cmp(expr, e.expr);
+}
+
+int QuantExpr::cmp(QuantExpr const& e) const
+{
+	solAssert(quant == e.quant, "Must be the same quantifier");
+
+	if (vars.size() != e.vars.size())
+		return static_cast<int>(vars.size()) - static_cast<int>(e.vars.size());
+
+	for (unsigned i = 0; i < vars.size(); ++ i)
+	{
+		int cmp = Expr::cmp(vars[i].id, e.vars[i].id);
+		if (cmp != 0)
+			return cmp;
+		cmp = vars[i].type->cmp(*e.vars[i].type.get());
+		if (cmp != 0)
+			return cmp;
+	}
+
+	return Expr::cmp(expr, e.expr);
+}
+
+int ArrConstExpr::cmp(ArrConstExpr const& e) const
+{
+	int cmp = arrType->cmp(*e.arrType.get());
+	if (cmp != 0)
+		return cmp;
+	return Expr::cmp(val, e.val);
+}
+
+int ArrSelExpr::cmp(ArrSelExpr const& e) const
+{
+	return Expr::cmp({base, idx}, {e.base, e.idx});
+}
+
+int ArrUpdExpr::cmp(ArrUpdExpr const& e) const
+{
+	return Expr::cmp({base, idx, val}, {e.base, e.idx, e.val});
+}
+
+int VarExpr::cmp(VarExpr const& e) const
+{
+	return std::strcmp(var.c_str(), e.var.c_str());
+}
+
+int OldExpr::cmp(OldExpr const& e) const
+{
+	return Expr::cmp(expr, e.expr);
+}
+
+int CodeExpr::cmp(CodeExpr const& e) const
+{
+	(void)e;
+	solAssert(false, "CodeExpr not supported for comparison");
+	return false;
+}
+
+int TupleExpr::cmp(TupleExpr const& e) const
+{
+	if (es.size() != e.es.size())
+		return static_cast<int>(es.size()) - static_cast<int>(e.es.size());
+	return Expr::cmp(es, e.es);
+}
+
+int StringLit::cmp(StringLit const& e) const
+{
+	return std::strcmp(val.c_str(), e.val.c_str());
+}
+
+int DtSelExpr::cmp(DtSelExpr const& e) const
+{
+	int cmp = std::strcmp(member.c_str(), e.member.c_str());
+	if (cmp != 0)
+		return cmp;
+	return Expr::cmp(base, e.base);
+}
+
+int DtUpdExpr::cmp(DtUpdExpr const& e) const
+{
+	int cmp = std::strcmp(member.c_str(), e.member.c_str());
+	if (cmp != 0)
+		return cmp;
+	return Expr::cmp({base, val}, {e.base, e.val});
+}
+
+int TypeDecl::cmp(TypeDecl const& td) const
+{
+	return std::strcmp(smttype.c_str(), td.smttype.c_str());
+}
+
+int Expr::cmp(std::vector<Ref> const& l1, std::vector<Ref> const& l2)
+{
+	solAssert(l1.size() == l2.size(), "Only vectors of same size");
+	for (unsigned i = 0; i < l1.size(); ++ i)
+	{
+		int cmp = Expr::cmp(l1[i], l2[i]);
+		if (cmp != 0)
+			return cmp;
+	}
+	return 0;
 }
 
 }

@@ -32,16 +32,16 @@ private:
 	// due to the differences between Solidity and Boogie expressions
 	std::vector<boogie::Stmt::Ref> m_newStatements; // New statements
 	std::list<boogie::Decl::Ref> m_newDecls; // New declarations
-	std::list<boogie::Expr::Ref> m_tccs; // Type checking conditions
-	std::list<boogie::Expr::Ref> m_ocs; // Overflow conditions
+	ExprConditionStore m_conditions; // Type checking/overflow conditions
 
 	/**
 	 * Helper method to add a type checking condition for an expression with a given type.
 	 * @param expr Boogie expression
 	 * @param tp Type of the expression
+	 * @param identifier set to identifier, otherwise empty string
 	 * @Param isArrrayLengt If true add TCC regardless of integer encoding
 	 */
-	void addTCC(boogie::Expr::Ref expr, TypePointer tp, bool isArrayLength = false);
+	void addTCC(boogie::Expr::Ref expr, TypePointer tp, std::string identifier, bool isArrayLength);
 
 	/** Helper method to add a side effect (statement) */
 	void addSideEffect(boogie::Stmt::Ref stmt);
@@ -73,15 +73,13 @@ public:
 		boogie::Expr::Ref expr;
 		std::vector<boogie::Stmt::Ref> newStatements;
 		std::list<boogie::Decl::Ref> newDecls;
-		std::list<boogie::Expr::Ref> tccs; // Type checking conditions
-		std::list<boogie::Expr::Ref> ocs;  // Overflow conditions
+		ExprConditionStore conditions;
 
 		Result(boogie::Expr::Ref expr,
 				std::vector<boogie::Stmt::Ref> const& newStatements,
 				std::list<boogie::Decl::Ref> const& newDecls,
-				std::list<boogie::Expr::Ref> const& tccs,
-				std::list<boogie::Expr::Ref> const& ocs)
-			:expr(expr), newStatements(newStatements), newDecls(newDecls), tccs(tccs), ocs(ocs) {}
+				ExprConditionStore const& conditions)
+			:expr(expr), newStatements(newStatements), newDecls(newDecls), conditions(conditions) {}
 	};
 
 	/**

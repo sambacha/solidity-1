@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <set>
 
 #include "libdevcore/Common.h"
 
@@ -34,6 +35,18 @@ public:
 	/** Reference to expressions */
 	using Ref = std::shared_ptr<Expr const>;
 
+	/** Comparison for references */
+	struct RefCompare
+	{
+		bool operator() (Ref r1, Ref r2) const
+		{
+			return Expr::cmp(r1, r2) < 0;
+		}
+	};
+
+	/** Sets of references */
+	using Set = std::set<Ref, RefCompare>;
+
 	/** A substitution is a map from variable names to expressions to substitute */
 	using substitution = std::map<std::string, Ref>;
 
@@ -44,10 +57,64 @@ public:
 	std::string toString() const;
 	std::string toSMT2() const;
 
+	enum class Kind
+	{
+		ERROR,
+		EXISTS,
+		FORALL,
+		AND,
+		OR,
+		COND,
+		EQ,
+		LT,
+		GT,
+		LTE,
+		GTE,
+		PLUS,
+		MINUS,
+		SUB,
+		DIV,
+		INTDIV,
+		TIMES,
+		MOD,
+		EXP,
+		FN,
+		VARIABLE,
+		IMPL,
+		IFF,
+		LIT_BOOL,
+		LIT_STRING,
+		LIT_INT,
+		LIT_BV,
+		NEQ,
+		NOT,
+		NEG,
+		ARRAY_CONST,
+		ARRAY_SELECT,
+		ARRAY_UPDATE,
+		DATATYPE_SELECT,
+		DATATYPE_UPDATE,
+		OLD,
+		TUPLE,
+		CODE,
+		CONCAT
+	};
+
+	/** Get the kind of the expression */
+	virtual Kind kind() const = 0;
+
 	/** Substitutes s into the expression */
 	virtual Ref substitute(substitution const& s) const = 0;
 
+	/** Check whether the expression contains the given variable */
+	virtual bool contains(std::string id) const = 0;
+
 	virtual bool isError() const { return false; }
+
+	/** Comparison of expressions */
+	static int cmp(Ref e1, Ref e2);
+	/** Lexicographic comparison of *same size* vectors of expressions */
+	static int cmp(std::vector<Ref> const& l1, std::vector<Ref> const& l2);
 
 	/** Special expression to denote errors */
 	static Ref error();
@@ -87,7 +154,6 @@ public:
 	static Ref lit(bigint v);
 	static Ref lit(std::string v, unsigned w);
 	static Ref lit(bigint v, unsigned w);
-	static Ref lit(bool n, std::string s, std::string e, unsigned ss, unsigned es);
 	static Ref neq(Ref l, Ref r);
 	static Ref not_(Ref e);
 	static Ref neg(Ref e);
@@ -113,7 +179,10 @@ class ErrorExpr : public Expr
 public:
 	bool isError() const override { return true; }
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::ERROR; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(ErrorExpr const& e) const;
 };
 
 class BinExpr : public Expr
@@ -131,7 +200,10 @@ private:
 public:
 	BinExpr(Binary const op, Expr::Ref l, Expr::Ref r) : op(op), lhs(l), rhs(r) {}
 	void print(std::ostream& os) const override;
+	Kind kind() const override;
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(BinExpr const& e) const;
 };
 
 class CondExpr : public Expr {
@@ -142,7 +214,10 @@ public:
 	CondExpr(Expr::Ref c, Expr::Ref t, Expr::Ref e)
 		: cond(c), then(t), else_(e) {}
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::COND; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(CondExpr const& e) const;
 
 	Expr::Ref getCond() const { return cond; }
 	Expr::Ref getThen() const { return then; }
@@ -155,7 +230,10 @@ class FunExpr : public Expr {
 public:
 	FunExpr(std::string f, std::vector<Ref> const& xs) : fun(f), args(xs) {}
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::FN; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(FunExpr const& e) const;
 };
 
 class BoolLit : public Expr {
@@ -163,7 +241,10 @@ class BoolLit : public Expr {
 public:
 	BoolLit(bool b) : val(b) {}
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::LIT_BOOL; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(BoolLit const& e) const;
 };
 
 class IntLit : public Expr {
@@ -175,7 +256,10 @@ public:
 	IntLit(bigint v) : val(v) {}
 	bigint getVal() const { return val; }
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::LIT_INT; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(IntLit const& e) const;
 };
 
 class BvLit : public Expr {
@@ -191,19 +275,10 @@ public:
 	std::string getVal() const { return val; }
 	void print(std::ostream& os) const override;
 	void printSMT2(std::ostream& os) const override;
+	Kind kind() const override { return Kind::LIT_BV; }
 	Ref substitute(substitution const& s) const override;
-};
-
-class FPLit : public Expr {
-	bool neg;
-	std::string sig;
-	std::string expo;
-	unsigned sigSize;
-	unsigned expSize;
-public:
-	FPLit(bool n, std::string s, std::string e, unsigned ss, unsigned es) : neg(n), sig(s), expo(e), sigSize(ss), expSize(es) {}
-	void print(std::ostream& os) const override;
-	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(BvLit const& e) const;
 };
 
 class StringLit : public Expr {
@@ -211,7 +286,10 @@ class StringLit : public Expr {
 public:
 	StringLit(std::string v) : val(v) {}
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::LIT_STRING; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(StringLit const& e) const;
 };
 
 class NegExpr : public Expr {
@@ -219,7 +297,10 @@ class NegExpr : public Expr {
 public:
 	NegExpr(Expr::Ref e) : expr(e) {}
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::NEG; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(NegExpr const& e) const;
 };
 
 class NotExpr : public Expr {
@@ -227,7 +308,10 @@ class NotExpr : public Expr {
 public:
 	NotExpr(Expr::Ref e) : expr(e) {}
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::NOT; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(NotExpr const& e) const;
 };
 
 class QuantExpr : public Expr {
@@ -240,7 +324,10 @@ private:
 public:
 	QuantExpr(Quantifier q, std::vector<Binding> const& vs, Ref e) : quant(q), vars(vs), expr(e) {}
 	void print(std::ostream& os) const override;
+	Kind kind() const override;
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(QuantExpr const& e) const;
 };
 
 class SelExpr : public Expr {
@@ -268,7 +355,10 @@ class ArrConstExpr : public Expr {
 public:
 	ArrConstExpr(TypeDeclRef arrType, Ref val) : arrType(arrType), val(val) {}
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::ARRAY_CONST; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(ArrConstExpr const& e) const;
 };
 
 class ArrSelExpr : public SelExpr {
@@ -277,10 +367,12 @@ public:
 	ArrSelExpr(Ref a, Ref i) : SelExpr(a), idx(i) {}
 	Ref const& getIdx() const { return idx; }
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::ARRAY_SELECT; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(ArrSelExpr const& e) const;
 	Ref toUpdate(Ref v) const override { return Expr::arrupd(base, idx, v); }
 	Ref replaceBase(Ref b) const override { return Expr::arrsel(b, idx); }
-
 };
 
 class ArrUpdExpr : public UpdExpr {
@@ -289,7 +381,10 @@ public:
 	ArrUpdExpr(Ref a, Ref i, Ref v)
 		: UpdExpr(a, v), idx(i) {}
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::ARRAY_UPDATE; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(ArrUpdExpr const& e) const;
 };
 
 class VarExpr : public Expr {
@@ -298,7 +393,10 @@ public:
 	VarExpr(std::string v) : var(v) {}
 	std::string name() const { return var; }
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::VARIABLE; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(VarExpr const& e) const;
 };
 
 class OldExpr : public Expr {
@@ -306,7 +404,10 @@ class OldExpr : public Expr {
 public:
 	OldExpr(Ref expr) : expr(expr) {}
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::OLD; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(OldExpr const& e) const;
 };
 
 class TupleExpr : public Expr {
@@ -315,7 +416,10 @@ public:
 	TupleExpr(std::vector<Ref> const& elements): es(elements) {}
 	std::vector<Ref> const& elements() const { return es; }
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::TUPLE; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(TupleExpr const& e) const;
 };
 
 class Attr {
@@ -584,6 +688,7 @@ public:
 	void print(std::ostream& os) const override;
 	static bool classof(Decl::ConstRef D) { return D->getKind() == TYPE; }
 	std::string getSmtType() const { return smttype; }
+	int cmp(TypeDecl const& td) const;
 };
 
 class DataTypeDecl : public TypeDecl {
@@ -606,7 +711,10 @@ public:
 	FuncDeclRef getConstr() const { return constr; }
 	DataTypeDeclRef getDataType() const { return dt; }
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::DATATYPE_SELECT; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(DtSelExpr const& e) const;
 	Ref toUpdate(Ref v) const override { return Expr::dtupd(base, member, v, constr, dt); }
 	Ref replaceBase(Ref b) const override { return Expr::dtsel(b, member, constr, dt); }
 };
@@ -623,7 +731,10 @@ public:
 	FuncDeclRef getConstr() const { return constr; }
 	DataTypeDeclRef getDataType() const { return dt; }
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::DATATYPE_UPDATE; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(DtUpdExpr const& e) const;
 };
 
 class AxiomDecl : public Decl {
@@ -731,7 +842,10 @@ class CodeExpr : public Expr, public CodeContainer {
 public:
 	CodeExpr(DeclarationList ds, BlockList bs) : CodeContainer(ds, bs) {}
 	void print(std::ostream& os) const override;
+	Kind kind() const override { return Kind::CODE; }
 	Ref substitute(substitution const& s) const override;
+	bool contains(std::string id) const override;
+	int cmp(CodeExpr const& e) const;
 };
 
 class Specification {
