@@ -1541,7 +1541,7 @@ void ExprConditionStore::removeConditions(ConditionType type, std::string id) {
 		if ((**it).contains(id))
 			it = exprs.erase(it);
 		else
-	        ++it;
+			++it;
 	}
 	m_conditionsOnVariables.erase(id);
 }
