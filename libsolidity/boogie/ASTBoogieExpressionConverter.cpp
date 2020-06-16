@@ -597,26 +597,32 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 		auto arg = reorderedArgs[i];
 		arg->accept(*this);
 
+		// If there is side-effects, make sure to
 		if (funcType)
 		{
 			// Check for implicit conversions
-			if (funcType->parameterTypes().size() > i && funcType->parameterTypes()[i] != arg->annotation().type &&
+			if (funcType->parameterTypes().size() > i)
+			{
+				auto expectedType = funcType->parameterTypes()[i];
+				auto givenType = arg->annotation().type;
+				if (*expectedType != *givenType &&
 					funcName != ASTBoogieUtils::CALL.boogie &&
 					!boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_OLD) &&
 					!boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_BEFORE) &&
 					!boost::algorithm::starts_with(funcName, ASTBoogieUtils::VERIFIER_SUM))
-			{
-				// Introduce temp variable, make the assignment, including conversions
-				auto argDecl = m_context.freshTempVar(m_context.toBoogieType(funcType->parameterTypes()[i], arg.get()), "call_arg");
-				m_newDecls.push_back(argDecl);
-				auto ar = AssignHelper::makeAssign(
+				{
+					// Introduce temp variable, make the assignment, including conversions
+					auto argDecl = m_context.freshTempVar(m_context.toBoogieType(funcType->parameterTypes()[i], arg.get()), "call_arg");
+					m_newDecls.push_back(argDecl);
+					auto ar = AssignHelper::makeAssign(
 						AssignHelper::AssignParam{argDecl->getRefTo(), funcType->parameterTypes()[i], nullptr },
 						AssignHelper::AssignParam{m_currentExpr, arg->annotation().type, arg.get() },
 						Token::Assign, &_node, m_context);
-				m_newDecls.insert(m_newDecls.end(), ar.newDecls.begin(), ar.newDecls.end());
-				for (auto stmt: ar.newStmts)
-					addSideEffect(stmt);
-				m_currentExpr = argDecl->getRefTo();
+					m_newDecls.insert(m_newDecls.end(), ar.newDecls.begin(), ar.newDecls.end());
+					for (auto stmt: ar.newStmts)
+						addSideEffect(stmt);
+					m_currentExpr = argDecl->getRefTo();
+				}
 			}
 		}
 
