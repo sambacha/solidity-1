@@ -55,6 +55,7 @@ string const ASTBoogieUtils::DOCTAG_CONTRACT_INVARS_INCLUDE = "{contractInvarian
 string const ASTBoogieUtils::DOCTAG_LOOP_INVAR = "invariant";
 string const ASTBoogieUtils::DOCTAG_PRECOND = "precondition";
 string const ASTBoogieUtils::DOCTAG_POSTCOND = "postcondition";
+string const ASTBoogieUtils::DOCTAG_SPECIFICATION_CASES = "specification";
 string const ASTBoogieUtils::DOCTAG_MODIFIES = "modifies";
 string const ASTBoogieUtils::DOCTAG_MODIFIES_ALL = DOCTAG_MODIFIES + " *";
 string const ASTBoogieUtils::DOCTAG_MODIFIES_COND = " if ";

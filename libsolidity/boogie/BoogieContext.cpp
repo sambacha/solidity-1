@@ -1461,6 +1461,102 @@ std::pair<boogie::Expr::Ref, std::string> BoogieContext::getEventLoopInvariant(E
 	return result;
 }
 
+void ExprConditionStore::addCondition(std::string id, ConditionType type, boogie::Expr::Ref ref)
+{
+	m_conditionsOnVariables[id][type].insert(ref);
+}
+
+void ExprConditionStore::addCondition(ConditionType type, boogie::Expr::Ref ref)
+{
+	m_conditions[type].insert(ref);
+}
+
+void ExprConditionStore::addConditions(ExprConditionStore const& other)
+{
+	m_conditions.insert(other.m_conditions.begin(), other.m_conditions.end());
+	m_conditionsOnVariables.insert(other.m_conditionsOnVariables.begin(), other.m_conditionsOnVariables.end());
+}
+
+ExprConditionStore::ConditionSet ExprConditionStore::getConditions(ExprConditionStore::ConditionType type) const
+{
+	ConditionSet result;
+
+	auto find = m_conditions.find(type);
+	if (find != m_conditions.end())
+	{
+		for (auto const& c: find->second)
+			result.insert(c);
+	}
+
+	for (auto const& pair: m_conditionsOnVariables)
+	{
+		auto find = pair.second.find(type);
+		if (find != pair.second.end())
+			for (auto const& c: find->second)
+				result.insert(c);
+	}
+
+	return result;
+}
+
+ExprConditionStore::ConditionSet ExprConditionStore::getConditionsContaining(ConditionType type, std::string id) const
+{
+	ConditionSet result;
+
+	auto find = m_conditions.find(type);
+	if (find != m_conditions.end())
+	{
+		for (auto const& c: find->second)
+			if (c->contains(id))
+				result.insert(c);
+
+	}
+
+	return result;
+}
+
+ExprConditionStore::ConditionSet ExprConditionStore::getConditionsOn(ConditionType type, std::string id) const {
+	ConditionSet result;
+
+	auto findId = m_conditionsOnVariables.find(id);
+	if (findId != m_conditionsOnVariables.end())
+	{
+		auto find = findId->second.find(type);
+		if (find != findId->second.end())
+		{
+			for (auto const& c: find->second)
+				if (c->contains(id))
+					result.insert(c);
+		}
+	}
+
+	return result;
+}
+
+
+void ExprConditionStore::removeConditions(ConditionType type, std::string id) {
+	auto& exprs = m_conditions[type];
+	for (auto it = exprs.begin(), end = exprs.end(); it != end; )
+	{
+		if ((**it).contains(id))
+			it = exprs.erase(it);
+		else
+			++it;
+	}
+	m_conditionsOnVariables.erase(id);
+}
+
+void ExprConditionStore::removeConditions(ConditionType type) {
+	m_conditions.erase(type);
+	for (auto& pair: m_conditionsOnVariables)
+		pair.second.erase(type);
+}
+
+void ExprConditionStore::clear()
+{
+	m_conditions.clear();
+}
+
 }
 }
 

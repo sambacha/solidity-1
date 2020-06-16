@@ -11,12 +11,12 @@ import tempfile
 import sys
 
 # Potential error codes
-ERROR_NO_ERRROR=0
+ERROR_NO_ERROR=0
 ERROR_COMPILER=-1
 ERROR_SOLVER_NOT_FOUND=-2
 ERROR_PROCESS_ERROR=-3
 ERROR_BOOGIE_ERROR=-4
-ERRORS_VERIFICATION=-5
+ERROR_VERIFICATION=-5
 ERROR_PARTIAL=-6
 
 def kill():
@@ -217,10 +217,10 @@ def main(tmpDir):
     if (re.match('Boogie program verifier finished with \\d+ verified, 0 errors', outputLines[-1])):
         print(greenTxt('No errors found.'))
         if 'inconclusive' in outputLines[-1] or skipped > 0: return ERROR_PARTIAL
-        return ERROR_NO_ERRROR
+        return ERROR_NO_ERROR
     else:
         print(redTxt('Errors were found by the verifier.'))
-        return ERRORS_VERIFICATION
+        return ERROR_VERIFICATION
 
 def printVerbose(txt):
     txt = txt.replace('Warning: ', yellowTxt('Warning') + ': ')

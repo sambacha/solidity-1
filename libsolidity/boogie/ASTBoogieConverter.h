@@ -3,6 +3,7 @@
 #include <libsolidity/ast/ASTVisitor.h>
 #include <libsolidity/boogie/BoogieAst.h>
 #include <libsolidity/boogie/BoogieContext.h>
+#include <libsolidity/parsing/Parser.h>
 
 namespace dev
 {
@@ -86,6 +87,19 @@ private:
 	bool parseExpr(std::string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result);
 
 	/**
+	 * Helper method to parse a specification case expression from a string with a given scope.
+	 * @param exprStr Expression as a string
+	 * @param _node Corresponding node (for error reporting)
+	 * @param _scope Scope
+	 * @param result Parsed expression
+	 * @returns True if parsing was successful
+	 */
+	bool parseSpecificationCasesExpr(std::string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result);
+
+	void processSpecificationExpression(ASTPointer<Expression> specExpr, Parser::SpecificationExpressionInfo const& specInfo,
+			ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result);
+
+	/**
 	 * Parse expressions from documentation for a given tag.
 	 * @param _node Corresponding node (for error reporting)
 	 * @param _annot Annotations
@@ -94,7 +108,7 @@ private:
 	 * @returns A list of parsed expressions
 	 */
 	std::vector<BoogieContext::DocTagExpr> getExprsFromDocTags(ASTNode const& _node, DocumentedAnnotation const& _annot,
-			ASTNode const* _scope, std::string _tag);
+			ASTNode const* _scope, std::vector<std::string> const& _tags);
 
 	/**
 	 * Checks if contract invariants are explicitly requested (for non-public functions).

@@ -64,6 +64,16 @@ public:
 	/// Parses expressions, e.g., of the form forall (int i) exist (int j) a[i][j] > 0
 	ASTPointer<Expression> parseSpecificationExpression(std::shared_ptr<langutil::Scanner> const& _scanner, SpecificationExpressionInfo& info);
 
+	struct SpecificationCase {
+		ASTPointer<Expression> precondition;
+		SpecificationExpressionInfo preconditionInfo;
+		ASTPointer<Expression> postcondition;
+		SpecificationExpressionInfo postconditionInfo;
+	};
+
+	/// Parses a case-by-case specification
+	void parseSpecificationExpression(std::shared_ptr<langutil::Scanner> const& _scanner, std::vector<SpecificationCase>& cases);
+
 private:
 	class ASTNodeFactory;
 
@@ -206,6 +216,8 @@ private:
 	/// Flag that signifies whether '_' is parsed as a PlaceholderStatement or a regular identifier.
 	bool m_insideModifier = false;
 	langutil::EVMVersion m_evmVersion;
+
+	ASTPointer<Expression> parseSpecificationExpression(SpecificationExpressionInfo& info);
 };
 
 }

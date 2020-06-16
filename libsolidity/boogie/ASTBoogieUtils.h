@@ -69,6 +69,7 @@ public:
 	static std::string const DOCTAG_CONTRACT_INVARS_INCLUDE;
 	static std::string const DOCTAG_PRECOND;
 	static std::string const DOCTAG_POSTCOND;
+	static std::string const DOCTAG_SPECIFICATION_CASES;
 	static std::string const DOCTAG_MODIFIES;
 	static std::string const DOCTAG_MODIFIES_ALL;
 	static std::string const DOCTAG_MODIFIES_COND;

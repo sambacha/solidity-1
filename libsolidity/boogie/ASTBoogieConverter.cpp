@@ -31,11 +31,11 @@ bg::Expr::Ref ASTBoogieConverter::convertExpression(Expression const& _node)
 	ASTBoogieExpressionConverter::Result result = ASTBoogieExpressionConverter(m_context).convert(_node, false);
 
 	m_localDecls.insert(end(m_localDecls), begin(result.newDecls), end(result.newDecls));
-	for (auto tcc: result.tccs)
+	for (auto tcc: result.conditions.getConditions(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION))
 		m_currentBlocks.top()->addStmt(bg::Stmt::assume(tcc));
 	for (auto s: result.newStatements)
 		m_currentBlocks.top()->addStmt(s);
-	for (auto oc: result.ocs)
+	for (auto oc: result.conditions.getConditions(ExprConditionStore::ConditionType::OVERFLOW_CONDITION))
 		m_currentBlocks.top()->addStmt(bg::Stmt::assign(
 			bg::Expr::id(ASTBoogieUtils::VERIFIER_OVERFLOW),
 			bg::Expr::or_(bg::Expr::id(ASTBoogieUtils::VERIFIER_OVERFLOW), bg::Expr::not_(oc))));
@@ -246,14 +246,14 @@ void ASTBoogieConverter::createEtherReceiveFunc(ContractDefinition const& _node)
 	bg::ProcDeclRef balIncrProc = bg::Decl::procedure(_node.name() + "_eth_receive", balIncrParams, {}, {}, {balIncrBlock});
 	for (auto invar: m_context.currentContractInvars())
 	{
-		for (auto oc: invar.ocs)
+		for (auto oc: invar.conditions.getConditions(ExprConditionStore::ConditionType::OVERFLOW_CONDITION))
 		{
 			balIncrProc->getRequires().push_back(bg::Specification::spec(oc,
 				ASTBoogieUtils::createAttrs(_node.location(), "Overflow in computation of invariant '" + invar.exprStr + "' when entering function.", *m_context.currentScanner())));
 			balIncrProc->getEnsures().push_back(bg::Specification::spec(oc,
 				ASTBoogieUtils::createAttrs(_node.location(), "Overflow in computation of invariant '" + invar.exprStr + "' at end of function.", *m_context.currentScanner())));
 		}
-		for (auto tcc: invar.tccs)
+		for (auto tcc: invar.conditions.getConditions(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION))
 		{
 			balIncrProc->getRequires().push_back(bg::Specification::spec(tcc,
 				ASTBoogieUtils::createAttrs(_node.location(), "Variables in invariant '" + invar.exprStr + "' might be out of range when entering function.", *m_context.currentScanner())));
@@ -315,13 +315,159 @@ void ASTBoogieConverter::initializeStateVar(VariableDeclaration const& _node)
 	}
 }
 
+void ASTBoogieConverter::processSpecificationExpression(ASTPointer<Expression> expr, Parser::SpecificationExpressionInfo const& specInfo,
+		ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result)
+{
+	// boogie side quantifier info
+	std::vector<std::vector<bg::Binding>> bgQuantifierVars;
+	std::vector<bg::QuantExpr::Quantifier> bgQuantifierType;
+
+	// Resolve references, using the given scope
+	auto scopeDecls = m_context.scopes()[_scope];
+	if (specInfo.quantifierList.size() > 0)
+	{
+		// Resolve types in the variable declaration first
+		if (specInfo.arrayId)
+			m_context.scopes()[specInfo.arrayId.get()] = m_context.scopes()[_scope];
+		NameAndTypeResolver typeResolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
+		if (specInfo.arrayId)
+			typeResolver.resolveNamesAndTypes(*specInfo.arrayId);
+		// Add all the quantified variables to the scope and create Boogie bindings
+		scopeDecls = std::make_shared<DeclarationContainer>(_scope, scopeDecls.get());
+		for (size_t i = 0; i < specInfo.quantifierList.size(); ++ i)
+		{
+			bool isForall = specInfo.isForall[i];
+			auto varsBlock = specInfo.quantifierList[i];
+			// Resolve types of the variables
+			if (typeResolver.resolveNamesAndTypes(*varsBlock))
+			{
+				auto vars = varsBlock->parameters();
+				bgQuantifierVars.push_back({});
+				bgQuantifierType.push_back(isForall ? bg::QuantExpr::Forall : bg::QuantExpr::Exists);
+				for (auto varDecl: vars)
+				{
+					scopeDecls->registerDeclaration(*varDecl);
+					auto varName = m_context.mapDeclName(*varDecl);
+					auto varType = m_context.toBoogieType(varDecl->type(), varDecl.get());
+					auto varExpr = bg::Expr::id(varName);
+					bgQuantifierVars.back().push_back({varExpr, varType});
+				}
+			}
+		}
+	}
+	m_context.scopes()[expr.get()] = scopeDecls;
+
+	NameAndTypeResolver exprResolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
+	if (exprResolver.resolveNamesAndTypes(*expr))
+	{
+		// Do type checking
+		TypeChecker typeChecker(m_context.evmVersion(), *m_context.errorReporter(), m_context.currentContract());
+		if (typeChecker.checkTypeRequirements(*expr))
+		{
+			// Convert expression to Boogie representation
+			auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr, true);
+			// Add index bounds if array is there
+			if (specInfo.arrayId)
+			{
+				std::vector<bg::Expr::Ref> guards;
+				solAssert(bgQuantifierType.size() == 1 && bgQuantifierVars.size() == 1, "");
+				solAssert(bgQuantifierType.back() == bg::QuantExpr::Forall, "");
+				auto arrayType = specInfo.arrayId->annotation().referencedDeclaration->type();
+				auto arrayTypeSpec = dynamic_cast<ArrayType const*>(arrayType);
+				if (arrayTypeSpec)
+				{
+					auto arrayBaseType = arrayTypeSpec->baseType();
+					auto arrayBaseTypeBg = m_context.toBoogieType(arrayBaseType, specInfo.arrayId.get());
+					auto arrayExpr = ASTBoogieExpressionConverter(m_context).convert(*specInfo.arrayId, false).expr;
+					auto arrayLocation = arrayTypeSpec->location();
+					if (arrayLocation == DataLocation::Memory || arrayLocation == DataLocation::CallData)
+						arrayExpr = m_context.getMemArray(arrayExpr, arrayBaseTypeBg);
+					auto arrayLength = m_context.getArrayLength(arrayExpr, arrayBaseTypeBg);
+					auto const& bindings = bgQuantifierVars.back();
+					for (auto const& b: bindings)
+					{
+						guards.push_back(bg::Expr::lte(bg::Expr::lit((unsigned) 0), b.id));
+						guards.push_back(bg::Expr::lt(b.id, arrayLength));
+					}
+					auto guard = bg::Expr::and_(guards);
+					convResult.expr = bg::Expr::impl(guard, convResult.expr);
+				}
+				else
+					m_context.reportError(&_node, "Specification of an array property must be over an array");
+			}
+
+			// Add quantifiers if necessary
+			while (bgQuantifierType.size() > 0)
+			{
+				auto type = bgQuantifierType.back();
+				auto const& bindings = bgQuantifierVars.back();
+
+				// Add any type-checking conditions
+				std::vector<bg::Expr::Ref> bindingConditions;
+				std::vector<bg::Expr::Ref> bindingTCCs;
+				// First, we cannot handle OCs, issue warning
+				if (!convResult.conditions.getConditions(ExprConditionStore::ConditionType::OVERFLOW_CONDITION).empty())
+				{
+					convResult.conditions.removeConditions(ExprConditionStore::ConditionType::OVERFLOW_CONDITION);
+					m_context.reportWarning(&_node, "Annotation generates overflow checking conditions but they are not supported within quantifiers.");
+				}
+				for (auto expr: bindings)
+				{
+					auto varExpr = std::dynamic_pointer_cast<boogie::VarExpr const>(expr.id);
+					auto conditions = convResult.conditions.getConditionsContaining(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION, varExpr->name());
+					bindingConditions.insert(bindingConditions.end(), conditions.begin(), conditions.end());
+					auto tccs = convResult.conditions.getConditionsOn(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION, varExpr->name());
+					bindingTCCs.insert(bindingTCCs.end(), tccs.begin(), tccs.end());
+					convResult.conditions.removeConditions(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION, varExpr->name());
+				}
+
+				switch (type)
+				{
+				case bg::QuantExpr::Forall:
+					if (bindingConditions.size() || bindingTCCs.size())
+					{
+						auto conditions = bg::Expr::and_(bindingConditions);
+						auto tccs = bg::Expr::and_(bindingTCCs);
+						convResult.expr = bg::Expr::and_(conditions, convResult.expr);
+						convResult.expr = bg::Expr::impl(tccs, convResult.expr);
+					}
+					convResult.expr = bg::Expr::forall(bindings, convResult.expr);
+					break;
+				case bg::QuantExpr::Exists:
+					if (bindingConditions.size() || bindingTCCs.size())
+					{
+						auto conditions = bg::Expr::and_(bindingConditions);
+						auto tccs = bg::Expr::and_(bindingTCCs);
+						convResult.expr = bg::Expr::and_(conditions, convResult.expr);
+						convResult.expr = bg::Expr::and_(tccs, convResult.expr);
+					}
+					convResult.expr = bg::Expr::exists(bindings, convResult.expr);
+					break;
+				}
+
+				bgQuantifierType.pop_back();
+				bgQuantifierVars.pop_back();
+			}
+
+			result.expr = convResult.expr;
+			result.conditions = convResult.conditions;
+
+			// Report unsupported cases (side effects)
+			if (!convResult.newStatements.empty())
+				m_context.reportError(&_node, "Annotation expression introduces intermediate statements");
+			if (!convResult.newDecls.empty())
+				m_context.reportError(&_node, "Annotation expression introduces intermediate declarations");
+
+		}
+	}
+}
+
 bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result)
 {
 	// We temporarily replace the error reporter in the context, because the locations
 	// are pointing to positions in the docstring
 	ErrorList errorList;
 	ErrorReporter errorReporter(errorList);
-	TypeChecker typeChecker(m_context.evmVersion(), errorReporter, m_context.currentContract());
 
 	ErrorReporter* originalErrReporter = m_context.errorReporter();
 	m_context.errorReporter() = &errorReporter;
@@ -330,9 +476,6 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 	{
 		// solidity side quantifier info
 		Parser::SpecificationExpressionInfo specInfo;
-		// boogie side quantifier info
-		std::vector<std::vector<bg::Binding>> bgQuantifierVars;
-		std::vector<bg::QuantExpr::Quantifier> bgQuantifierType;
 
 		// Parse
 		CharStream exprStream(exprStr, "Annotation");
@@ -342,111 +485,107 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 		if (!expr)
 			throw langutil::FatalError();
 
-		// Resolve references, using the given scope
-		auto scopeDecls = m_context.scopes()[_scope];
-		if (specInfo.quantifierList.size() > 0)
+		// Process the expression (add quantifiers and stuff)
+		processSpecificationExpression(expr, specInfo, _node, _scope, result);
+		result.exprStr = exprStr;
+		result.exprSol = expr;
+	}
+	catch (langutil::FatalError const& fe)
+	{
+		m_context.reportError(&_node, "Error while parsing annotation.");
+	}
+
+	// Print errors relating to the expression string
+	m_context.printErrors(cerr);
+
+	// Restore error reporter
+	m_context.errorReporter() = originalErrReporter;
+	// Add a single error in the original reporter if there were errors
+	if (!Error::containsOnlyWarnings(errorList))
+	{
+		m_context.reportError(&_node, "Error(s) while translating annotation for node");
+		return false;
+	}
+	else if (errorList.size() > 0)
+	{
+		m_context.reportWarning(&_node, "Warning(s) while translating annotation for node");
+	}
+	return true;
+}
+
+bool ASTBoogieConverter::parseSpecificationCasesExpr(string exprStr, ASTNode const& _node, ASTNode const* _scope, BoogieContext::DocTagExpr& result)
+{
+	// We temporarily replace the error reporter in the context, because the locations
+	// are pointing to positions in the docstring
+	ErrorList errorList;
+	ErrorReporter errorReporter(errorList);
+
+	ErrorReporter* originalErrReporter = m_context.errorReporter();
+	m_context.errorReporter() = &errorReporter;
+
+	try
+	{
+		// Setup
+		CharStream exprStream(exprStr, "Annotation");
+		Parser parser(*m_context.errorReporter(), m_context.evmVersion());
+		auto scanner = std::make_shared<Scanner>(exprStream);
+
+		// Parse the cases
+		std::vector<Parser::SpecificationCase> specCases;
+		parser.parseSpecificationExpression(scanner, specCases);
+
+		// Convert cases to boogie
+		std::vector<boogie::Expr::Ref> specCasesBoogie;
+		std::vector<boogie::Expr::Ref> specCasesPreBoogie;
+		for (auto const& specCase: specCases)
 		{
-			// Resolve types in the variable declaration first
-			if (specInfo.arrayId)
-				m_context.scopes()[specInfo.arrayId.get()] = m_context.scopes()[_scope];
-			NameAndTypeResolver typeResolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
-			if (specInfo.arrayId)
-				typeResolver.resolveNamesAndTypes(*specInfo.arrayId);
-			// Add all the quantified variables to the scope and create Boogie bindings
-			scopeDecls = std::make_shared<DeclarationContainer>(_scope, scopeDecls.get());
-			for (size_t i = 0; i < specInfo.quantifierList.size(); ++ i)
+			if (!specCase.precondition || !specCase.postcondition)
+				throw langutil::FatalError();
+
+			BoogieContext::DocTagExpr pre;
+			processSpecificationExpression(specCase.precondition, specCase.preconditionInfo, _node, _scope, pre);
+			auto preOld = boogie::Expr::old(pre.expr);
+			specCasesPreBoogie.push_back(preOld);
+
+			/// TODO: tccs, ocs?
+
+			BoogieContext::DocTagExpr post;
+			processSpecificationExpression(specCase.postcondition, specCase.postconditionInfo, _node, _scope, post);
+
+			auto specCaseBoogie = boogie::Expr::impl(preOld, post.expr);
+			specCasesBoogie.push_back(specCaseBoogie);
+
+			result.conditions.addConditions(result.conditions);
+		}
+
+		// Add another case: !(case_1 || ... || case_n) => noop
+		std::vector<bg::Expr::Ref> noopVars;
+		auto casesCovered = boogie::Expr::or_(specCasesPreBoogie);
+		// Else branch: balance stays the same
+		auto balanceEq = bg::Expr::eq(m_context.boogieBalance()->getRefTo(), bg::Expr::old(m_context.boogieBalance()->getRefTo()));
+		noopVars.push_back(balanceEq);
+		// Else branch: state variables stay the same
+		for (auto contract: m_context.currentContract()->annotation().linearizedBaseContracts)
+		{
+			for (auto varDecl: ASTNode::filteredNodes<VariableDeclaration>(contract->subNodes()))
 			{
-				bool isForall = specInfo.isForall[i];
-				auto varsBlock = specInfo.quantifierList[i];
-				// Resolve types of the variables
-				if (typeResolver.resolveNamesAndTypes(*varsBlock))
-				{
-					auto vars = varsBlock->parameters();
-					bgQuantifierVars.push_back({});
-					bgQuantifierType.push_back(isForall ? bg::QuantExpr::Forall : bg::QuantExpr::Exists);
-					for (auto varDecl: vars)
-					{
-						scopeDecls->registerDeclaration(*varDecl);
-						auto varName = m_context.mapDeclName(*varDecl);
-						auto varType = m_context.toBoogieType(varDecl->type(), varDecl.get());
-						auto varExpr = bg::Expr::id(varName);
-						bgQuantifierVars.back().push_back({varExpr, varType});
-					}
-				}
+				if (varDecl->isConstant())
+					continue;
+				auto varId = bg::Expr::id(m_context.mapDeclName(*varDecl));
+				auto varThis = bg::Expr::arrsel(varId, m_context.boogieThis()->getRefTo());
+				auto varEq = bg::Expr::eq(varThis, bg::Expr::old(varThis));
+				noopVars.push_back(varEq);
 			}
 		}
-		m_context.scopes()[expr.get()] = scopeDecls;
+		auto noop = bg::Expr::and_(noopVars);
+		specCasesBoogie.push_back(bg::Expr::or_(casesCovered, noop));
 
-		NameAndTypeResolver exprResolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
-		if (exprResolver.resolveNamesAndTypes(*expr))
-		{
-			// Do type checking
-			if (typeChecker.checkTypeRequirements(*expr))
-			{
-				// Convert expression to Boogie representation
-				auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr, true);
-				// Add index bounds if array is there
-				if (specInfo.arrayId)
-				{
-					std::vector<bg::Expr::Ref> guards;
-					solAssert(bgQuantifierType.size() == 1 && bgQuantifierVars.size() == 1, "");
-					solAssert(bgQuantifierType.back() == bg::QuantExpr::Forall, "");
-					auto arrayType = specInfo.arrayId->annotation().referencedDeclaration->type();
-					auto arrayTypeSpec = dynamic_cast<ArrayType const*>(arrayType);
-					if (arrayTypeSpec)
-					{
-						auto arrayBaseType = arrayTypeSpec->baseType();
-						auto arrayBaseTypeBg = m_context.toBoogieType(arrayBaseType, specInfo.arrayId.get());
-						auto arrayExpr = ASTBoogieExpressionConverter(m_context).convert(*specInfo.arrayId, false).expr;
-						auto arrayLocation = arrayTypeSpec->location();
-						if (arrayLocation == DataLocation::Memory || arrayLocation == DataLocation::CallData)
-							arrayExpr = m_context.getMemArray(arrayExpr, arrayBaseTypeBg);
-						auto arrayLength = m_context.getArrayLength(arrayExpr, arrayBaseTypeBg);
-						auto const& bindings = bgQuantifierVars.back();
-						for (auto const& b: bindings)
-						{
-							guards.push_back(bg::Expr::lte(bg::Expr::lit((unsigned) 0), b.id));
-							guards.push_back(bg::Expr::lt(b.id, arrayLength));
-						}
-						auto guard = bg::Expr::and_(guards);
-						convResult.expr = bg::Expr::impl(guard, convResult.expr);
-					}
-					else
-						m_context.reportError(&_node, "Specification of an array property must be over an array");
-				}
-
-				// Add quantifiers if necessary
-				while (bgQuantifierType.size() > 0)
-				{
-					auto type = bgQuantifierType.back();
-					auto const& bindings = bgQuantifierVars.back();
-					switch (type)
-					{
-					case bg::QuantExpr::Forall:
-						convResult.expr = bg::Expr::forall(bindings, convResult.expr);
-						break;
-					case bg::QuantExpr::Exists:
-						convResult.expr = bg::Expr::exists(bindings, convResult.expr);
-						break;
-					}
-					bgQuantifierType.pop_back();
-					bgQuantifierVars.pop_back();
-				}
-
-				result.expr = convResult.expr;
-				result.exprStr = exprStr;
-				result.exprSol = expr;
-				result.tccs = convResult.tccs;
-				result.ocs = convResult.ocs;
-
-				// Report unsupported cases (side effects)
-				if (!convResult.newStatements.empty())
-					m_context.reportError(&_node, "Annotation expression introduces intermediate statements");
-				if (!convResult.newDecls.empty())
-					m_context.reportError(&_node, "Annotation expression introduces intermediate declarations");
-
-			}
-		}
+		// Construct the postcondition:
+		// conjunction[case] old(case.pre) => case.post
+        //
+		result.expr = boogie::Expr::and_(specCasesBoogie);
+		result.exprStr = exprStr;
+		result.exprSol = nullptr;
 	}
 	catch (langutil::FatalError const& fe)
 	{
@@ -472,16 +611,27 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 }
 
 std::vector<BoogieContext::DocTagExpr> ASTBoogieConverter::getExprsFromDocTags(ASTNode const& _node, DocumentedAnnotation const& _annot,
-		ASTNode const* _scope, string _tag)
+		ASTNode const* _scope, vector<string> const& _tags)
 {
 	std::vector<BoogieContext::DocTagExpr> exprs;
-	for (auto docTag: _annot.docTags)
+	for (auto tag: _tags)
 	{
-		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, _tag)) // Find expressions with the given tag
+		for (auto docTag: _annot.docTags)
 		{
-			BoogieContext::DocTagExpr expr;
-			if (parseExpr(docTag.second.content.substr(_tag.length() + 1), _node, _scope, expr))
-				exprs.push_back(expr);
+			if (docTag.first == "notice" && boost::starts_with(docTag.second.content, tag)) // Find expressions with the given tag
+			{
+				BoogieContext::DocTagExpr expr;
+				if (tag == ASTBoogieUtils::DOCTAG_SPECIFICATION_CASES)
+				{
+					if (parseSpecificationCasesExpr(docTag.second.content.substr(tag.length() + 1), _node, _scope, expr))
+						exprs.push_back(expr);
+				}
+				else
+				{
+					if (parseExpr(docTag.second.content.substr(tag.length() + 1), _node, _scope, expr))
+						exprs.push_back(expr);
+				}
+			}
 		}
 	}
 	return exprs;
@@ -813,7 +963,7 @@ bool ASTBoogieConverter::visit(ContractDefinition const& _node)
 	// Process contract invariants
 	m_context.currentContractInvars().clear();
 
-	for (auto invar: getExprsFromDocTags(_node, _node.annotation(), &_node, ASTBoogieUtils::DOCTAG_CONTRACT_INVAR))
+	for (auto invar: getExprsFromDocTags(_node, _node.annotation(), &_node, { ASTBoogieUtils::DOCTAG_CONTRACT_INVAR }))
 	{
 		m_context.addGlobalComment("Contract invariant: " + invar.exprStr);
 		m_context.currentContractInvars().push_back(invar);
@@ -1076,14 +1226,14 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	{
 		for (auto invar: m_context.currentContractInvars())
 		{
-			for (auto oc: invar.ocs)
+			for (auto oc: invar.conditions.getConditions(ExprConditionStore::ConditionType::OVERFLOW_CONDITION) )
 			{
 				procDecl->getRequires().push_back(bg::Specification::spec(oc,
 					ASTBoogieUtils::createAttrs(_node.location(), "Overflow in computation of invariant '" + invar.exprStr + "' when entering function.", *m_context.currentScanner())));
 				procDecl->getEnsures().push_back(bg::Specification::spec(oc,
 					ASTBoogieUtils::createAttrs(_node.location(), "Overflow in computation of invariant '" + invar.exprStr + "' at end of function.", *m_context.currentScanner())));
 			}
-			for (auto tcc: invar.tccs)
+			for (auto tcc: invar.conditions.getConditions(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION))
 			{
 				procDecl->getRequires().push_back(bg::Specification::spec(tcc,
 					ASTBoogieUtils::createAttrs(_node.location(), "Variables in invariant '" + invar.exprStr + "' might be out of range when entering function.", *m_context.currentScanner())));
@@ -1104,30 +1254,30 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 		procDecl->addAttr(bg::Attr::attr("inline", 1));
 
 	// Add other pre/postconditions
-	for (auto pre: getExprsFromDocTags(_node, _node.annotation(), &_node, ASTBoogieUtils::DOCTAG_PRECOND))
+	for (auto pre: getExprsFromDocTags(_node, _node.annotation(), &_node, { ASTBoogieUtils::DOCTAG_PRECOND }))
 	{
 		procDecl->getRequires().push_back(bg::Specification::spec(pre.expr,
 							ASTBoogieUtils::createAttrs(_node.location(), "Precondition '" + pre.exprStr + "' might not hold when entering function.", *m_context.currentScanner())));
-		for (auto tcc: pre.tccs)
+		for (auto tcc: pre.conditions.getConditions(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION))
 			procDecl->getRequires().push_back(bg::Specification::spec(tcc,
 				ASTBoogieUtils::createAttrs(_node.location(), "Variables in precondition '" + pre.exprStr + "' might be out of range when entering function.", *m_context.currentScanner())));
 
-		for (auto oc: pre.ocs)
+		for (auto oc: pre.conditions.getConditions(ExprConditionStore::ConditionType::OVERFLOW_CONDITION))
 			procDecl->getRequires().push_back(bg::Specification::spec(oc,
 						ASTBoogieUtils::createAttrs(_node.location(), "Overflow in computation of precondition '" + pre.exprStr + "' when entering function.", *m_context.currentScanner())));
 	}
-	for (auto post: getExprsFromDocTags(_node, _node.annotation(), &_node, ASTBoogieUtils::DOCTAG_POSTCOND))
+	for (auto post: getExprsFromDocTags(_node, _node.annotation(), &_node, { ASTBoogieUtils::DOCTAG_POSTCOND, ASTBoogieUtils::DOCTAG_SPECIFICATION_CASES }))
 	{
 		procDecl->getEnsures().push_back(bg::Specification::spec(post.expr,
 							ASTBoogieUtils::createAttrs(_node.location(), "Postcondition '" + post.exprStr + "' might not hold at end of function.", *m_context.currentScanner())));
-		for (auto tcc: post.tccs)
+		for (auto tcc: post.conditions.getConditions(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION))
 		{
 			// TCC might contain return variable, cannot be added as precondition
 			tccAssumes->addStmt(bg::Stmt::assume(tcc));
 			procDecl->getEnsures().push_back(bg::Specification::spec(tcc,
 						ASTBoogieUtils::createAttrs(_node.location(), "Variables in postcondition '" + post.exprStr + "' might be out of range at end of function.", *m_context.currentScanner())));
 		}
-		for (auto oc: post.ocs)
+		for (auto oc: post.conditions.getConditions(ExprConditionStore::ConditionType::OVERFLOW_CONDITION))
 			procDecl->getEnsures().push_back(bg::Specification::spec(oc,
 							ASTBoogieUtils::createAttrs(_node.location(), "Overflow in computation of postcondition '" + post.exprStr + "' at end of function.", *m_context.currentScanner())));
 	}
@@ -1253,9 +1403,9 @@ void ASTBoogieConverter::processEventDefinition(EventDefinition const& _event)
 	// - declare the event as an inline function with an empty body
 	// - treat both preconditions and postconditions as function preconditions in Boogie
 
-	auto eventTracks = getExprsFromDocTags(_event, _event.annotation(), scope(), ASTBoogieUtils::DOCTAG_EVENT_TRACKS_CHANGES);
-	auto eventPreconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), ASTBoogieUtils::DOCTAG_PRECOND);
-	auto eventPostconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), ASTBoogieUtils::DOCTAG_POSTCOND);
+	auto eventTracks = getExprsFromDocTags(_event, _event.annotation(), scope(), { ASTBoogieUtils::DOCTAG_EVENT_TRACKS_CHANGES });
+	auto eventPreconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), { ASTBoogieUtils::DOCTAG_PRECOND });
+	auto eventPostconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), { ASTBoogieUtils::DOCTAG_POSTCOND });
 
 	// Add all the tracked data
 	for (auto e: eventTracks)
@@ -1272,7 +1422,7 @@ void ASTBoogieConverter::processEventDefinition(EventDefinition const& _event)
 
 	// Postconditions require one more pass so that the 'before(..)' parts are correctly
 	// substituted
-	eventPostconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), ASTBoogieUtils::DOCTAG_POSTCOND);
+	eventPostconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), { ASTBoogieUtils::DOCTAG_POSTCOND });
 
 	// Name of the event
 	string eventName = m_context.mapDeclName(_event);
@@ -1439,15 +1589,15 @@ bool ASTBoogieConverter::visit(WhileStatement const& _node)
 	if (m_context.overflow())
 		invars.push_back({bg::Expr::not_(bg::Expr::id(ASTBoogieUtils::VERIFIER_OVERFLOW)), "No overflow"});
 
-	std::vector<BoogieContext::DocTagExpr> loopInvars = getExprsFromDocTags(_node, _node.annotation(), scope(), ASTBoogieUtils::DOCTAG_LOOP_INVAR);
+	std::vector<BoogieContext::DocTagExpr> loopInvars = getExprsFromDocTags(_node, _node.annotation(), scope(), { ASTBoogieUtils::DOCTAG_LOOP_INVAR });
 	if (includeContractInvars(_node.annotation()))
 		loopInvars.insert(end(loopInvars), begin(m_context.currentContractInvars()), end(m_context.currentContractInvars()));
 	for (auto invar: loopInvars)
 	{
-		for (auto tcc: invar.tccs)
+		for (auto tcc: invar.conditions.getConditions(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION))
 			invars.push_back({tcc, "variables in range for '" + invar.exprStr + "'"});
 
-		for (auto oc: invar.ocs)
+		for (auto oc: invar.conditions.getConditions(ExprConditionStore::ConditionType::OVERFLOW_CONDITION))
 			invars.push_back({oc,"no overflow in '" + invar.exprStr + "'"});
 
 		invars.push_back({invar.expr, invar.exprStr});
@@ -1565,16 +1715,16 @@ bool ASTBoogieConverter::visit(ForStatement const& _node)
 		));
 	}
 
-	std::vector<BoogieContext::DocTagExpr> loopInvars = getExprsFromDocTags(_node, _node.annotation(), &_node, ASTBoogieUtils::DOCTAG_LOOP_INVAR);
+	std::vector<BoogieContext::DocTagExpr> loopInvars = getExprsFromDocTags(_node, _node.annotation(), &_node, { ASTBoogieUtils::DOCTAG_LOOP_INVAR });
 	if (includeContractInvars(_node.annotation()))
 		loopInvars.insert(end(loopInvars), begin(m_context.currentContractInvars()), end(m_context.currentContractInvars()));
 	for (auto invar: loopInvars)
 	{
-		for (auto tcc: invar.tccs)
+		for (auto tcc: invar.conditions.getConditions(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION))
 			invars.push_back(bg::Specification::spec(tcc,
 					ASTBoogieUtils::createAttrs(_node.location(), "variables in range for '" + invar.exprStr + "'", *m_context.currentScanner())));
 
-		for (auto oc: invar.ocs)
+		for (auto oc: invar.conditions.getConditions(ExprConditionStore::ConditionType::OVERFLOW_CONDITION))
 			invars.push_back(bg::Specification::spec(oc,
 					ASTBoogieUtils::createAttrs(_node.location(), "no overflow in '" + invar.exprStr + "'", *m_context.currentScanner())));
 
