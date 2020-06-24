@@ -5,6 +5,7 @@
 #include <libsolidity/boogie/ASTBoogieConverter.h>
 #include <libsolidity/boogie/ASTBoogieExpressionConverter.h>
 #include <libsolidity/boogie/ASTBoogieUtils.h>
+#include <libsolidity/boogie/BoogieAst.h>
 #include <libsolidity/boogie/StoragePtrHelper.h>
 #include <libsolidity/analysis/NameAndTypeResolver.h>
 #include <libsolidity/analysis/TypeChecker.h>
@@ -386,7 +387,7 @@ void ASTBoogieConverter::processSpecificationExpression(ASTPointer<Expression> e
 					auto const& bindings = bgQuantifierVars.back();
 					for (auto const& b: bindings)
 					{
-						guards.push_back(bg::Expr::lte(bg::Expr::lit((unsigned) 0), b.id));
+						guards.push_back(bg::Expr::lte(bg::Expr::intlit((unsigned) 0), b.id));
 						guards.push_back(bg::Expr::lt(b.id, arrayLength));
 					}
 					auto guard = bg::Expr::and_(guards);
@@ -414,11 +415,11 @@ void ASTBoogieConverter::processSpecificationExpression(ASTPointer<Expression> e
 				for (auto expr: bindings)
 				{
 					auto varExpr = std::dynamic_pointer_cast<boogie::VarExpr const>(expr.id);
-					auto conditions = convResult.conditions.getConditionsContaining(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION, varExpr->name());
+					auto conditions = convResult.conditions.getConditionsContaining(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION, varExpr->getName());
 					bindingConditions.insert(bindingConditions.end(), conditions.begin(), conditions.end());
-					auto tccs = convResult.conditions.getConditionsOn(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION, varExpr->name());
+					auto tccs = convResult.conditions.getConditionsOn(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION, varExpr->getName());
 					bindingTCCs.insert(bindingTCCs.end(), tccs.begin(), tccs.end());
-					convResult.conditions.removeConditions(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION, varExpr->name());
+					convResult.conditions.removeConditions(ExprConditionStore::ConditionType::TYPE_CHECKING_CONDITION, varExpr->getName());
 				}
 
 				switch (type)
@@ -713,7 +714,7 @@ bool ASTBoogieConverter::isBaseVar(bg::Expr::Ref expr)
 		// Base is reached when it is a variable indexed with 'this'
 		auto idxAsId = dynamic_pointer_cast<bg::VarExpr const>(exprArrSel->getIdx());
 		if (dynamic_pointer_cast<bg::VarExpr const>(exprArrSel->getBase()) &&
-				idxAsId && idxAsId->name() == m_context.boogieThis()->getName())
+				idxAsId && idxAsId->getName() == m_context.boogieThis()->getName())
 		{
 			return true;
 		}
@@ -756,7 +757,7 @@ void ASTBoogieConverter::addModifiesSpecs(FunctionDefinition const& _node, bg::P
 				continue; // Continue to parse the rest to catch syntax errors
 			}
 			size_t targetEnd = docTag.second.content.length();
-			bg::Expr::Ref condExpr = bg::Expr::lit(true);
+			bg::Expr::Ref condExpr = bg::Expr::true_();
 			// Check if there is a condition part
 			size_t condStart = docTag.second.content.find(ASTBoogieUtils::DOCTAG_MODIFIES_COND);
 			if (condStart != string::npos)
@@ -1808,7 +1809,7 @@ bool ASTBoogieConverter::visit(Throw const& _node)
 {
 	rememberScope(_node);
 
-	m_currentBlocks.top()->addStmt(bg::Stmt::assume(bg::Expr::lit(false)));
+	m_currentBlocks.top()->addStmt(bg::Stmt::assume(bg::Expr::false_()));
 	return false;
 }
 

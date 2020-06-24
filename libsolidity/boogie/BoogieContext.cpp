@@ -130,7 +130,7 @@ void BoogieContext::getPath(bg::Expr::Ref expr, SumPath& path, ASTNode const* er
 	{
 		// Check if we reached a state var: x[this]
 		if (auto bgThis = dynamic_pointer_cast<bg::VarExpr const>(arrSelExpr->getIdx()))
-			if (bgThis->name() == boogieThis()->getName())
+			if (bgThis->getName() == boogieThis()->getName())
 				id = dynamic_pointer_cast<bg::VarExpr const>(arrSelExpr->getBase());
 
 
@@ -149,7 +149,7 @@ void BoogieContext::getPath(bg::Expr::Ref expr, SumPath& path, ASTNode const* er
 			// Now get the id from the state var x[this]
 			if (subArrSelExpr)
 				if (auto bgThis = dynamic_pointer_cast<bg::VarExpr const>(subArrSelExpr->getIdx()))
-					if (bgThis->name() == boogieThis()->getName())
+					if (bgThis->getName() == boogieThis()->getName())
 						id = dynamic_pointer_cast<bg::VarExpr const>(subArrSelExpr->getBase());
 
 			if (!id && errors)
@@ -160,7 +160,7 @@ void BoogieContext::getPath(bg::Expr::Ref expr, SumPath& path, ASTNode const* er
 	if (id)
 	{
 		solAssert(path.base == "", "Base set twice");
-		path.base = id->name();
+		path.base = id->getName();
 		return;
 	}
 
@@ -629,7 +629,7 @@ bg::Stmt::Ref BoogieContext::incrAllocCounter()
 {
 	return bg::Stmt::assign(
 			m_boogieAllocCounter->getRefTo(),
-			bg::Expr::plus(m_boogieAllocCounter->getRefTo(), bg::Expr::lit((long)1)));
+			bg::Expr::plus(m_boogieAllocCounter->getRefTo(), bg::Expr::intlit((long)1)));
 }
 
 bg::Expr::Ref BoogieContext::getMemArray(bg::Expr::Ref arrPtrExpr, bg::TypeDeclRef type)
@@ -760,9 +760,9 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 bg::Expr::Ref BoogieContext::intLit(bg::bigint lit, int bits) const
 {
 	if (isBvEncoding())
-		return bg::Expr::lit(lit, bits);
+		return bg::Expr::bvlit(lit, bits);
 	else
-		return bg::Expr::lit(lit);
+		return bg::Expr::intlit(lit);
 }
 
 bg::Expr::Ref BoogieContext::intSlice(bg::Expr::Ref base, unsigned size, unsigned high, unsigned low)
@@ -776,12 +776,12 @@ bg::Expr::Ref BoogieContext::intSlice(bg::Expr::Ref base, unsigned size, unsigne
 		bg::Expr::Ref result = base;
 		if (low > 0)
 		{
-			bg::Expr::Ref c1 = bg::Expr::lit(bg::bigint(2) << (low - 1));
+			bg::Expr::Ref c1 = bg::Expr::intlit(bg::bigint(2) << (low - 1));
 			result = bg::Expr::intdiv(result, c1);
 		}
 		if (high < size - 1)
 		{
-			bg::Expr::Ref c2 = bg::Expr::lit(bg::bigint(2) << (high - low));
+			bg::Expr::Ref c2 = bg::Expr::intlit(bg::bigint(2) << (high - low));
 			result = bg::Expr::mod(result, c2);
 		}
 		return result;
@@ -1167,7 +1167,7 @@ bg::Expr::Ref BoogieContext::ecrecover(bg::Expr::Ref hash, bg::Expr::Ref v, bg::
 	return bg::Expr::fn(fnName, {hash, v, r, s});
 }
 
-bg::Expr::substitution const& BoogieContext::getEventDataSubstitution() const
+bg::Expr::Subst const& BoogieContext::getEventDataSubstitution() const
 {
 	return m_eventDataSubstitution;
 }
@@ -1380,7 +1380,7 @@ std::list<bg::Stmt::Ref> BoogieContext::checkForEventDataSave(ASTNode const* lhs
 		bg::Block::Ref update = bg::Block::block();
 		update->addStmts({
 			bg::Stmt::assign(info.oldDataVar, dataVar),
-			bg::Stmt::assign(info.oldDataSavedVar, bg::Expr::lit(true))
+			bg::Stmt::assign(info.oldDataSavedVar, bg::Expr::true_())
 		});
 		stmts.push_back(bg::Stmt::ifelse(bg::Expr::not_(info.oldDataSavedVar), update));
 	}
@@ -1399,7 +1399,7 @@ bg::ProcDeclRef BoogieContext::declareEventProcedure(EventDefinition const* even
 	for (auto e: eventData)
 	{
 		bg::Expr::Ref dataSavedVar = m_allEventData[e].oldDataSavedVar;
-		blocks.back()->addStmt(bg::Stmt::assign(dataSavedVar, bg::Expr::lit(false)));
+		blocks.back()->addStmt(bg::Stmt::assign(dataSavedVar, bg::Expr::false_()));
 	}
 
 	// Declare postconditions

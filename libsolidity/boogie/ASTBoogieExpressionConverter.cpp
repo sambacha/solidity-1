@@ -2,6 +2,7 @@
 #include <libsolidity/boogie/AssignHelper.h>
 #include <libsolidity/boogie/ASTBoogieExpressionConverter.h>
 #include <libsolidity/boogie/ASTBoogieUtils.h>
+#include <libsolidity/boogie/BoogieAst.h>
 #include <libsolidity/boogie/StoragePtrHelper.h>
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/ast/TypeProvider.h>
@@ -255,9 +256,9 @@ bool ASTBoogieExpressionConverter::visit(UnaryOperation const& _node)
 	{
 		auto value = tpRational->literalValue(nullptr);
 		if (tpRational->isNegative())
-			m_currentExpr = bg::Expr::lit(bg::bigint(u2s(value)));
+			m_currentExpr = bg::Expr::intlit(bg::bigint(u2s(value)));
 		else
-			m_currentExpr = bg::Expr::lit(bg::bigint(value));
+			m_currentExpr = bg::Expr::intlit(bg::bigint(value));
 		return false;
 	}
 
@@ -360,9 +361,9 @@ bool ASTBoogieExpressionConverter::visit(BinaryOperation const& _node)
 	{
 		auto value = tpRational->literalValue(nullptr);
 		if (tpRational->isNegative())
-			m_currentExpr = bg::Expr::lit(bg::bigint(u2s(value)));
+			m_currentExpr = bg::Expr::intlit(bg::bigint(u2s(value)));
 		else
-			m_currentExpr = bg::Expr::lit(bg::bigint(value));
+			m_currentExpr = bg::Expr::intlit(bg::bigint(value));
 		return false;
 	}
 
@@ -524,7 +525,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	// except for some special cases (e.g., getter)
 	string funcName = "";
 	if (auto varExpr = dynamic_pointer_cast<bg::VarExpr const>(expr))
-		funcName = varExpr->name();
+		funcName = varExpr->getName();
 
 	// Process arguments recursively
 	vector<bg::Expr::Ref> allArgs;
@@ -685,7 +686,7 @@ bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 	if (funcName == ASTBoogieUtils::SOLIDITY_REVERT)
 	{
 		solAssert(reorderedArgs.size() <= 1, "Revert should have at most one argument");
-		addSideEffect(bg::Stmt::assume(bg::Expr::lit(false)));
+		addSideEffect(bg::Stmt::assume(bg::Expr::false_()));
 		return false;
 	}
 
@@ -1295,7 +1296,7 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 	if (type->category() == Type::Category::FixedBytes && _node.memberName() == "length")
 	{
 		auto fbType = dynamic_cast<FixedBytesType const*>(_node.expression().annotation().type);
-		m_currentExpr = bg::Expr::lit(fbType->numBytes());
+		m_currentExpr = bg::Expr::intlit(fbType->numBytes());
 		return false;
 	}
 
@@ -1428,8 +1429,8 @@ bool ASTBoogieExpressionConverter::visit(IndexAccess const& _node)
 		unsigned fbSize = fbType->numBytes();
 
 		// Check bounds (typechecked for unsigned, so >= 0)
-		addSideEffect(bg::Stmt::assume(bg::Expr::gte(indexExpr, bg::Expr::lit((unsigned)0))));
-		addSideEffect(bg::Stmt::assert_(bg::Expr::lt(indexExpr, bg::Expr::lit(fbSize)),
+		addSideEffect(bg::Stmt::assume(bg::Expr::gte(indexExpr, bg::Expr::intlit((unsigned)0))));
+		addSideEffect(bg::Stmt::assert_(bg::Expr::lt(indexExpr, bg::Expr::intlit(fbSize)),
 					ASTBoogieUtils::createAttrs(_node.location(), "Index may be out of bounds", *m_context.currentScanner())));
 
 		// Do a case split on which slice to use
@@ -1441,7 +1442,7 @@ bool ASTBoogieExpressionConverter::visit(IndexAccess const& _node)
 			else
 			{
 				m_currentExpr = bg::Expr::cond(
-						bg::Expr::eq(indexExpr, bg::Expr::lit(i)),
+						bg::Expr::eq(indexExpr, bg::Expr::intlit(i)),
 						slice, m_currentExpr);
 			}
 		}
@@ -1556,13 +1557,13 @@ bool ASTBoogieExpressionConverter::visit(Literal const& _node)
 		auto rationalType = dynamic_cast<RationalNumberType const*>(type);
 		if (rationalType != nullptr)
 		{
-			m_currentExpr = bg::Expr::lit(rationalType->literalValue(nullptr));
+			m_currentExpr = bg::Expr::intlit(rationalType->literalValue(nullptr));
 			return false;
 		}
 		break;
 	}
 	case Type::Category::Bool:
-		m_currentExpr = bg::Expr::lit(_node.value() == "true");
+		m_currentExpr = bg::Expr::boollit(_node.value() == "true");
 		return false;
 	case Type::Category::Address:
 	{

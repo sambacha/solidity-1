@@ -8,6 +8,9 @@
 #include <libsolidity/analysis/DeclarationContainer.h>
 #include <libsolidity/boogie/ASTBoogieStats.h>
 #include <libsolidity/boogie/BoogieAst.h>
+#include <libsolidity/boogie/BoogieAstDecl.h>
+#include <libsolidity/boogie/BoogieAstExpr.h>
+#include <libsolidity/boogie/BoogieAstStmt.h>
 #include <set>
 
 namespace dev
@@ -29,7 +32,7 @@ public:
 		OVERFLOW_CONDITION,
 	};
 
-	typedef boogie::Expr::Set ConditionSet;
+	typedef boogie::Expr::RefSet ConditionSet;
 
 	/** Add a condition related to a specific variable */
 	void addCondition(std::string id, ConditionType type, boogie::Expr::Ref ref);
@@ -247,7 +250,7 @@ private:
 	std::set<EventDefinition const*> m_eventDataCurrent;
 	// Set of solidity events we're currently watching
 	// Substitution from data members to old data members for events
-	boogie::Expr::substitution m_eventDataSubstitution;
+	boogie::Expr::Subst m_eventDataSubstitution;
 
 public:
 
@@ -256,7 +259,7 @@ public:
 	//
 
 	/** Returns the substitution for data tracked by events */
-	boogie::Expr::substitution const& getEventDataSubstitution() const;
+	boogie::Expr::Subst const& getEventDataSubstitution() const;
 
 	/** Add new data tracked by an event */
 	void addEventData(Expression const* expr, EventDefinition const* event);
