@@ -1,0 +1,5 @@
+CaseAnalysisSimple::correct: OK
+CaseAnalysisSimple::wrongdefault: ERROR
+ - test/solc-verify/specs/CaseAnalysisSimple.sol:22:5: Postcondition '[     case x > 0: y == 1;     case x < 0: y == -1; ]' might not hold at end of function.
+CaseAnalysisSimple::[implicit_constructor]: OK
+Errors were found by the verifier.
