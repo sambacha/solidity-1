@@ -628,6 +628,11 @@ jobs:
       - attach_workspace:
           at: /tmp/workspace
       - run:
+          name: Install test dependencies
+          command: |
+            apt-get update
+            apt-get install -qqy --no-install-recommends nodejs npm cvc4
+      - run:
           name: Test solcjs
           command: |
             node --version
