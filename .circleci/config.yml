@@ -303,7 +303,7 @@ jobs:
 
   chk_proofs:
     docker:
-      - image: buildpack-deps:disco
+      - image: buildpack-deps:latest
     environment:
       TERM: xterm
     steps:
