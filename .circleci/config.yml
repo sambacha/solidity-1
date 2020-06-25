@@ -865,8 +865,7 @@ workflows:
       - t_ems_solcjs: *workflow_emscripten
       - t_ems_compile_ext_colony: *workflow_emscripten
       - t_ems_compile_ext_gnosis: *workflow_emscripten
-      # TODO: failing due to upgrade to 0.6, re-enable when we upgrade
-      # - t_ems_compile_ext_zeppelin: *workflow_emscripten
+      - t_ems_compile_ext_zeppelin: *workflow_emscripten
 
       # solc-verify build and tests
       - b_ubu_sverif: *workflow_trigger_on_tags
