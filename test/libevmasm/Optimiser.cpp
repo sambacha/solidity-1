@@ -792,8 +792,8 @@ BOOST_AUTO_TEST_CASE(block_deduplicator)
 		Instruction::JUMP,
 		AssemblyItem(Tag, 3)
 	};
-	BlockDeduplicator dedup(input);
-	dedup.deduplicate();
+	BlockDeduplicator deduplicator(input);
+	deduplicator.deduplicate();
 
 	set<u256> pushTags;
 	for (AssemblyItem const& item: input)
@@ -824,8 +824,8 @@ BOOST_AUTO_TEST_CASE(block_deduplicator_loops)
 		AssemblyItem(PushTag, 2),
 		Instruction::JUMP,
 	};
-	BlockDeduplicator dedup(input);
-	dedup.deduplicate();
+	BlockDeduplicator deduplicator(input);
+	deduplicator.deduplicate();
 
 	set<u256> pushTags;
 	for (AssemblyItem const& item: input)
