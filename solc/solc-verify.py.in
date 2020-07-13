@@ -90,7 +90,6 @@ def verifyProcedure(arguments):
     except subprocess.CalledProcessError as err:
         errorType = "error"
         if err.returncode == -9:
-            print(yellowTxt('Timeout while running verifier'))
             errorType = "timeout"
         else:
             print(yellowTxt('Error while running verifier, details:'))
