@@ -175,6 +175,25 @@ Furthermore, `unsupported` contains some unsupported features and is skipped.
 Nevertheless, it is annotated so the function `use_unsupported` that calls it can still be proved correct.
 
 ## Publications
-- [Solidity Summit 2020](): [solc-verify, a source-level formal verification tool for Solidity smart contracts (talk)](https://www.youtube.com/watch?v=1q2gSm3NuQA): _A developer-oriented demo and talk on the usage of the tool._
-- [ESOP 2020](https://www.etaps.org/2020/esop): [SMT-Friendly Formalization of the Solidity Memory Model](https://arxiv.org/abs/2001.03256): _Formalization of reference types (e.g., arrays, mappings, structs) and the memory model (storage and memory data locations)._
-- [VSTTE 2019](https://sri-csl.github.io/VSTTE19/): [solc-verify: A Modular Verifier for Solidity Smart Contracts](https://arxiv.org/abs/1907.04262): _An overview of the modular verification approach including the specification annotations and the translation to Boogie._
+- [Formal Specification and Verification of Solidity Contracts with Events (preprint)](https://arxiv.org/abs/2005.10382): _Extending the specification and verification capabilities to reason about contracts with events. To be presented at [FMBC 2020](https://fmbc.gitlab.io/2020/)._
+- [Solidity Summit 2020](solidity-summit.ethereum.org/): [solc-verify, a source-level formal verification tool for Solidity smart contracts (talk recording)](https://www.youtube.com/watch?v=1q2gSm3NuQA): _A developer-oriented demo and talk on the usage of the tool._
+- [ESOP 2020](https://www.etaps.org/2020/esop): [SMT-Friendly Formalization of the Solidity Memory Model (paper)](https://arxiv.org/abs/2001.03256): _Formalization of reference types (e.g., arrays, mappings, structs) and the memory model (storage and memory data locations)._
+  - Also presented at [SMT 2020](http://smt-workshop.cs.uiowa.edu/2020/), see [talk recording](https://youtu.be/B3ML9vGituk?t=626).
+- [VSTTE 2019](https://sri-csl.github.io/VSTTE19/): [solc-verify: A Modular Verifier for Solidity Smart Contracts (paper)](https://arxiv.org/abs/1907.04262): _An overview of the modular verification approach including the specification annotations and the translation to Boogie._
+
+To cite solc-verify (as a tool), please use
+```
+@incollection{solcverify,
+    author     = {{\'A}kos Hajdu and Jovanovi{\'c}, Dejan},
+    title      = {solc-verify: A Modular Verifier for {S}olidity Smart Contracts},
+    year       = {2020},
+    booktitle  = {Verified Software. Theories, Tools, and Experiments},
+    series     = {Lecture Notes in Computer Science},
+    volume     = {12301},
+    publisher  = {Springer},
+    editor  = {Chakraborty, Supratik and Navas, Jorge A.},
+    pages      = {161-179},
+    isbn       = {978-3-030-41600-3},
+    doi        = {10.1007/978-3-030-41600-3_11},
+}
+```
