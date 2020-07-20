@@ -175,7 +175,7 @@ Furthermore, `unsupported` contains some unsupported features and is skipped.
 Nevertheless, it is annotated so the function `use_unsupported` that calls it can still be proved correct.
 
 ## Publications
-- [Formal Specification and Verification of Solidity Contracts with Events (preprint)](https://arxiv.org/abs/2005.10382): _Extending the specification and verification capabilities to reason about contracts with events. To be presented at [FMBC 2020](https://fmbc.gitlab.io/2020/)._
+- [Formal Specification and Verification of Solidity Contracts with Events (preprint)](https://arxiv.org/abs/2005.10382): _Extending the specification and verification capabilities to reason about contracts with events._ To be presented at [FMBC 2020](https://fmbc.gitlab.io/2020/), see [recording](https://youtu.be/NNytwVBZ1no).
 - [Solidity Summit 2020](solidity-summit.ethereum.org/): [solc-verify, a source-level formal verification tool for Solidity smart contracts (talk recording)](https://www.youtube.com/watch?v=1q2gSm3NuQA): _A developer-oriented demo and talk on the usage of the tool._
 - [ESOP 2020](https://www.etaps.org/2020/esop): [SMT-Friendly Formalization of the Solidity Memory Model (paper)](https://arxiv.org/abs/2001.03256): _Formalization of reference types (e.g., arrays, mappings, structs) and the memory model (storage and memory data locations)._
   - Also presented at [SMT 2020](http://smt-workshop.cs.uiowa.edu/2020/), see [talk recording](https://youtu.be/B3ML9vGituk?t=626).
@@ -184,14 +184,14 @@ Nevertheless, it is annotated so the function `use_unsupported` that calls it ca
 To cite solc-verify (as a tool), please use
 ```
 @incollection{solcverify,
-    author     = {{\'A}kos Hajdu and Jovanovi{\'c}, Dejan},
+    author     = {Hajdu, {\'A}kos and Jovanovi{\'c}, Dejan},
     title      = {solc-verify: A Modular Verifier for {S}olidity Smart Contracts},
     year       = {2020},
     booktitle  = {Verified Software. Theories, Tools, and Experiments},
     series     = {Lecture Notes in Computer Science},
     volume     = {12301},
     publisher  = {Springer},
-    editor  = {Chakraborty, Supratik and Navas, Jorge A.},
+    editor     = {Chakraborty, Supratik and Navas, Jorge A.},
     pages      = {161-179},
     isbn       = {978-3-030-41600-3},
     doi        = {10.1007/978-3-030-41600-3_11},
