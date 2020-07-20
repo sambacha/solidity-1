@@ -1177,7 +1177,7 @@ void BoogieContext::addEventData(Expression const* expr, EventDefinition const* 
 	// Get the variable
 	auto dataExpr = dynamic_cast<Identifier const*>(expr);
 	solAssert(dataExpr, "We only accept members");
-	std::string dataVarName =  mapDeclName(*dataExpr->annotation().referencedDeclaration);
+	std::string dataVarName = mapDeclName(*dataExpr->annotation().referencedDeclaration);
 	auto dataDecl = dataExpr->annotation().referencedDeclaration;
 
 	// If expression already there, we can skip
@@ -1388,7 +1388,7 @@ std::list<bg::Stmt::Ref> BoogieContext::checkForEventDataSave(ASTNode const* lhs
 	return stmts;
 }
 
-bg::ProcDeclRef BoogieContext::declareEventProcedure(EventDefinition const* event, std::string eventName, std::vector<bg::Binding> const& params)
+bg::ProcDeclRef BoogieContext::declareEventProcedure(EventDefinition const* event, std::string eventName, std::vector<bg::Binding> const& params, bool onlyOnChanges)
 {
 	// Event body sets up the variables
 	vector<bg::Block::Ref> blocks;
@@ -1413,8 +1413,11 @@ bg::ProcDeclRef BoogieContext::declareEventProcedure(EventDefinition const* even
 			dataSavedDisjuncts.push_back(m_allEventData[e].oldDataSavedVar);
 		bg::Expr::Ref dataSaved = bg::Expr::or_(dataSavedDisjuncts);
 
-		procDecl->getRequires().push_back(bg::Specification::spec(dataSaved,
-			ASTBoogieUtils::createAttrs(event->location(), "Event triggered without changes to data", *currentScanner())));
+		if (onlyOnChanges)
+		{
+			procDecl->getRequires().push_back(bg::Specification::spec(dataSaved,
+				ASTBoogieUtils::createAttrs(event->location(), "Event triggered without changes to data", *currentScanner())));
+		}
 		procDecl->getEnsures().push_back(bg::Specification::spec(bg::Expr::not_(dataSaved),
 			ASTBoogieUtils::createAttrs(event->location(), "Event triggered without changes to data", *currentScanner())));
 	}

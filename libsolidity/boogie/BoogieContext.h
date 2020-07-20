@@ -280,7 +280,7 @@ public:
 	 * Sets up the event procedure with the right pre- and post-conditions and body to capture
 	 * trigger and data-update variables
 	 */
-	boogie::ProcDeclRef declareEventProcedure(EventDefinition const* event, std::string eventName, std::vector<boogie::Binding> const& params);
+	boogie::ProcDeclRef declareEventProcedure(EventDefinition const* event, std::string eventName, std::vector<boogie::Binding> const& params, bool onlyOnChanges);
 
 	/**
 	 * Adds entry and exit specs for the given function.

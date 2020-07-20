@@ -73,6 +73,13 @@ contract C {
   /// @notice emits no_data_changed
   function emit_no_data_changed() public { emit no_data_changed(); }
 
+  /// @notice allow-no-change-emit
+  /// @notice postcondition _a == a
+  event no_data_changed_tracking(int _a);
+
+  /// @notice emits no_data_changed_tracking
+  function emit_no_data_changed_tracking() public { emit no_data_changed_tracking(a); }
+
   /// @notice emits a_b_changed
   function test_a_b_loop(int n) public {
     require(a < b);

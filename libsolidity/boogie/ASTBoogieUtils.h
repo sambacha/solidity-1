@@ -78,6 +78,7 @@ public:
 	static std::string const DOCTAG_MODIFIES_COND;
 	static std::string const DOCTAG_EMITS;
 	static std::string const DOCTAG_EVENT_TRACKS_CHANGES;
+	static std::string const DOCTAG_EVENT_ALLOW_NO_CHANGE_EMIT;
 
 	/** Creates the procedure corresponding to address.transfer(). */
 	static

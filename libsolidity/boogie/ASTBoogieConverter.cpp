@@ -1408,6 +1408,12 @@ void ASTBoogieConverter::processEventDefinition(EventDefinition const& _event)
 	auto eventPreconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), { ASTBoogieUtils::DOCTAG_PRECOND });
 	auto eventPostconditions = getExprsFromDocTags(_event, _event.annotation(), scope(), { ASTBoogieUtils::DOCTAG_POSTCOND });
 
+	// Are we strict about the changes when emitting
+	bool strict = true;
+	for (auto docTag: _event.annotation().docTags)
+		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, ASTBoogieUtils::DOCTAG_EVENT_ALLOW_NO_CHANGE_EMIT))
+			strict = false;
+
 	// Add all the tracked data
 	for (auto e: eventTracks)
 		m_context.addEventData(e.exprSol.get(), &_event);
@@ -1438,7 +1444,7 @@ void ASTBoogieConverter::processEventDefinition(EventDefinition const& _event)
 		params.push_back({bg::Expr::id(m_context.mapDeclName(*par)), m_context.toBoogieType(par->type(), par.get())});
 
 	// Create the procedure
-	auto procDecl = m_context.declareEventProcedure(&_event, eventName, params);
+	auto procDecl = m_context.declareEventProcedure(&_event, eventName, params, strict);
 
 	// Add preconditions
 	for (auto eventPre: eventPreconditions)
