@@ -1050,9 +1050,42 @@ void ASTBoogieExpressionConverter::functionCallEq(FunctionCall const& _node, vec
 	auto argType2 = _node.arguments()[1]->annotation().type;
 	if (*argType1 != *argType2)
 	{
-		m_context.reportError(&_node, "Arguments must have the same type");
+		auto arrayType1 = dynamic_cast<ArrayType const*>(argType1);
+		auto arrayType2 = dynamic_cast<ArrayType const*>(argType2);
+		if (arrayType1 && arrayType2)
+		{
+			auto baseType1 = arrayType1->baseType();
+			auto baseType2 = arrayType2->baseType();
+			if (*baseType1 == *baseType2)
+			{
+				auto array1 = args[0];
+				auto arrayLoc1 = arrayType1->location();
+				if (arrayLoc1 == DataLocation::Memory || arrayLoc1 == DataLocation::CallData)
+				{
+					m_context.toBoogieType(arrayType1, &_node); // To initialize if not there yet
+					array1 = m_context.getMemArray(array1, m_context.toBoogieType(baseType1, &_node));
+				}
+
+				auto array2 = args[1];
+				auto arrayLoc2 = arrayType2->location();
+				if (arrayLoc2 == DataLocation::Memory || arrayLoc2 == DataLocation::CallData)
+				{
+					m_context.toBoogieType(arrayType2, &_node); // To initialize if not there yet
+					array2 = m_context.getMemArray(array2, m_context.toBoogieType(baseType2, &_node));
+				}
+
+				m_currentExpr = bg::Expr::eq(array1, array2);
+				return;
+			}
+			else
+				m_context.reportError(&_node, "Arrays must be over same types");
+		}
+		else
+			m_context.reportError(&_node, "Arguments must have the same type");
+
 		return;
 	}
+
 	if (argType1->isValueType() && argType2->isValueType())
 		m_context.reportWarning(&_node, "Use operator == for comparing value types");
 	m_currentExpr = bg::Expr::eq(args[0], args[1]);
