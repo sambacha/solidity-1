@@ -1145,6 +1145,8 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 			}
 		}
 	}
+	// Assume msg.sender is != 0
+	m_currentBlocks.top()->addStmt(bg::Stmt::assume(bg::Expr::neq(m_context.boogieMsgSender()->getRefTo(), m_context.intLit(0, 256))));
 	// Include constructor preamble
 	if (_node.isConstructor())
 		constructorPreamble();
