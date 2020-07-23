@@ -35,8 +35,8 @@ sudo apt-get install dotnet-runtime-3.1
 
 **[Boogie](https://github.com/boogie-org/boogie)**
 ```
-wget https://github.com/boogie-org/boogie/releases/download/v2.5.10/Boogie.2.5.10.nupkg
-unzip Boogie.2.5.10.nupkg -d Boogie
+wget https://github.com/boogie-org/boogie/releases/download/v2.6.5/Boogie.2.6.5.nupkg
+unzip Boogie.2.6.5.nupkg -d Boogie
 ```
 Make sure that you have correct permissions after unzipping: `chmod -R 1744 Boogie/tools/netcoreapp3.1/any/`.
 
