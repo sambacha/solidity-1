@@ -31,7 +31,7 @@ function test_fn { npm test; }
 function gnosis_safe_test
 {
     OPTIMIZER_LEVEL=1
-    setup https://github.com/gnosis/safe-contracts.git development
+    setup https://github.com/gnosis/safe-contracts.git v1.1.1
     run_install install_fn
 
     CONFIG=$(find_truffle_config)

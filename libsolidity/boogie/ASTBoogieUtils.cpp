@@ -44,6 +44,7 @@ string const ASTBoogieUtils::SOLIDITY_ECRECOVER = "ecrecover";
 string const ASTBoogieUtils::VERIFIER_SUM = "__verifier_sum";
 string const ASTBoogieUtils::VERIFIER_IDX = "__verifier_idx";
 string const ASTBoogieUtils::VERIFIER_OLD = "__verifier_old";
+string const ASTBoogieUtils::VERIFIER_BEFORE = "__verifier_before";
 string const ASTBoogieUtils::VERIFIER_EQ = "__verifier_eq";
 string const ASTBoogieUtils::BOOGIE_CONSTRUCTOR = "__constructor";
 string const ASTBoogieUtils::BOOGIE_ALLOC_COUNTER = "__alloc_counter";
@@ -54,9 +55,13 @@ string const ASTBoogieUtils::DOCTAG_CONTRACT_INVARS_INCLUDE = "{contractInvarian
 string const ASTBoogieUtils::DOCTAG_LOOP_INVAR = "invariant";
 string const ASTBoogieUtils::DOCTAG_PRECOND = "precondition";
 string const ASTBoogieUtils::DOCTAG_POSTCOND = "postcondition";
+string const ASTBoogieUtils::DOCTAG_SPECIFICATION_CASES = "specification";
 string const ASTBoogieUtils::DOCTAG_MODIFIES = "modifies";
 string const ASTBoogieUtils::DOCTAG_MODIFIES_ALL = DOCTAG_MODIFIES + " *";
 string const ASTBoogieUtils::DOCTAG_MODIFIES_COND = " if ";
+string const ASTBoogieUtils::DOCTAG_EMITS = "emits";
+string const ASTBoogieUtils::DOCTAG_EVENT_TRACKS_CHANGES = "tracks-changes-in";
+string const ASTBoogieUtils::DOCTAG_EVENT_ALLOW_NO_CHANGE_EMIT = "allow-no-change-emit";
 
 bg::ProcDeclRef ASTBoogieUtils::createTransferProc(BoogieContext& context)
 {
@@ -177,10 +182,10 @@ bg::ProcDeclRef ASTBoogieUtils::createCallProc(BoogieContext& context)
 	thenBlock->addStmt(bg::Stmt::assign(
 			context.boogieBalance()->getRefTo(),
 			bg::Expr::arrupd(context.boogieBalance()->getRefTo(), context.boogieThis()->getRefTo(), addBalance.expr)));
-	thenBlock->addStmt(bg::Stmt::assign(result, bg::Expr::lit(true)));
+	thenBlock->addStmt(bg::Stmt::assign(result, bg::Expr::true_()));
 	// Unsuccessful transfer
 	bg::Block::Ref elseBlock = bg::Block::block();
-	elseBlock->addStmt(bg::Stmt::assign(result, bg::Expr::lit(false)));
+	elseBlock->addStmt(bg::Stmt::assign(result, bg::Expr::false_()));
 	// Nondeterministic choice between success and failure
 	bg::Block::Ref callBlock = bg::Block::block();
 	callBlock->addStmt(bg::Stmt::comment("TODO: call fallback"));
@@ -254,11 +259,11 @@ bg::ProcDeclRef ASTBoogieUtils::createSendProc(BoogieContext& context)
 	thenBlock->addStmt(bg::Stmt::assign(
 			context.boogieBalance()->getRefTo(),
 			bg::Expr::arrupd(context.boogieBalance()->getRefTo(), context.boogieMsgSender()->getRefTo(), subSenderBalance.expr)));
-	thenBlock->addStmt(bg::Stmt::assign(result, bg::Expr::lit(true)));
+	thenBlock->addStmt(bg::Stmt::assign(result, bg::Expr::true_()));
 
 	// Unsuccessful transfer
 	bg::Block::Ref elseBlock = bg::Block::block();
-	elseBlock->addStmt(bg::Stmt::assign(result, bg::Expr::lit(false)));
+	elseBlock->addStmt(bg::Stmt::assign(result, bg::Expr::false_()));
 
 	bg::Block::Ref transferBlock = bg::Block::block();
 	// Precondition: there is enough ether to transfer
@@ -347,7 +352,7 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithBinaryOp(BoogieContext& co
 			auto lhsLit = dynamic_pointer_cast<bg::IntLit const>(lhs);
 			auto rhsLit = dynamic_pointer_cast<bg::IntLit const>(rhs);
 			if (lhsLit && rhsLit)
-				result = bg::Expr::lit(boost::multiprecision::pow(lhsLit->getVal(), rhsLit->getVal().convert_to<unsigned>()));
+				result = bg::Expr::intlit(boost::multiprecision::pow(lhsLit->getVal(), rhsLit->getVal().convert_to<unsigned>()));
 			else
 			{
 				context.reportError(associatedNode, "Exponentiation is not supported in 'int' encoding");
@@ -453,9 +458,9 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithBinaryOp(BoogieContext& co
 	}
 	case BoogieContext::Encoding::MOD:
 	{
-		auto modulo = bg::Expr::lit(boost::multiprecision::pow(bg::bigint(2), bits));
-		auto largestSigned = bg::Expr::lit(boost::multiprecision::pow(bg::bigint(2), bits - 1) - 1);
-		auto smallestSigned = bg::Expr::lit(-boost::multiprecision::pow(bg::bigint(2), bits - 1));
+		auto modulo = bg::Expr::intlit(boost::multiprecision::pow(bg::bigint(2), bits));
+		auto largestSigned = bg::Expr::intlit(boost::multiprecision::pow(bg::bigint(2), bits - 1) - 1);
+		auto smallestSigned = bg::Expr::intlit(-boost::multiprecision::pow(bg::bigint(2), bits - 1));
 		switch (op)
 		{
 		case Token::Add:
@@ -490,8 +495,8 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithBinaryOp(BoogieContext& co
 			auto prod = bg::Expr::times(lhs, rhs);
 			if (isSigned)
 			{
-				auto lhs1 = bg::Expr::cond(bg::Expr::gte(lhs, bg::Expr::lit((long)0)), lhs, bg::Expr::plus(modulo, lhs));
-				auto rhs1 = bg::Expr::cond(bg::Expr::gte(rhs, bg::Expr::lit((long)0)), rhs, bg::Expr::plus(modulo, rhs));
+				auto lhs1 = bg::Expr::cond(bg::Expr::gte(lhs, bg::Expr::intlit((long)0)), lhs, bg::Expr::plus(modulo, lhs));
+				auto rhs1 = bg::Expr::cond(bg::Expr::gte(rhs, bg::Expr::intlit((long)0)), rhs, bg::Expr::plus(modulo, rhs));
 				auto prod = bg::Expr::mod(bg::Expr::times(lhs1, rhs1), modulo);
 				result = bg::Expr::cond(bg::Expr::gt(prod, largestSigned), bg::Expr::minus(prod, modulo), prod);
 			}
@@ -601,16 +606,16 @@ ASTBoogieUtils::ExprWithCC ASTBoogieUtils::encodeArithUnaryOp(BoogieContext& con
 			auto sub = bg::Expr::neg(subExpr);
 			if (isSigned)
 			{
-				auto smallestSigned = bg::Expr::lit(-boost::multiprecision::pow(bg::bigint(2), bits - 1));
+				auto smallestSigned = bg::Expr::intlit(-boost::multiprecision::pow(bg::bigint(2), bits - 1));
 				result = bg::Expr::cond(bg::Expr::eq(subExpr, smallestSigned),
 						smallestSigned,
 						sub);
 			}
 			else
 			{
-				auto modulo = bg::Expr::lit(boost::multiprecision::pow(bg::bigint(2), bits));
-				result = bg::Expr::cond(bg::Expr::eq(subExpr, bg::Expr::lit((long)0)),
-						bg::Expr::lit((long)0),
+				auto modulo = bg::Expr::intlit(boost::multiprecision::pow(bg::bigint(2), bits));
+				result = bg::Expr::cond(bg::Expr::eq(subExpr, bg::Expr::intlit((long)0)),
+						bg::Expr::intlit((long)0),
 						bg::Expr::minus(modulo, subExpr));
 			}
 			ecc = bg::Expr::eq(sub, result);
@@ -686,9 +691,9 @@ bg::Expr::Ref ASTBoogieUtils::checkImplicitBvConversion(bg::Expr::Ref expr, Type
 		if (auto exprLit = dynamic_pointer_cast<bg::IntLit const>(expr))
 		{
 			if (exprLit->getVal() < 0) // Negative literals are tricky
-				return context.bvNeg(targetBits, bg::Expr::lit(-exprLit->getVal(), targetBits));
+				return context.bvNeg(targetBits, bg::Expr::bvlit(-exprLit->getVal(), targetBits));
 			else
-				return bg::Expr::lit(exprLit->getVal(), targetBits);
+				return bg::Expr::bvlit(exprLit->getVal(), targetBits);
 		}
 		else if (isBitPreciseType(exprType))
 		{
@@ -764,40 +769,51 @@ bg::Expr::Ref ASTBoogieUtils::checkExplicitBvConversion(bg::Expr::Ref expr, Type
 	return expr;
 }
 
-bg::Expr::Ref ASTBoogieUtils::getTCCforExpr(bg::Expr::Ref expr, TypePointer tp)
+bg::Expr::Ref ASTBoogieUtils::getTCCforExpr(bg::Expr::Ref expr, TypePointer tp, ASTBoogieUtils::TCCType type)
 {
+	bg::Expr::Ref upperBound = nullptr;
+	bg::Expr::Ref lowerBound = nullptr;
+
 	// For enums we know the number of members
 	if (tp->category() == Type::Category::Enum)
 	{
 		auto enumTp = dynamic_cast<EnumType const *>(tp);
 		solAssert(enumTp, "");
-		return bg::Expr::and_(
-				bg::Expr::lte(bg::Expr::lit((long)0), expr),
-				bg::Expr::lt(expr, bg::Expr::lit(enumTp->enumDefinition().members().size())));
-
+		lowerBound = bg::Expr::lte(bg::Expr::intlit((long)0), expr);
+		upperBound = bg::Expr::lt(expr, bg::Expr::intlit(enumTp->enumDefinition().members().size()));
 	}
 	// Otherwise get smallest and largest
-	if (isBitPreciseType(tp))
+	else if (isBitPreciseType(tp))
 	{
 		unsigned bits = getBits(tp);
 		if (isSigned(tp))
 		{
-			auto largestSigned = bg::Expr::lit(boost::multiprecision::pow(bg::bigint(2), bits - 1) - 1);
-			auto smallestSigned = bg::Expr::lit(-boost::multiprecision::pow(bg::bigint(2), bits - 1));
-			return bg::Expr::and_(
-					bg::Expr::lte(smallestSigned, expr),
-					bg::Expr::lte(expr, largestSigned));
+			auto largestSigned = bg::Expr::intlit(boost::multiprecision::pow(bg::bigint(2), bits - 1) - 1);
+			auto smallestSigned = bg::Expr::intlit(-boost::multiprecision::pow(bg::bigint(2), bits - 1));
+			lowerBound = bg::Expr::lte(smallestSigned, expr);
+			upperBound = bg::Expr::lte(expr, largestSigned);
 		}
 		else
 		{
-			auto largestUnsigned = bg::Expr::lit(boost::multiprecision::pow(bg::bigint(2), bits) - 1);
-			auto smallestUnsigned = bg::Expr::lit(long(0));
-			return bg::Expr::and_(
-					bg::Expr::lte(smallestUnsigned, expr),
-					bg::Expr::lte(expr, largestUnsigned));
+			auto largestUnsigned = bg::Expr::intlit(boost::multiprecision::pow(bg::bigint(2), bits) - 1);
+			auto smallestUnsigned = bg::Expr::intlit(long(0));
+			lowerBound = bg::Expr::lte(smallestUnsigned, expr);
+			upperBound = bg::Expr::lte(expr, largestUnsigned);
 		}
 	}
-	return bg::Expr::lit(true);
+
+	// Return the TCC
+	switch (type) {
+	case LowerBound:
+		return lowerBound;
+	case UpperBound:
+		return upperBound;
+	case BothBounds:
+		return bg::Expr::and_(lowerBound, upperBound);
+	default:
+		solAssert(false, "");
+	}
+	return bg::Expr::true_();
 }
 
 bg::Expr::Ref ASTBoogieUtils::defaultValue(TypePointer type, BoogieContext& context)
@@ -842,7 +858,7 @@ ASTBoogieUtils::Value ASTBoogieUtils::defaultValueInternal(TypePointer type, Boo
 	{
 		// 0
 		auto lit = context.intLit(0, ASTBoogieUtils::getBits(type));
-		return {lit->toSMT2(), lit};
+		return {lit->toSMT2String(), lit};
 	}
 	case Type::Category::Address:
 	case Type::Category::Contract:
@@ -850,19 +866,19 @@ ASTBoogieUtils::Value ASTBoogieUtils::defaultValueInternal(TypePointer type, Boo
 	{
 		// 0
 		auto lit = context.intLit(0, 256);
-		return {lit->toSMT2(), lit};
+		return {lit->toSMT2String(), lit};
 	}
 	case Type::Category::Bool:
 	{
 		// False
-		auto lit = bg::Expr::lit(false);
-		return {lit->toSMT2(), lit};
+		auto lit = bg::Expr::false_();
+		return {lit->toSMT2String(), lit};
 	}
 	case Type::Category::FixedBytes:
 	{
 		auto fbType = dynamic_cast<FixedBytesType const*>(type);
 		auto lit = context.intLit(0, fbType->numBytes() * 8);
-		return {lit->toSMT2(), lit};
+		return {lit->toSMT2String(), lit};
 	}
 	case Type::Category::Struct:
 	{
@@ -913,7 +929,7 @@ ASTBoogieUtils::Value ASTBoogieUtils::defaultValueInternal(TypePointer type, Boo
 			args.push_back(arrLength);
 			auto bgExpr = bg::Expr::fn(arrConstr->getName(), args);
 			// SMT expression is constructed afterwards (not to be included in the const array function)
-			smtExpr = "(|" + arrConstr->getName() + "| " + smtExpr + " " + arrLength->toString() + ")";
+			smtExpr = "(|" + arrConstr->getName() + "| " + smtExpr + " " + arrLength->toBgString() + ")";
 			return {smtExpr, bgExpr};
 		}
 		break;

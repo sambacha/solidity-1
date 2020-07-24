@@ -9,14 +9,15 @@ import signal
 import psutil
 import tempfile
 import sys
+import multiprocessing
 
 # Potential error codes
-ERROR_NO_ERRROR=0
+ERROR_NO_ERROR=0
 ERROR_COMPILER=-1
 ERROR_SOLVER_NOT_FOUND=-2
 ERROR_PROCESS_ERROR=-3
 ERROR_BOOGIE_ERROR=-4
-ERRORS_VERIFICATION=-5
+ERROR_VERIFICATION=-5
 ERROR_PARTIAL=-6
 
 def kill():
@@ -47,59 +48,16 @@ def redTxt(txt):
 def blueTxt(txt):
     return '\033[94m' + txt + '\x1b[0m' if sys.stdout.isatty() else txt
 
-def main(tmpDir):
-    # Set up argument parser
-    parser = argparse.ArgumentParser(description='Verify Solidity smart contracts.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('file', type=str, help='Path to the input file')
-    parser.add_argument('--timeout', type=int, help='Timeout for running Boogie (in seconds)', default=10)
-    parser.add_argument('--arithmetic', type=str, help='Encoding used for arithmetic data types and operations in the verifier', default='int', choices=['int', 'bv', 'mod', 'mod-overflow'])
-    parser.add_argument('--modifies-analysis', action='store_true', help='Perform modification analysis on state variables')
-
-    parser.add_argument('--output', type=str, help='Output directory for the Boogie program')
-    parser.add_argument('--verbose', action='store_true', help='Print all output of the compiler and the verifier')
-    parser.add_argument('--smt-log', type=str, help='Log input for the SMT solver')
-    parser.add_argument('--errors-only', action='store_true', help='Only display error messages')
-    parser.add_argument('--show-warnings', action='store_true', help='Display warnings')
-
-    parser.add_argument('--solc', type=str, help='Solidity compiler to use (with boogie translator)', default=os.path.dirname(os.path.realpath(__file__)) + '/solc')
-    parser.add_argument('--boogie', type=str, help='Boogie verifier binary to use', default='@BOOGIE_EXE@')
-    parser.add_argument('--solver', type=str, help='SMT solver used by the verifier', default=@BOOGIE_DEFAULT_SOLVER@, choices=['z3', 'cvc4'])
-    parser.add_argument('--solver-bin', type=str, help='Binary of the solver to use')
-    args = parser.parse_args()
-
-    solFile = args.file
-
-    # BPL file if requested, otherwise a temporary
-    if args.output: outDir = args.output
-    else: outDir = tmpDir
-    bplFile = outDir + '/' + os.path.basename(solFile) + '.bpl'
-
-    # First convert .sol to .bpl
-    solcArgs = ' --boogie %s -o %s --overwrite --boogie-arith %s' % (solFile, outDir, args.arithmetic)
-    if args.modifies_analysis:
-        solcArgs += ' --boogie-mod-analysis'
-    convertCommand = args.solc + ' ' + solcArgs
-    if args.verbose:
-        print(blueTxt('Solc command: ') + convertCommand)
-    compilerOutputStr = ''
-    try:
-        compilerOutput = subprocess.check_output(convertCommand, shell = True, stderr=subprocess.STDOUT)
-        compilerOutputStr = compilerOutput.decode('utf-8', 'ignore')
-        if args.verbose:
-            print(blueTxt('----- Compiler output -----'))
-            printVerbose(compilerOutputStr)
-            print(blueTxt('---------------------------'))
-    except subprocess.CalledProcessError as err:
-        compilerOutputStr = err.output.decode('utf-8')
-        print(yellowTxt('Error while running compiler, details:'))
-        printVerbose(compilerOutputStr)
-        return ERROR_COMPILER
-
+def verifyProcedure(arguments):
+    # Unpack arguments
+    bplFile = arguments['bplFile']
+    procedureId = arguments['procedureId']
+    args = arguments['args']
     # Run timer
     timer = threading.Timer(args.timeout, kill)
     # Run verification, get result
     timer.start()
-    boogieArgs = '/nologo /doModSetAnalysis /errorTrace:0 /useArrayTheory /trace /infer:j'
+    boogieArgs = '/proc:%s /nologo /doModSetAnalysis /errorTrace:0 /useArrayTheory /trace /infer:j' % procedureId
     if args.smt_log:
         boogieArgs += ' /proverLog:%s' % args.smt_log
 
@@ -118,7 +76,7 @@ def main(tmpDir):
     if args.solver == 'z3':
         boogieArgs += ' /proverOpt:PROVER_PATH=%s' % solverPath
     if args.solver == 'cvc4':
-        boogieArgs += ' /proverOpt:PROVER_PATH=%s /proverOpt:SOLVER=CVC4 /proverOpt:C:"--produce-models"' % solverPath
+        boogieArgs += ' /proverOpt:PROVER_PATH=%s /proverOpt:SOLVER=CVC4 /proverOpt:C:"--produce-models --quiet"' % solverPath
         if args.arithmetic == 'mod' or args.arithmetic == 'mod-overflow':
             boogieArgs += ' /proverOpt:C:"--incremental --decision=justification --no-arrays-eager-index --arrays-eager-lemmas"'
             boogieArgs += ' /proverOpt:LOGIC=QF_AUFDTNIA'
@@ -130,8 +88,9 @@ def main(tmpDir):
         verifierOutput = subprocess.check_output(verifyCommand, shell = True, stderr=subprocess.STDOUT)
         timer.cancel()
     except subprocess.CalledProcessError as err:
+        errorType = "error"
         if err.returncode == -9:
-            print(yellowTxt('Timeout while running verifier'))
+            errorType = "timeout"
         else:
             print(yellowTxt('Error while running verifier, details:'))
         if err.returncode != -9 or args.verbose:
@@ -139,17 +98,97 @@ def main(tmpDir):
             printVerbose(err.output.decode('utf-8'))
             print(blueTxt('---------------------------'))
         timer.cancel()
-        return ERROR_PROCESS_ERROR
+        return (ERROR_PROCESS_ERROR, 'Verifying %s ...\n%s\n' % (procedureId, errorType))
 
     verifierOutputStr = verifierOutput.decode('utf-8')
     if re.search('Boogie program verifier finished with', verifierOutputStr) == None:
         print(yellowTxt('Error while running verifier, details:'))
         printVerbose(verifierOutputStr)
-        return ERROR_BOOGIE_ERROR
+        return (ERROR_BOOGIE_ERROR, "")
     elif args.verbose:
         print(blueTxt('----- Verifier output -----'))
         printVerbose(verifierOutputStr)
         print(blueTxt('---------------------------'))
+
+    return (ERROR_NO_ERROR, verifierOutputStr)
+
+def verifyAll(bplFile, args):
+    verifyProcedureArgs = []
+    procedureRegex = '^procedure(\s+(\{[^\}]*\}))+\s+(?P<procedure_name>[^\(]*)'
+    prog = re.compile(procedureRegex)
+    with open(bplFile, 'r') as f:
+        for line in f.readlines():
+            result = prog.match(line)
+            if (result):
+                procedureId = result.group('procedure_name')
+                verifyProcedureArgs.append({
+                    "bplFile": bplFile,
+                    "procedureId": procedureId,
+                    "args": args
+                })
+    # Verify
+    p = multiprocessing.Pool(args.parallel)
+    verifierOutputList = p.map(verifyProcedure, verifyProcedureArgs)
+
+    # Join results
+    verifierOutputStr = ""
+    for (resultCode, resultOutput) in verifierOutputList:
+        verifierOutputStr += resultOutput
+
+    return verifierOutputStr
+
+def main(tmpDir):
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Verify Solidity smart contracts.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('file', type=str, help='Path to the input file')
+    parser.add_argument('--timeout', type=int, help='Timeout for running Boogie (in seconds)', default=10)
+    parser.add_argument('--arithmetic', type=str, help='Encoding used for arithmetic data types and operations in the verifier', default='int', choices=['int', 'bv', 'mod', 'mod-overflow'])
+    parser.add_argument('--modifies-analysis', action='store_true', help='Perform modification analysis on state variables')
+    parser.add_argument('--event-analysis', action='store_true', help='Perform analysis on emitted events and data changes')
+    parser.add_argument('--parallel', type=int, help='How many cores to use', default=multiprocessing.cpu_count())
+
+    parser.add_argument('--output', type=str, help='Output directory for the Boogie program')
+    parser.add_argument('--verbose', action='store_true', help='Print all output of the compiler and the verifier')
+    parser.add_argument('--smt-log', type=str, help='Log input for the SMT solver')
+    parser.add_argument('--errors-only', action='store_true', help='Only display error messages')
+    parser.add_argument('--show-warnings', action='store_true', help='Display warnings')
+
+    parser.add_argument('--solc', type=str, help='Solidity compiler to use (with boogie translator)', default=os.path.dirname(os.path.realpath(__file__)) + '/solc')
+    parser.add_argument('--boogie', type=str, help='Boogie verifier binary to use', default='@BOOGIE_EXE@')
+    parser.add_argument('--solver', type=str, help='SMT solver used by the verifier', default=@BOOGIE_DEFAULT_SOLVER@, choices=['z3', 'cvc4'])
+    parser.add_argument('--solver-bin', type=str, help='Binary of the solver to use')
+
+    args = parser.parse_args()
+
+    solFile = args.file
+
+    # BPL file if requested, otherwise a temporary
+    if args.output: outDir = args.output
+    else: outDir = tmpDir
+    bplFile = outDir + '/' + os.path.basename(solFile) + '.bpl'
+
+    # First convert .sol to .bpl
+    solcArgs = ' --boogie %s -o %s --overwrite --boogie-arith %s' % (solFile, outDir, args.arithmetic)
+    if args.modifies_analysis:
+        solcArgs += ' --boogie-mod-analysis'
+    if args.event_analysis:
+        solcArgs += ' --boogie-event-analysis'
+    convertCommand = args.solc + ' ' + solcArgs
+    if args.verbose:
+        print(blueTxt('Solc command: ') + convertCommand)
+    compilerOutputStr = ''
+    try:
+        compilerOutput = subprocess.check_output(convertCommand, shell = True, stderr=subprocess.STDOUT)
+        compilerOutputStr = compilerOutput.decode('utf-8', 'ignore')
+        if args.verbose:
+            print(blueTxt('----- Compiler output -----'))
+            printVerbose(compilerOutputStr)
+            print(blueTxt('---------------------------'))
+    except subprocess.CalledProcessError as err:
+        compilerOutputStr = err.output.decode('utf-8')
+        print(yellowTxt('Error while running compiler, details:'))
+        printVerbose(compilerOutputStr)
+        return ERROR_COMPILER
 
     # Print warnings if requested
     warnings = 0
@@ -163,32 +202,58 @@ def main(tmpDir):
                 line = line.replace('Warning: ', yellowTxt('Warning') + ': ')
                 line = line.replace('solc-verify warning: ', yellowTxt('solc-verify warning') + ': ')
                 print(line)
+        # Also print errors (this can only be intra-function errors)
+        if 'solc-verify error: ' in line:
+            if args.show_warnings:
+                line = line.replace('solc-verify error: ', redTxt('solc-verify error') + ': ')
+                print(line)
+
+    # Run verification
+    verifierOutputStr = verifyAll(bplFile, args)
 
     # Map results back to .sol file
     prefix = '' if args.errors_only else ' - '
     outputLines = list(filter(None, verifierOutputStr.split('\n')))
+    errors = 0
+    inconclusive = 0
     for outputLine, nextOutputLine in zip(outputLines, outputLines[1:]):
         if 'This assertion might not hold.' in outputLine:
             errLine = getRelatedLineFromBpl(outputLine, 0) # Info is in the current line
             print(prefix + getSourceLineAndCol(errLine) + ': ' + getMessage(errLine))
+            errors = errors + 1
         if 'A postcondition might not hold on this return path.' in outputLine:
             errLine = getRelatedLineFromBpl(nextOutputLine, 0) # Info is in the next line
             print(prefix + getSourceLineAndCol(errLine) + ': ' + getMessage(errLine))
+            errors = errors + 1
         if 'A precondition for this call might not hold.' in outputLine:
             errLine = getRelatedLineFromBpl(nextOutputLine, 0) # Message is in the next line
             errLinePrev = getRelatedLineFromBpl(outputLine, -1) # Location is in the line before
             print(prefix + getSourceLineAndCol(errLinePrev) + ': ' + getMessage(errLine))
+            errors = errors + 1
         if 'Verification inconclusive' in outputLine:
             errLine = getRelatedLineFromBpl(outputLine, 0) # Info is in the current line
             print(prefix + getSourceLineAndCol(errLine) + ': Inconclusive result for function \'' + getMessage(errLine) + '\'')
+            errors = errors + 1
         if 'This loop invariant might not hold on entry.' in outputLine:
             errLine = getRelatedLineFromBpl(outputLine, 0) # Info is in the current line
             print(prefix + getSourceLineAndCol(errLine) + ': Invariant \'' + getMessage(errLine) + '\' might not hold on loop entry')
+            errors = errors + 1
         if 'This loop invariant might not be maintained by the loop.' in outputLine:
             errLine = getRelatedLineFromBpl(outputLine, 0) # Info is in the current line
             print(prefix + getSourceLineAndCol(errLine) + ': Invariant \'' + getMessage(errLine) + '\' might not be maintained by the loop')
+            errors = errors + 1
         if not args.errors_only and re.search('Verifying .* \.\.\.', outputLine) is not None:
-            result = redTxt('ERROR') if 'error' in nextOutputLine else (yellowTxt('INCONCLUSIVE') if 'inconclusive' in nextOutputLine else greenTxt('OK'))
+            if 'error' in nextOutputLine:
+                result = redTxt('ERROR')
+                errors = errors + 1
+            elif 'timeout' in nextOutputLine:
+                result = yellowTxt('TIMEOUT')
+                inconclusive = inconclusive + 1
+            elif 'inconclusive' in nextOutputLine:
+                result = yellowTxt('INCONCLUSIVE')
+                inconclusive = inconclusive + 1
+            else:
+                result = greenTxt('OK')
             print(getFunctionName(outputLine.replace('Verifying ', '').replace(' ...',''), bplFile) + ': ' + result)
 
     skipped = 0
@@ -200,19 +265,19 @@ def main(tmpDir):
     # Warnings
     if warnings > 0 and not args.show_warnings:
         print(yellowTxt('Use --show-warnings to see %d warning%s.' % (warnings, '' if warnings == 1 else 's')))
-    if 'inconclusive' in outputLines[-1]:
+    if inconclusive > 0:
         print(yellowTxt('Inconclusive results.'))
     if skipped > 0:
-        print(yellowTxt('Some functions were skipped. Use --verbose to see details.'))
+        print(yellowTxt('Some functions were skipped. Use --show-warnings to see details.'))
 
     # Final result
-    if (re.match('Boogie program verifier finished with \\d+ verified, 0 errors', outputLines[-1])):
+    if errors == 0:
         print(greenTxt('No errors found.'))
-        if 'inconclusive' in outputLines[-1] or skipped > 0: return ERROR_PARTIAL
-        return ERROR_NO_ERRROR
+        if inconclusive > 0 or skipped > 0: return ERROR_PARTIAL
+        return ERROR_NO_ERROR
     else:
         print(redTxt('Errors were found by the verifier.'))
-        return ERRORS_VERIFICATION
+        return ERROR_VERIFICATION
 
 def printVerbose(txt):
     txt = txt.replace('Warning: ', yellowTxt('Warning') + ': ')

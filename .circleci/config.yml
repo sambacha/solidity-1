@@ -51,9 +51,9 @@ defaults:
   - setup_sverif_cvc4: &setup_sverif_cvc4
       name: Install CVC4
       command: | # apt installs old version (1.5) so we download a newer manually
-        wget http://cvc4.cs.stanford.edu/downloads/builds/x86_64-linux-opt/cvc4-1.7-x86_64-linux-opt
-        chmod a+x cvc4-1.7-x86_64-linux-opt
-        cp cvc4-1.7-x86_64-linux-opt /usr/local/bin/cvc4
+        wget http://cvc4.cs.stanford.edu/downloads/builds/x86_64-linux-opt/cvc4-1.8-x86_64-linux-opt
+        chmod a+x cvc4-1.8-x86_64-linux-opt
+        cp cvc4-1.8-x86_64-linux-opt /usr/local/bin/cvc4
 
   - setup_sverif_boogie: &setup_sverif_boogie
       name: Install Boogie
@@ -257,7 +257,7 @@ jobs:
             pip install --user codespell
       - run:
           name: Check spelling
-          command: ~/.local/bin/codespell -S "*.enc,.git,Dockerfile*" -I ./scripts/codespell_whitelist.txt
+          command: ~/.local/bin/codespell -S "*.enc,.git,Dockerfile*,.cproject" -I ./scripts/codespell_whitelist.txt
 
   chk_docs_examples:
     docker:
@@ -303,7 +303,7 @@ jobs:
 
   chk_proofs:
     docker:
-      - image: buildpack-deps:disco
+      - image: buildpack-deps:latest
     environment:
       TERM: xterm
     steps:
@@ -618,21 +618,26 @@ jobs:
       SOLTEST_FLAGS: --no-smt
       ASAN_OPTIONS: check_initialization_order=true:detect_stack_use_after_return=true:strict_init_order=true:strict_string_checks=true:detect_invalid_pointer_pairs=2
 
-  # t_ems_solcjs:
-  #   docker:
-  #     - image: circleci/node:10
-  #   environment:
-  #     TERM: xterm
-  #   steps:
-  #     - checkout
-  #     - attach_workspace:
-  #         at: /tmp/workspace
-  #     - run:
-  #         name: Test solcjs
-  #         command: |
-  #           node --version
-  #           npm --version
-  #           test/solcjsTests.sh /tmp/workspace/soljson.js $(cat /tmp/workspace/version.txt)
+  t_ems_solcjs:
+    docker:
+      - image: buildpack-deps:latest
+    environment:
+      TERM: xterm
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: Install test dependencies
+          command: |
+            apt-get update
+            apt-get install -qqy --no-install-recommends nodejs npm cvc4
+      - run:
+          name: Test solcjs
+          command: |
+            node --version
+            npm --version
+            test/solcjsTests.sh /tmp/workspace/soljson.js $(cat /tmp/workspace/version.txt)
 
   t_ems_compile_ext_gnosis:
     docker:
@@ -862,7 +867,7 @@ workflows:
 
       # Emscripten build and selected tests
       - b_ems: *workflow_trigger_on_tags
-      # - t_ems_solcjs: *workflow_emscripten
+      - t_ems_solcjs: *workflow_emscripten
       - t_ems_compile_ext_colony: *workflow_emscripten
       - t_ems_compile_ext_gnosis: *workflow_emscripten
       - t_ems_compile_ext_zeppelin: *workflow_emscripten

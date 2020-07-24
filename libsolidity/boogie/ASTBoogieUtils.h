@@ -2,6 +2,9 @@
 
 #include <libsolidity/ast/Types.h>
 #include <libsolidity/boogie/BoogieAst.h>
+#include <libsolidity/boogie/BoogieAstDecl.h>
+#include <libsolidity/boogie/BoogieAstExpr.h>
+#include <libsolidity/boogie/BoogieAstStmt.h>
 #include <liblangutil/Scanner.h>
 #include <string>
 
@@ -57,6 +60,7 @@ public:
 	static std::string const VERIFIER_SUM;
 	static std::string const VERIFIER_IDX;
 	static std::string const VERIFIER_OLD;
+	static std::string const VERIFIER_BEFORE;
 	static std::string const VERIFIER_EQ;
 	static std::string const VERIFIER_OVERFLOW;
 	static std::string const BOOGIE_CONSTRUCTOR;
@@ -68,9 +72,13 @@ public:
 	static std::string const DOCTAG_CONTRACT_INVARS_INCLUDE;
 	static std::string const DOCTAG_PRECOND;
 	static std::string const DOCTAG_POSTCOND;
+	static std::string const DOCTAG_SPECIFICATION_CASES;
 	static std::string const DOCTAG_MODIFIES;
 	static std::string const DOCTAG_MODIFIES_ALL;
 	static std::string const DOCTAG_MODIFIES_COND;
+	static std::string const DOCTAG_EMITS;
+	static std::string const DOCTAG_EVENT_TRACKS_CHANGES;
+	static std::string const DOCTAG_EVENT_ALLOW_NO_CHANGE_EMIT;
 
 	/** Creates the procedure corresponding to address.transfer(). */
 	static
@@ -181,6 +189,16 @@ public:
 	static
 	boogie::Expr::Ref checkExplicitBvConversion(boogie::Expr::Ref expr, TypePointer exprType, TypePointer targetType, BoogieContext& context);
 
+	/** Type of TCC to add */
+	enum TCCType {
+		/** Add only lower bound */
+		LowerBound,
+		/** Add only upper bound */
+		UpperBound,
+		/** Add both bounds */
+		BothBounds
+	};
+
 	/**
 	 * Depending on the context, the returned TCC can be assumed or asserted.
 	 * @param expr Expression
@@ -188,7 +206,7 @@ public:
 	 * @returns The type checking condition for an expression with a given type.
 	 */
 	static
-	boogie::Expr::Ref getTCCforExpr(boogie::Expr::Ref expr, TypePointer tp);
+	boogie::Expr::Ref getTCCforExpr(boogie::Expr::Ref expr, TypePointer tp, TCCType type = BothBounds);
 
 	/**
 	 * @param _type Type

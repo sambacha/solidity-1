@@ -8,12 +8,69 @@
 #include <libsolidity/analysis/DeclarationContainer.h>
 #include <libsolidity/boogie/ASTBoogieStats.h>
 #include <libsolidity/boogie/BoogieAst.h>
+#include <libsolidity/boogie/BoogieAstDecl.h>
+#include <libsolidity/boogie/BoogieAstExpr.h>
+#include <libsolidity/boogie/BoogieAstStmt.h>
 #include <set>
 
 namespace dev
 {
 namespace solidity
 {
+
+/**
+ * Utility class for storing various conditions on variables/terms. Examples
+ * include type-checking conditions (TCCs), overflow conditions (OCs), and
+ * potentially otehrs.
+ */
+class ExprConditionStore
+{
+public:
+
+	enum class ConditionType {
+		TYPE_CHECKING_CONDITION,
+		OVERFLOW_CONDITION,
+	};
+
+	typedef boogie::Expr::RefSet ConditionSet;
+
+	/** Add a condition related to a specific variable */
+	void addCondition(std::string id, ConditionType type, boogie::Expr::Ref ref);
+
+	/** Add general condition not related to a specific variable */
+	void addCondition(ConditionType type, boogie::Expr::Ref ref);
+
+	/** Add general condition not related to specific variable */
+	void addConditions(ExprConditionStore const& other);
+
+	/** Get all conditions of this type */
+	ConditionSet getConditions(ConditionType type) const;
+
+	/** Get all conditions containing the given variable (excluding direct conditions, see getConditionsOn) */
+	ConditionSet getConditionsContaining(ConditionType type, std::string id) const;
+
+	/** Get all conditions directly involving the given variable */
+	ConditionSet getConditionsOn(ConditionType type, std::string id) const;
+
+	/** Remove all conditions containing given variable */
+	void removeConditions(ConditionType type, std::string id);
+
+	/** Remove all conditions of this type */
+	void removeConditions(ConditionType type);
+
+	/** Remove all conditions */
+	void clear();
+
+private:
+
+	typedef std::map<ConditionType, ConditionSet> ConditionMap;
+
+	/** All conditions not involving a particular variable */
+	ConditionMap m_conditions;
+
+	/** Conditions per variable */
+	std::map<std::string, ConditionMap> m_conditionsOnVariables;
+};
 
 /**
  * Context class that is used to pass information around the different transformation classes.
@@ -34,16 +91,14 @@ public:
 		boogie::Expr::Ref expr; // Expression converted to Boogie
 		std::string exprStr; // Expression in original format
 		ASTPointer<Expression> exprSol; // Expression in Solidity AST format
-		std::list<boogie::Expr::Ref> tccs; // TCCs for the expression
-		std::list<boogie::Expr::Ref> ocs; // OCs for the expression
+		ExprConditionStore conditions; // TCCs, OCs, and similar
 
 		DocTagExpr() {}
 
 		DocTagExpr(boogie::Expr::Ref expr, std::string exprStr,
 				ASTPointer<Expression> exprSol,
-				std::list<boogie::Expr::Ref> const& tccs,
-				std::list<boogie::Expr::Ref> const& ocs) :
-			expr(expr), exprStr(exprStr), exprSol(exprSol), tccs(tccs), ocs(ocs) {}
+				ExprConditionStore const& conditions) :
+			expr(expr), exprStr(exprStr), exprSol(exprSol), conditions(conditions) {}
 	};
 
 	/**
@@ -171,6 +226,69 @@ public:
 	std::string mapDeclName(Declaration const& decl);
 
 	void warnForBalances();
+
+private:
+
+	//
+	// Data related to Event tracking
+	//
+
+	using EventDataSet = std::set<Declaration const*>;
+
+	struct EventDataInfo {
+		boogie::Expr::Ref dataVar; // Data tracked
+		boogie::Expr::Ref oldDataVar; // Same type, to save data
+		boogie::Expr::Ref oldDataSavedVar; // Bool type, whether to update
+		std::set<std::string> events; // Events tracking this field
+	};
+
+	// Information about events we're tracking
+	std::map<EventDefinition const*, EventDataSet> m_eventData;
+	// Set of all id's that we're tracking old values for
+	std::map<Declaration const*, EventDataInfo> m_allEventData;
+	// Set of solidity events that we're watching at the moment
+	std::set<EventDefinition const*> m_eventDataCurrent;
+	// Set of solidity events we're currently watching
+	// Substitution from data members to old data members for events
+	boogie::Expr::Subst m_eventDataSubstitution;
+
+public:
+
+	//
+	// Methods related to Event tracking.
+	//
+
+	/** Returns the substitution for data tracked by events */
+	boogie::Expr::Subst const& getEventDataSubstitution() const;
+
+	/** Add new data tracked by an event */
+	void addEventData(Expression const* expr, EventDefinition const* event);
+
+	/** Enable tracking of data related to given event */
+	void enableEventDataTrackingFor(EventDefinition const* event);
+
+	/** Clear tracking of events */
+	void disableEventDataTracking();
+
+	/**
+	 * Given LHS of an assignment, check if it's an update tracked by an event. Returns a statement
+	 * to save the data, if not saved already.
+	 */
+	std::list<boogie::Stmt::Ref> checkForEventDataSave(ASTNode const* lhsExpr);
+
+	/**
+	 * Sets up the event procedure with the right pre- and post-conditions and body to capture
+	 * trigger and data-update variables
+	 */
+	boogie::ProcDeclRef declareEventProcedure(EventDefinition const* event, std::string eventName, std::vector<boogie::Binding> const& params, bool onlyOnChanges);
+
+	/**
+	 * Adds entry and exit specs for the given function.
+	 */
+	void addFunctionSpecsForEvent(EventDefinition const* event, boogie::ProcDeclRef procedure);
+
+	/** Add loop invariant for the given event. Returns null if none. */
+	std::pair<boogie::Expr::Ref, std::string> getEventLoopInvariant(EventDefinition const* event) const;
 
 	// Sum function related
 private:

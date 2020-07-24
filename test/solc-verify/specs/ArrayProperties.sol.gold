@@ -1,0 +1,7 @@
+solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
+ArrayProperties::addUnique: OK
+ArrayProperties::addToSorted: OK
+ArrayProperties::setValue: OK
+ArrayProperties::[implicit_constructor]: OK
+ArrayProperties::[receive_ether_selfdestruct]: OK
+No errors found.

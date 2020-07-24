@@ -55,7 +55,11 @@ set(sources
 	boogie/ASTBoogieStats.cpp
 	boogie/ASTBoogieUtils.cpp
 	boogie/BoogieAst.cpp
+	boogie/BoogieAstDecl.cpp
+	boogie/BoogieAstExpr.cpp
+	boogie/BoogieAstStmt.cpp
 	boogie/BoogieContext.cpp
+	boogie/EmitsChecker.cpp
 	boogie/StoragePtrHelper.cpp
 	codegen/ABIFunctions.cpp
 	codegen/ABIFunctions.h

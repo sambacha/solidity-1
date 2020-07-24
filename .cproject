@@ -35,7 +35,7 @@
                             							
                             <targetPlatform archList="all" binaryParser="" id="cdt.managedbuild.target.gnu.platform.base.973255552" name="Debug Platform" osList="linux,hpux,aix,qnx" superClass="cdt.managedbuild.target.gnu.platform.base"/>
                             							
-                            <builder buildPath="${workspace_loc:/solidity-sri}/build" id="cdt.managedbuild.target.gnu.builder.base.1224807870" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="cdt.managedbuild.target.gnu.builder.base"/>
+                            <builder buildPath="${ProjDirPath}/build" id="cdt.managedbuild.target.gnu.builder.base.1224807870" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="cdt.managedbuild.target.gnu.builder.base"/>
                             							
                             <tool id="cdt.managedbuild.tool.gnu.archiver.base.1764930424" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
                             							

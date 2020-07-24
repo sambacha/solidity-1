@@ -12,3 +12,4 @@ errorstring
 keyserver
 hist
 otion
+keypair

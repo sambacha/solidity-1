@@ -54,7 +54,7 @@ bg::Expr::Ref StoragePtrHelper::toWriteExpr(vector<bg::Expr::Ref> exprs, BoogieC
 	// Start with a constant [int]int array with default value of 0
 	auto intType = context.intType(256);
 	string smtExpr = "((as const (Array " + intType->getSmtType() + " " + intType->getSmtType() + ")) " +
-			context.intLit(bg::bigint(0), 256)->toSMT2() + ")";
+			context.intLit(bg::bigint(0), 256)->toSMT2String() + ")";
 	bg::Expr::Ref write = bg::Expr::fn(context.defaultArray(intType, intType, smtExpr)->getName(), vector<bg::Expr::Ref>());
 	// Then do a series of writes into the array
 	for (size_t i = 0; i < exprs.size(); ++i)
@@ -104,7 +104,7 @@ void StoragePtrHelper::packInternal(Expression const* expr, bg::Expr::Ref bgExpr
 			// If found, initialize packed array with its index
 			if (vars[i] == idExpr->annotation().referencedDeclaration)
 			{
-				result.conds.push_back(bg::Expr::lit(true));
+				result.conds.push_back(bg::Expr::true_());
 				result.exprs.push_back({context.intLit(bg::bigint(i), 256)});
 				return;
 			}
@@ -385,7 +385,7 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 				if (targetArrayTp && targetArrayTp->isImplicitlyConvertibleTo(*arrType))
 				{
 					PackResult repacked;
-					repacked.conds.push_back(bg::Expr::lit(true));
+					repacked.conds.push_back(bg::Expr::true_());
 					repacked.exprs.push_back(indices);
 					return repacked;
 				}
@@ -400,7 +400,7 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 				if (targetMapTp && targetMapTp->isImplicitlyConvertibleTo(*mapType))
 				{
 					PackResult repacked;
-					repacked.conds.push_back(bg::Expr::lit(true));
+					repacked.conds.push_back(bg::Expr::true_());
 					repacked.exprs.push_back(indices);
 					return repacked;
 				}
@@ -419,7 +419,7 @@ StoragePtrHelper::PackResult StoragePtrHelper::repack(Expression const* ptrExpr,
 		if (targetStructTp && declStructTp && targetStructTp->structDefinition() == declStructTp->structDefinition())
 		{
 			PackResult repacked;
-			repacked.conds.push_back(bg::Expr::lit(true));
+			repacked.conds.push_back(bg::Expr::true_());
 			repacked.exprs.push_back(indices);
 			return repacked;
 		}

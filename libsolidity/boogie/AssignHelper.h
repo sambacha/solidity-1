@@ -1,6 +1,8 @@
 #pragma once
 #include <libsolidity/ast/Types.h>
-#include <libsolidity/boogie/BoogieAst.h>
+#include <libsolidity/boogie/BoogieAstDecl.h>
+#include <libsolidity/boogie/BoogieAstExpr.h>
+#include <libsolidity/boogie/BoogieAstStmt.h>
 
 namespace dev
 {
@@ -74,6 +76,7 @@ private:
 	/** Checks if any sum shadow variable has to be updated based on the lhs. */
 	static
 	std::list<boogie::Stmt::Ref> checkForSums(boogie::Expr::Ref lhs, boogie::Expr::Ref rhs, BoogieContext& context);
+
 
 	/** Helper method to deep copy a struct. */
 	static

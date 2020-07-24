@@ -1,0 +1,4 @@
+BinarySearch::find: OK
+BinarySearch::[implicit_constructor]: OK
+BinarySearch::[receive_ether_selfdestruct]: OK
+No errors found.

@@ -1,6 +1,6 @@
 test/solc-verify/specs/Eq.sol:2:1: Warning: Experimental features are turned on. Do not use experimental features on live deployments.
 Annotation:1:1: solc-verify warning: Use operator == for comparing value types
-test/solc-verify/specs/Eq.sol:66:5: solc-verify warning: Warning(s) while processing annotation for node
+test/solc-verify/specs/Eq.sol:66:5: solc-verify warning: Warning(s) while translating annotation for node
 MapsEq::upd_correct: OK
 MapsEq::upd_incorrect: ERROR
  - test/solc-verify/specs/Eq.sol:14:5: Invariant '__verifier_eq(x, y)' might not hold at end of function.

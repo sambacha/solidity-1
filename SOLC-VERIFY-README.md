@@ -69,6 +69,7 @@ After successful installation, solc-verify can be run by `solc-verify.py <solidi
   - `mod` is modular arithmetic mode, encoding arithmetic operations using mathematical integers with range assertions and precise wraparound semantics
   - `mod-overflow` is modular arithmetic with overflow checking enabled
 - `--modifies-analysis`: State variables and balances are checked for modifications if there are modification annotations or if this flag is explicitly given.
+- `--event-analysis`: Checking emitting events and tracking data changes related to events is only performed if there are event annotations or if this flag is explicitly given.
 - `--output OUTPUT`: Output directory where the intermediate (e.g., Boogie) files are created (tmp directory by default).
 - `--verbose`: Print all output of the compiler and the verifier.
 - `--smt-log SMTLOG`: Log the inputs given by Boogie to the SMT solver into a file (not given by default).
@@ -126,6 +127,10 @@ This example ([`Storage.sol`](test/solc-verify/examples/Storage.sol)) presents a
 solc-verify.py test/solc-verify/examples/Storage.sol
 ```
 
+### Events
+
+This example ([`Events.sol`](test/solc-verify/examples/Events.sol)) presents a simple registry, where users can register an integer data and can later update it with a greater integer. The contract also defines events to keep track of these changes. This example illustrates annotation possibilities for events: Events can declare variables where they keep track of the changes. If the data changes, one of the events must be emitted. Furthermore, events can also define conditions on the state of the data before and after updating (e.g., the number was smaller before update).
+
 ## Specification Annotations
 
 Specification annotations must be included in special documentation comments (`///` or `/** */`) and must start with the special doctag `@notice`.
@@ -140,6 +145,8 @@ See the contracts under `test/solc-verify/examples` for examples.
 - Contract and loop invariants can refer to a special **sum function over collections** (`__verifier_sum_int` or `__verifier_sum_uint`). The argument must be an array/mapping state variable with integer values, or must point to an integer member if the array/mapping contains structures (see [`SumOverStructMember.sol`](test/solc-verify/examples/SumOverStructMember.sol)).
 - Postconditions can refer to the **old value** of a variable (before the transaction) using `__verifier_old_<TYPE>` (e.g., `__verifier_old_uint(...)`).
 - Specifications can refer to a special **equality predicate** (`__verifier_eq`) for reference types such as structures, arrays and mappings (not comparable with the standard Solidity operator `==`). It takes two arguments with the same type. For storage data location it performs a deep equality check, for other data locations it performs a reference equality check.
+- **Emits specifiers** (`emits <EVENTNAME>`) can be attached to functions. A function can only emit events that are declared with such specifiers. If an event is specified, but never emitted, a warning is generated. If a function calls other functions, base constructors or modifiers, their events should also be specified, except for external calls (that can emit any event). Note that events are specified only by their name, meaning that any overload can be emitted.
+- **Event data specification** can be attached to events that should be emitted when certain data changes. Events can declare the state variable(s) they _track_ for changes, or in other words, the variables for which the event should be emitted on a change (`tracks-changes-in <VARIABLE>`). Furthermore, pre- and postconditions can also be attached to events to specify the expected state of the data _before_ the change (`precondition <EXPRESSION>`) and _currently_ (`postcondition <EXPRESSION>`). These expressions can refer to state variables and parameters of the event. For state variables, the _current_ state (`postcondition`) means the state at the point of the emit statement, and the state _before_ (`precondition`) refers to the state at the previous _checkpoint_. In the postcondition it is also possible to refer to the previous state using `__verifier_before_<TYPE>` (e.g., `__verifier_before_uint(...)`). Currently, there are checkpoints at the beginning of a function, at function calls, at emit statements and at loop iterations. Note that state variables appearing in the pre- and postconditions of an event are automatically tracked (without explicitly declaring with `tracks-changes-in`).
 
 ## Verification and Results
 Solc-verify targets _functional correctness_ of contracts with respect to _completed transactions_ and different types of _failures_.

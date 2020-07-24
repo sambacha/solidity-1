@@ -44,6 +44,15 @@ BoogieContext::BoogieGlobalContext::BoogieGlobalContext()
 		m_magicVariables.push_back(shared_ptr<MagicVariableDeclaration const>(old));
 	}
 
+	// Add magic variables for the 'before' function
+	for (string befType: { "address", "bool", "int", "uint" })
+	{
+		auto funType = TypeProvider::function(strings { befType }, strings { befType },
+				FunctionType::Kind::Internal, false, StateMutability::Pure);
+		auto bef = new MagicVariableDeclaration(ASTBoogieUtils::VERIFIER_BEFORE + "_" + befType, funType);
+		m_magicVariables.push_back(shared_ptr<MagicVariableDeclaration const>(bef));
+	}
+
 	// Magic variable for 'eq' function
 	auto eqFunType = TypeProvider::function(strings { }, strings { "bool" },
 					FunctionType::Kind::Internal, true, StateMutability::Pure);
@@ -121,7 +130,7 @@ void BoogieContext::getPath(bg::Expr::Ref expr, SumPath& path, ASTNode const* er
 	{
 		// Check if we reached a state var: x[this]
 		if (auto bgThis = dynamic_pointer_cast<bg::VarExpr const>(arrSelExpr->getIdx()))
-			if (bgThis->name() == boogieThis()->getName())
+			if (bgThis->getName() == boogieThis()->getName())
 				id = dynamic_pointer_cast<bg::VarExpr const>(arrSelExpr->getBase());
 
 
@@ -140,7 +149,7 @@ void BoogieContext::getPath(bg::Expr::Ref expr, SumPath& path, ASTNode const* er
 			// Now get the id from the state var x[this]
 			if (subArrSelExpr)
 				if (auto bgThis = dynamic_pointer_cast<bg::VarExpr const>(subArrSelExpr->getIdx()))
-					if (bgThis->name() == boogieThis()->getName())
+					if (bgThis->getName() == boogieThis()->getName())
 						id = dynamic_pointer_cast<bg::VarExpr const>(subArrSelExpr->getBase());
 
 			if (!id && errors)
@@ -151,7 +160,7 @@ void BoogieContext::getPath(bg::Expr::Ref expr, SumPath& path, ASTNode const* er
 	if (id)
 	{
 		solAssert(path.base == "", "Base set twice");
-		path.base = id->name();
+		path.base = id->getName();
 		return;
 	}
 
@@ -620,7 +629,7 @@ bg::Stmt::Ref BoogieContext::incrAllocCounter()
 {
 	return bg::Stmt::assign(
 			m_boogieAllocCounter->getRefTo(),
-			bg::Expr::plus(m_boogieAllocCounter->getRefTo(), bg::Expr::lit((long)1)));
+			bg::Expr::plus(m_boogieAllocCounter->getRefTo(), bg::Expr::intlit((long)1)));
 }
 
 bg::Expr::Ref BoogieContext::getMemArray(bg::Expr::Ref arrPtrExpr, bg::TypeDeclRef type)
@@ -751,9 +760,9 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 bg::Expr::Ref BoogieContext::intLit(bg::bigint lit, int bits) const
 {
 	if (isBvEncoding())
-		return bg::Expr::lit(lit, bits);
+		return bg::Expr::bvlit(lit, bits);
 	else
-		return bg::Expr::lit(lit);
+		return bg::Expr::intlit(lit);
 }
 
 bg::Expr::Ref BoogieContext::intSlice(bg::Expr::Ref base, unsigned size, unsigned high, unsigned low)
@@ -767,12 +776,12 @@ bg::Expr::Ref BoogieContext::intSlice(bg::Expr::Ref base, unsigned size, unsigne
 		bg::Expr::Ref result = base;
 		if (low > 0)
 		{
-			bg::Expr::Ref c1 = bg::Expr::lit(bg::bigint(2) << (low - 1));
+			bg::Expr::Ref c1 = bg::Expr::intlit(bg::bigint(2) << (low - 1));
 			result = bg::Expr::intdiv(result, c1);
 		}
 		if (high < size - 1)
 		{
-			bg::Expr::Ref c2 = bg::Expr::lit(bg::bigint(2) << (high - low));
+			bg::Expr::Ref c2 = bg::Expr::intlit(bg::bigint(2) << (high - low));
 			result = bg::Expr::mod(result, c2);
 		}
 		return result;
@@ -1158,5 +1167,400 @@ bg::Expr::Ref BoogieContext::ecrecover(bg::Expr::Ref hash, bg::Expr::Ref v, bg::
 	return bg::Expr::fn(fnName, {hash, v, r, s});
 }
 
+bg::Expr::Subst const& BoogieContext::getEventDataSubstitution() const
+{
+	return m_eventDataSubstitution;
+}
+
+void BoogieContext::addEventData(Expression const* expr, EventDefinition const* event)
+{
+	// Get the variable
+	auto dataExpr = dynamic_cast<Identifier const*>(expr);
+	solAssert(dataExpr, "We only accept members");
+	std::string dataVarName = mapDeclName(*dataExpr->annotation().referencedDeclaration);
+	auto dataDecl = dataExpr->annotation().referencedDeclaration;
+
+	// If expression already there, we can skip
+	if (m_eventData[event].count(dataDecl) > 0)
+		return;
+
+	// Create the new variables and declare them
+	if (m_allEventData.count(dataDecl) == 0)
+	{
+		string oldDataName = dataVarName + "#event_old";
+		TypePointer type = dataExpr->annotation().type;
+		bg::TypeDeclRef oldDataType = bg::Decl::arraytype(addressType(), toBoogieType(type, expr));
+		bg::VarDeclRef oldDataDecl = bg::Decl::variable(oldDataName, oldDataType);
+		addDecl(oldDataDecl);
+		string oldUpdateName = dataVarName + "#event_old#saved";
+		bg::TypeDeclRef oldUpdateType = bg::Decl::elementarytype("bool");
+		bg::VarDeclRef oldUpdateDecl = bg::Decl::variable(oldUpdateName, oldUpdateType);
+		addDecl(oldUpdateDecl);
+		bg::Expr::Ref data = bg::Expr::id(dataVarName);
+		bg::Expr::Ref oldData = bg::Expr::id(oldDataName);
+		bg::Expr::Ref oldDataSaved = bg::Expr::id(oldUpdateName);
+		m_allEventData[dataDecl].dataVar = data;
+		m_allEventData[dataDecl].oldDataVar = oldData;
+		m_allEventData[dataDecl].oldDataSavedVar = oldDataSaved;
+		m_allEventData[dataDecl].events.insert(event->name());
+		m_eventDataSubstitution[dataVarName] = bg::Expr::cond(oldDataSaved, oldData, data);
+	}
+	else
+		m_allEventData[dataDecl].events.insert(event->name());
+
+	// Record the data and the substitution
+	m_eventData[event].insert(dataDecl);
+}
+
+void BoogieContext::enableEventDataTrackingFor(EventDefinition const* event)
+{
+	// If the
+	solAssert(m_eventData.count(event), "Events need to be processed before enabling them");
+	m_eventDataCurrent.insert(event);
+}
+
+void BoogieContext::disableEventDataTracking()
+{
+	m_eventDataCurrent.clear();
+}
+
+/** Helper class to compute all base expressions in LValue */
+class ExprBaseComputation : private ASTConstVisitor
+{
+private:
+
+	std::set<Identifier const*>& m_baseExpressions;
+
+public:
+
+	/**
+	 * Create a new instance with a given context.
+	 */
+	ExprBaseComputation(std::set<Identifier const*>& modified)
+	: m_baseExpressions(modified) {}
+
+	/**	Get the base field variable of a lvale. */
+	void run(ASTNode const& _node)
+	{
+		_node.accept(*this);
+	}
+
+	// Only need to handle expressions that have a base or where we
+	// should report errors because unsupported
+	bool visit(Conditional const& _node) override
+	{
+		_node.trueExpression().accept(*this);
+		_node.falseExpression().accept(*this);
+		return false;
+	}
+
+	bool visit(Assignment const& _node) override
+	{
+		_node.leftHandSide().accept(*this);
+		return false;
+	}
+
+	bool visit(FunctionCall const& _node) override
+	{
+		_node.expression().accept(*this); // push/pop stuff
+		return false;
+	}
+
+	bool visit(NewExpression const& _node) override
+	{
+		(void)_node;
+		// new expressions can create assignments, we ignore
+		return false;
+	}
+
+	bool visit(MemberAccess const& _node) override
+	{
+		_node.expression().accept(*this);
+		return false;
+	}
+
+	bool visit(IndexAccess const& _node) override
+	{
+		_node.baseExpression().accept(*this);
+		return false;
+	}
+
+	bool visit(Identifier const& _node) override
+	{
+		m_baseExpressions.insert(&_node);
+		return false;
+	}
+
+	bool visit(TupleExpression const& _node) override
+	{
+		for (auto c: _node.components())
+			if (c)
+				c->accept(*this);
+		return false;
+	}
+
+	bool visit(VariableDeclarationStatement const& _node) override
+	{
+		(void)_node;
+		return false; // No need to process local variable declarations
+	}
+
+	bool visit(Return const& _node) override
+	{
+		(void)_node;
+		return false; // No need to process return value assignments
+	}
+
+};
+
+std::list<bg::Stmt::Ref> BoogieContext::checkForEventDataSave(ASTNode const* lhsExpr)
+{
+	// Get the base expressions and their declaration
+	std::set<Identifier const*> baseExpressions;
+	ExprBaseComputation computeBase(baseExpressions);
+	computeBase.run(*lhsExpr);
+	// TODO: go through the found identifiers and see which ones are storage pointers
+	// those need to have special treatment
+	std::set<Declaration const*> baseDeclarations;
+	std::set<Declaration const*> updatedExpressions;
+	for (auto const& id: baseExpressions)
+		baseDeclarations.insert(id->annotation().referencedDeclaration);
+
+	// Collect all events where the base expression is watched to see if it needs saving
+	if (m_eventDataCurrent.size() > 0)
+	{
+		for (auto event: m_eventDataCurrent)
+		{
+			auto const& eventInfo = m_eventData[event];
+			for (auto expr: eventInfo)
+			{
+				if (baseDeclarations.count(expr))
+				{
+					updatedExpressions.insert(expr);
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		// Check that there is no event tracking this data
+		std::set<string> errors;
+		for (auto decl: baseDeclarations)
+		{
+			auto find = m_allEventData.find(decl);
+			if (find != m_allEventData.end())
+			{
+				std::stringstream msg;
+				msg << "'" << decl->name() << "' is tracked by";
+				auto const& events = find->second.events;
+				bool plural = events.size() > 1;
+				msg << (plural ? " events" : " event");
+				bool first = true;
+				for (auto e: events)
+				{
+					msg << (first ? " '" : ", '") << e << "'";
+					first = false;
+				}
+				msg << " but " << (plural ? "none are" : "it is not") << " specified to emit";
+				errors.insert(msg.str());
+			}
+		}
+		for (auto error: errors)
+			reportError(lhsExpr, error);
+	}
+
+	// Make the statement if (!data_saved) { old_data = data; data_saved = true; }
+	std::list<bg::Stmt::Ref> stmts;
+	for (auto e: updatedExpressions)
+	{
+		auto const& info = m_allEventData[e];
+		std::string dataVarName = mapDeclName(*e);
+		bg::Expr::Ref dataVar = bg::Expr::id(dataVarName);
+		bg::Block::Ref update = bg::Block::block();
+		update->addStmts({
+			bg::Stmt::assign(info.oldDataVar, dataVar),
+			bg::Stmt::assign(info.oldDataSavedVar, bg::Expr::true_())
+		});
+		stmts.push_back(bg::Stmt::ifelse(bg::Expr::not_(info.oldDataSavedVar), update));
+	}
+
+	return stmts;
+}
+
+bg::ProcDeclRef BoogieContext::declareEventProcedure(EventDefinition const* event, std::string eventName, std::vector<bg::Binding> const& params, bool onlyOnChanges)
+{
+	// Event body sets up the variables
+	vector<bg::Block::Ref> blocks;
+	blocks.push_back(bg::Block::block());
+
+	// Get event data and add the statements
+	auto const& eventData = m_eventData[event];
+	for (auto e: eventData)
+	{
+		bg::Expr::Ref dataSavedVar = m_allEventData[e].oldDataSavedVar;
+		blocks.back()->addStmt(bg::Stmt::assign(dataSavedVar, bg::Expr::false_()));
+	}
+
+	// Declare postconditions
+	auto procDecl = bg::Decl::procedure(eventName, params, {}, {}, blocks);
+
+	// At least one data entry has been saved on entry, none has been saved on exit
+	if (eventData.size())
+	{
+		std::vector<bg::Expr::Ref> dataSavedDisjuncts;
+		for (auto const& e: eventData)
+			dataSavedDisjuncts.push_back(m_allEventData[e].oldDataSavedVar);
+		bg::Expr::Ref dataSaved = bg::Expr::or_(dataSavedDisjuncts);
+
+		if (onlyOnChanges)
+		{
+			procDecl->getRequires().push_back(bg::Specification::spec(dataSaved,
+				ASTBoogieUtils::createAttrs(event->location(), "Event triggered without changes to data", *currentScanner())));
+		}
+		procDecl->getEnsures().push_back(bg::Specification::spec(bg::Expr::not_(dataSaved),
+			ASTBoogieUtils::createAttrs(event->location(), "Event triggered without changes to data", *currentScanner())));
+	}
+
+	procDecl->addAttr(bg::Attr::attr("inline", 1));
+
+	return procDecl;
+}
+
+void BoogieContext::addFunctionSpecsForEvent(EventDefinition const* event, bg::ProcDeclRef procDecl)
+{
+	auto eventData = m_eventData[event];
+	if (eventData.size())
+	{
+		std::vector<bg::Expr::Ref> dataSavedDisjuncts;
+		for (auto e: eventData)
+			dataSavedDisjuncts.push_back(m_allEventData[e].oldDataSavedVar);
+		bg::Expr::Ref dataNotSaved = bg::Expr::not_(bg::Expr::or_(dataSavedDisjuncts));
+
+		procDecl->getRequires().push_back(bg::Specification::spec(dataNotSaved,
+				ASTBoogieUtils::createAttrs(event->location(), "Function called without triggering event " + event->name(), *currentScanner())));
+		procDecl->getEnsures().push_back(bg::Specification::spec(dataNotSaved,
+				ASTBoogieUtils::createAttrs(event->location(), "Function can end without triggering event", *currentScanner())));
+	}
+}
+
+std::pair<boogie::Expr::Ref, std::string> BoogieContext::getEventLoopInvariant(EventDefinition const* event) const
+{
+	std::pair<boogie::Expr::Ref, std::string> result;
+	auto eventData = m_eventData.find(event);
+	if (eventData != m_eventData.end() && eventData->second.size())
+	{
+		std::vector<bg::Expr::Ref> dataSavedDisjuncts;
+		for (auto e: eventData->second)
+		{
+			auto dataInfo = m_allEventData.find(e);
+			solAssert(dataInfo != m_allEventData.end(), "Should have been added");
+			dataSavedDisjuncts.push_back(dataInfo->second.oldDataSavedVar);
+		}
+		bg::Expr::Ref dataNotSaved =  bg::Expr::not_(bg::Expr::or_(dataSavedDisjuncts));
+		result.first = dataNotSaved,
+		result.second = "event " + event->name() + " must be triggered if event tracked data was modified";
+	}
+	return result;
+}
+
+void ExprConditionStore::addCondition(std::string id, ConditionType type, boogie::Expr::Ref ref)
+{
+	m_conditionsOnVariables[id][type].insert(ref);
+}
+
+void ExprConditionStore::addCondition(ConditionType type, boogie::Expr::Ref ref)
+{
+	m_conditions[type].insert(ref);
+}
+
+void ExprConditionStore::addConditions(ExprConditionStore const& other)
+{
+	m_conditions.insert(other.m_conditions.begin(), other.m_conditions.end());
+	m_conditionsOnVariables.insert(other.m_conditionsOnVariables.begin(), other.m_conditionsOnVariables.end());
+}
+
+ExprConditionStore::ConditionSet ExprConditionStore::getConditions(ExprConditionStore::ConditionType type) const
+{
+	ConditionSet result;
+
+	auto find = m_conditions.find(type);
+	if (find != m_conditions.end())
+	{
+		for (auto const& c: find->second)
+			result.insert(c);
+	}
+
+	for (auto const& pair: m_conditionsOnVariables)
+	{
+		auto find = pair.second.find(type);
+		if (find != pair.second.end())
+			for (auto const& c: find->second)
+				result.insert(c);
+	}
+
+	return result;
+}
+
+ExprConditionStore::ConditionSet ExprConditionStore::getConditionsContaining(ConditionType type, std::string id) const
+{
+	ConditionSet result;
+
+	auto find = m_conditions.find(type);
+	if (find != m_conditions.end())
+	{
+		for (auto const& c: find->second)
+			if (c->contains(id))
+				result.insert(c);
+
+	}
+
+	return result;
+}
+
+ExprConditionStore::ConditionSet ExprConditionStore::getConditionsOn(ConditionType type, std::string id) const {
+	ConditionSet result;
+
+	auto findId = m_conditionsOnVariables.find(id);
+	if (findId != m_conditionsOnVariables.end())
+	{
+		auto find = findId->second.find(type);
+		if (find != findId->second.end())
+		{
+			for (auto const& c: find->second)
+				if (c->contains(id))
+					result.insert(c);
+		}
+	}
+
+	return result;
+}
+
+
+void ExprConditionStore::removeConditions(ConditionType type, std::string id) {
+	auto& exprs = m_conditions[type];
+	for (auto it = exprs.begin(), end = exprs.end(); it != end; )
+	{
+		if ((**it).contains(id))
+			it = exprs.erase(it);
+		else
+			++it;
+	}
+	m_conditionsOnVariables.erase(id);
+}
+
+void ExprConditionStore::removeConditions(ConditionType type) {
+	m_conditions.erase(type);
+	for (auto& pair: m_conditionsOnVariables)
+		pair.second.erase(type);
+}
+
+void ExprConditionStore::clear()
+{
+	m_conditions.clear();
+}
+
 }
 }
+
+

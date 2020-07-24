@@ -23,6 +23,14 @@ AssignHelper::AssignResult AssignHelper::makeAssign(AssignParam lhs, AssignParam
 	if (lhs.bgExpr->isError() || rhs.bgExpr->isError())
 		return AssignResult{};
 	AssignResult res;
+
+	// Check if we require the event data to be saved
+	if (assocNode)
+	{
+		for (auto stmt: context.checkForEventDataSave(assocNode))
+				res.newStmts.push_back(stmt);
+	}
+
 	makeAssignInternal(lhs, rhs, op, assocNode, context, res);
 	return res;
 }

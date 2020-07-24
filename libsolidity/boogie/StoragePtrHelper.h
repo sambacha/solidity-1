@@ -1,6 +1,8 @@
 #pragma once
 #include <libsolidity/ast/Types.h>
-#include <libsolidity/boogie/BoogieAst.h>
+#include <libsolidity/boogie/BoogieAstDecl.h>
+#include <libsolidity/boogie/BoogieAstExpr.h>
+#include <libsolidity/boogie/BoogieAstStmt.h>
 
 namespace dev
 {

@@ -23,6 +23,7 @@
 #include <libsolidity/parsing/Parser.h>
 
 #include <libsolidity/interface/Version.h>
+#include <libsolidity/ast/AST.h>
 #include <libyul/AsmParser.h>
 #include <libyul/backends/evm/EVMDialect.h>
 #include <liblangutil/ErrorReporter.h>
@@ -998,6 +999,76 @@ ASTPointer<ParameterList> Parser::parseParameterList(
 	return nodeFactory.createNode<ParameterList>(parameters);
 }
 
+ASTPointer<VariableDeclaration> Parser::parseSpecificationVariableDeclaration(ASTPointer<TypeName> type)
+{
+	RecursionGuard recursionGuard(*this);
+	ASTNodeFactory nodeFactory = ASTNodeFactory(*this);
+
+	// Parse type name if not given
+	if (type == nullptr)
+	{
+		type = parseTypeName(false);
+		if (type != nullptr)
+			nodeFactory.setEndPositionFromNode(type);
+	}
+
+	// Set location for complex types and check for errors
+	bool isStateVariable = false;
+	VariableDeclaration::Location location = VariableDeclaration::Unspecified;
+	if (dynamic_cast<ElementaryTypeName*>(type.get()))
+	{
+		// Elementary types are OK
+	}
+	else if (dynamic_cast<Mapping*>(type.get()))
+	{
+		// Mappings are OK, but we mark as storage
+		isStateVariable = true;
+	}
+	else if (dynamic_cast<ArrayTypeName*>(type.get()))
+	{
+		// Arrays are OK, but we mark as storage
+		isStateVariable = true;
+	}
+	else
+	{
+		// Not supported
+		parserError("Unsupported type for quantifier variable.");
+	}
+
+	ASTPointer<ASTString> identifier = expectIdentifierToken();
+	nodeFactory.markEndPosition();
+
+	return nodeFactory.createNode<VariableDeclaration>(
+		type,
+		identifier,
+		nullptr,
+		Declaration::Visibility::Default,
+		isStateVariable,
+		false,
+		false,
+		location
+	);
+}
+
+ASTPointer<ParameterList> Parser::parseSpecificationParameterList(ASTPointer<TypeName> type)
+{
+	RecursionGuard recursionGuard(*this);
+	ASTNodeFactory nodeFactory(*this);
+	vector<ASTPointer<VariableDeclaration>> parameters;
+	expectToken(Token::LParen);
+	parameters.push_back(parseSpecificationVariableDeclaration(type));
+	while (m_scanner->currentToken() != Token::RParen)
+	{
+		if (m_scanner->currentToken() == Token::Comma && m_scanner->peekNextToken() == Token::RParen)
+			fatalParserError("Unexpected trailing comma in quantifier variable list.");
+		expectToken(Token::Comma);
+		parameters.push_back(parseSpecificationVariableDeclaration(type));
+	}
+	nodeFactory.markEndPosition();
+	m_scanner->next();
+	return nodeFactory.createNode<ParameterList>(parameters);
+}
+
 ASTPointer<Block> Parser::parseBlock(ASTPointer<ASTString> const& _docString)
 {
 	RecursionGuard recursionGuard(*this);
@@ -1914,6 +1985,104 @@ ASTPointer<ASTString> Parser::getLiteralAndAdvance()
 	ASTPointer<ASTString> identifier = make_shared<ASTString>(m_scanner->currentLiteral());
 	m_scanner->next();
 	return identifier;
+}
+
+ASTPointer<Expression> Parser::parseSpecificationExpression(SpecificationExpressionInfo& info)
+{
+	// Check if it is an array property
+	if (m_scanner->currentToken() == Token::Identifier && m_scanner->currentLiteral() == "property")
+	{
+		Token typeToken;
+		unsigned int firstNum, secondNum;
+		tie(typeToken, firstNum, secondNum) = TokenTraits::fromIdentifierOrKeyword("uint");
+		ElementaryTypeNameToken uintToken(typeToken, firstNum, secondNum);
+		auto type = ASTNodeFactory(*this).createNode<ElementaryTypeName>(uintToken);
+		m_scanner->next();
+
+		// Parse the array identifier
+		expectToken(Token::LParen);
+		info.arrayId = parseIdentifier();
+		expectToken(Token::RParen);
+
+		// Parse the variables with uint type
+		auto vars = parseSpecificationParameterList(type);
+		info.quantifierList.push_back(vars);
+		info.isForall.push_back(true);
+	}
+	else
+	{
+		// Parse any quantifiers
+		while (m_scanner->currentToken() == Token::Identifier)
+		{
+			// Check the quantifier type
+			if (m_scanner->currentLiteral() == "forall")
+				info.isForall.push_back(true);
+			else if (m_scanner->currentLiteral() == "exists")
+				info.isForall.push_back(false);
+			else
+				break;
+			m_scanner->next();
+
+			// Parse the variables
+			auto vars = parseSpecificationParameterList(nullptr);
+			info.quantifierList.push_back(vars);
+		}
+	}
+
+	// Parse the expression
+	return parseExpression();
+}
+
+ASTPointer<Expression> Parser::parseSpecificationExpression(std::shared_ptr<langutil::Scanner> const& _scanner,
+			SpecificationExpressionInfo& info)
+{
+	try
+	{
+		m_recursionDepth = 0;
+		m_scanner = _scanner;
+		auto result = parseSpecificationExpression(info);
+		solAssert(m_recursionDepth == 0, "");
+		if (m_scanner->currentToken() != Token::EOS)
+			parserError(string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
+		return result;
+	}
+	catch (FatalError const&)
+	{
+		if (m_errorReporter.errors().empty())
+			throw; // Something is weird here, rather throw again.
+		return nullptr;
+	}
+}
+
+void Parser::parseSpecificationExpression(std::shared_ptr<langutil::Scanner> const& _scanner, std::vector<SpecificationCase>& cases)
+{
+	try
+	{
+		m_recursionDepth = 0;
+		m_scanner = _scanner;
+
+		expectToken(Token::LBrack);
+		while (m_scanner->currentToken() == Token::Case)
+		{
+			m_scanner->next();
+			SpecificationCase specCase;
+			specCase.precondition = parseSpecificationExpression(specCase.preconditionInfo);
+			expectToken(Token::Colon);
+			specCase.postcondition = parseSpecificationExpression(specCase.postconditionInfo);
+			expectToken(Token::Semicolon);
+			cases.push_back(specCase);
+		}
+		expectToken(Token::RBrack);
+
+		solAssert(m_recursionDepth == 0, "");
+		if (m_scanner->currentToken() != Token::EOS)
+			parserError(string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
+	}
+	catch (FatalError const&)
+	{
+		if (m_errorReporter.errors().empty())
+			throw; // Something is weird here, rather throw again.
+	}
 }
 
 }
