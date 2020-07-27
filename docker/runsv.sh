@@ -7,4 +7,4 @@ DIR=`dirname $ABSPATH`
 FILE=/host/`basename $ABSPATH`
 shift
 
-docker run -it  --mount type=bind,source="$DIR",target=/host solc-verify:latest $FILE $@
+docker run -it --rm --mount type=bind,source="$DIR",target=/host solc-verify:latest $FILE $@

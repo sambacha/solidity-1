@@ -1,35 +1,52 @@
-FROM ubuntu:bionic
+FROM ubuntu:focal
 
 # Generic packages
-RUN apt update && apt install software-properties-common unzip git python3-pip wget sudo -y
+RUN apt update && DEBIAN_FRONTEND="noninteractive" apt install -y \
+  cmake \
+  curl \
+  git \
+  libboost-filesystem-dev \
+  libboost-program-options-dev \
+  libboost-system-dev \
+  libboost-test-dev \
+  python3-pip \
+  software-properties-common \
+  unzip \
+  wget
+
+# Python dependencies
+RUN pip3 install psutil
 
 # CVC4
-RUN wget http://cvc4.cs.stanford.edu/downloads/builds/x86_64-linux-opt/cvc4-1.7-x86_64-linux-opt \
-        && chmod a+x cvc4-1.7-x86_64-linux-opt \
-        && cp cvc4-1.7-x86_64-linux-opt /usr/local/bin/cvc4
+RUN curl --silent "https://api.github.com/repos/CVC4/CVC4/releases/latest" | grep browser_download_url | grep -E 'linux' | cut -d '"' -f 4 | wget -qi - -O /usr/local/bin/cvc4 \
+  && chmod a+x /usr/local/bin/cvc4
 
-# .NET Core runtime (for Boogie)
-RUN wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb \
-        && dpkg -i packages-microsoft-prod.deb \
-        && add-apt-repository universe \
-        && apt-get update \
-        && apt-get install apt-transport-https -y \
-        && apt-get update \
-        && apt-get install dotnet-runtime-3.1 -y
+# Z3
+RUN curl --silent "https://api.github.com/repos/Z3Prover/z3/releases/latest" | grep browser_download_url | grep -E 'ubuntu' | cut -d '"' -f 4 | wget -qi - -O z3.zip \
+  && unzip -p z3.zip '*bin/z3' > /usr/local/bin/z3 \
+  && chmod a+x /usr/local/bin/z3
 
-# Boogie
-RUN wget https://github.com/boogie-org/boogie/releases/download/v2.6.5/Boogie.2.6.5.nupkg \
-        && unzip Boogie.2.6.5.nupkg -d Boogie
+# Get .NET
+RUN wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb \
+  && dpkg -i packages-microsoft-prod.deb \
+  && apt update \
+  && apt install -y apt-transport-https \
+  && apt update \
+  && apt install -y dotnet-sdk-3.1
 
-# solc-verify
-RUN pip3 install psutil
+# Get boogie
+RUN dotnet tool install --global boogie
+ENV PATH="${PATH}:/root/.dotnet/tools"
+
+# Get and compile solc-verify
 RUN git clone https://github.com/SRI-CSL/solidity.git \
-        && cd solidity \
-        && ./scripts/install_deps.sh \
-        && mkdir -p build \
-        && cd build \
-        && cmake -DBOOGIE_BIN="/Boogie/tools/netcoreapp3.1/any/" .. \
-        && make \
-        && make install
+  && cd solidity \
+  && git checkout boogie \
+  && mkdir -p build \
+  && cd build \
+  && cmake .. -DUSE_Z3=Off -DUSE_CVC4=Off \
+  && make \
+  && make install
 
+# Set entrypoint
 ENTRYPOINT ["solc-verify.py"]
