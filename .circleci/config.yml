@@ -67,8 +67,8 @@ defaults:
         apt-get update
         apt-get install netcore-runtime-3.1 -y
         # Boogie
-        wget https://github.com/boogie-org/boogie/releases/download/v2.6.5/Boogie.2.6.5.nupkg
-        unzip Boogie.2.6.5.nupkg -d Boogie
+        wget https://github.com/boogie-org/boogie/releases/download/v2.7.12/Boogie.2.7.12.nupkg
+        unzip Boogie.2.7.12.nupkg -d Boogie
 
   # --------------------------------------------------------------------------
   # Artifacts Templates
