@@ -1,0 +1,8 @@
+QuantifiersSimple::[constructor]: OK
+QuantifiersSimple::add: OK
+QuantifiersSimple::add_incorrect: ERROR
+ - test/solc-verify/examples/QuantifiersSimple.sol:25:5: Invariant 'forall (uint i) !(0 <= i && i < a.length) || (a[i] >= 0)' might not hold at end of function.
+QuantifiersSimple::remove_incorrect: ERROR
+ - test/solc-verify/examples/QuantifiersSimple.sol:30:5: Invariant 'exists (uint i) 0 <= i && i < a.length && (a[i] > 0)' might not hold at end of function.
+QuantifiersSimple::[receive_ether_selfdestruct]: OK
+Errors were found by the verifier.
