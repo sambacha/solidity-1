@@ -301,7 +301,7 @@ string ASTBoogieUtils::dataLocToStr(DataLocation loc)
 
 string ASTBoogieUtils::getConstructorName(ContractDefinition const* contract)
 {
-	return BOOGIE_CONSTRUCTOR + "#" + toString(contract->id());
+	return BOOGIE_CONSTRUCTOR + "#" + util::toString(contract->id());
 }
 
 std::vector<bg::Attr::Ref> ASTBoogieUtils::createAttrs(SourceLocation const& loc, std::string const& message, Scanner const& scanner)

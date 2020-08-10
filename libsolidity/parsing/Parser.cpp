@@ -1134,7 +1134,7 @@ ASTPointer<VariableDeclaration> Parser::parseSpecificationVariableDeclaration(AS
 	else
 	{
 		// Not supported
-		parserError("Unsupported type for quantifier variable.");
+		parserError(0000_error, "Unsupported type for quantifier variable.");
 	}
 
 	ASTPointer<ASTString> identifier = expectIdentifierToken();
@@ -1162,7 +1162,7 @@ ASTPointer<ParameterList> Parser::parseSpecificationParameterList(ASTPointer<Typ
 	while (m_scanner->currentToken() != Token::RParen)
 	{
 		if (m_scanner->currentToken() == Token::Comma && m_scanner->peekNextToken() == Token::RParen)
-			fatalParserError("Unexpected trailing comma in quantifier variable list.");
+			fatalParserError(0000_error, "Unexpected trailing comma in quantifier variable list.");
 		expectToken(Token::Comma);
 		parameters.push_back(parseSpecificationVariableDeclaration(type));
 	}
@@ -2296,7 +2296,7 @@ ASTPointer<Expression> Parser::parseSpecificationExpression(std::shared_ptr<lang
 		auto result = parseSpecificationExpression(info);
 		solAssert(m_recursionDepth == 0, "");
 		if (m_scanner->currentToken() != Token::EOS)
-			parserError(Error::Type::ParserError, string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
+			parserError(0000_error, string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
 		return result;
 	}
 	catch (FatalError const&)
@@ -2329,7 +2329,7 @@ void Parser::parseSpecificationExpression(std::shared_ptr<langutil::Scanner> con
 
 		solAssert(m_recursionDepth == 0, "");
 		if (m_scanner->currentToken() != Token::EOS)
-			parserError(Error::Type::ParserError, string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
+			parserError(0000_error, string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
 	}
 	catch (FatalError const&)
 	{

@@ -112,7 +112,7 @@ BoogieContext::BoogieContext(Encoding encoding,
 
 bg::VarDeclRef BoogieContext::freshTempVar(bg::TypeDeclRef type, string prefix)
 {
-	return bg::Decl::variable(prefix + "#" + toString(nextId()), type);
+	return bg::Decl::variable(prefix + "#" + util::toString(nextId()), type);
 }
 
 void BoogieContext::printErrors(ostream& out)
@@ -372,7 +372,7 @@ void BoogieContext::warnForBalances()
 {
 	if (!m_warnForBalances)
 	{
-		m_errorReporter->warning("Balance modifications due to gas consumption or miner rewards are not modeled");
+		m_errorReporter->warning(0000_error, "Balance modifications due to gas consumption or miner rewards are not modeled");
 	}
 	m_warnForBalances = true;
 }
@@ -423,13 +423,13 @@ void BoogieContext::includeSendFunction()
 void BoogieContext::reportError(ASTNode const* associatedNode, string message)
 {
 	solAssert(associatedNode, "Error at unknown node: " + message);
-	m_errorReporter->error(Error::Type::ParserError, associatedNode->location(), message);
+	m_errorReporter->error(0000_error, Error::Type::ParserError, associatedNode->location(), message);
 }
 
 void BoogieContext::reportWarning(ASTNode const* associatedNode, string message)
 {
 	solAssert(associatedNode, "Warning at unknown node: " + message);
-	m_errorReporter->warning(associatedNode->location(), message);
+	m_errorReporter->warning(0000_error, associatedNode->location(), message);
 }
 
 void BoogieContext::addGlobalComment(string str)
@@ -456,7 +456,7 @@ bg::TypeDeclRef BoogieContext::boolType() const
 bg::TypeDeclRef BoogieContext::intType(unsigned size) const
 {
 	if (isBvEncoding())
-		return bg::Decl::elementarytype("bv" + toString(size));
+		return bg::Decl::elementarytype("bv" + util::toString(size));
 	else
 		return bg::Decl::elementarytype("int");
 }
@@ -486,7 +486,7 @@ bg::FuncDeclRef BoogieContext::getStructConstructor(StructDefinition const* stru
 
 		vector<bg::Attr::Ref> attrs;
 		attrs.push_back(bg::Attr::attr("constructor"));
-		string name = structDef->name() + "#" + toString(structDef->id()) + "#constr";
+		string name = structDef->name() + "#" + util::toString(structDef->id()) + "#constr";
 		m_storStructConstrs[structDef] = bg::Decl::function(name, params,
 				getStructType(structDef, DataLocation::Storage), nullptr, attrs);
 		addDecl(m_storStructConstrs[structDef]);
@@ -498,7 +498,7 @@ bg::TypeDeclRef BoogieContext::getStructType(StructDefinition const* structDef, 
 {
 	string typeName = "struct_" + ASTBoogieUtils::dataLocToStr(
 			loc == DataLocation::CallData ? DataLocation::Memory : loc) +
-			"_" + structDef->name() + "#" + toString(structDef->id());
+			"_" + structDef->name() + "#" + util::toString(structDef->id());
 
 	if (loc == DataLocation::Storage)
 	{
@@ -539,7 +539,7 @@ bg::VarDeclRef BoogieContext::getDefaultStorageContext(StructType const* type)
 	if (m_defaultStorageContexts.find(structDef) == m_defaultStorageContexts.end())
 	{
 		auto varDecl = bg::Decl::variable(
-				structDef->name() + toString(structDef->id()) + "default_context",
+				structDef->name() + util::toString(structDef->id()) + "default_context",
 				bg::Decl::arraytype(intType(256), getStructType(structDef, DataLocation::Storage)));
 		m_defaultStorageContexts[structDef] = varDecl;
 		addDecl(varDecl);
