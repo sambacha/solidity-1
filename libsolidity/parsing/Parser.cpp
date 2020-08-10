@@ -1109,14 +1109,13 @@ ASTPointer<VariableDeclaration> Parser::parseSpecificationVariableDeclaration(AS
 	// Parse type name if not given
 	if (type == nullptr)
 	{
-		type = parseTypeName(false);
+		type = parseTypeName();
 		if (type != nullptr)
 			nodeFactory.setEndPositionFromNode(type);
 	}
 
 	// Set location for complex types and check for errors
 	bool isStateVariable = false;
-	VariableDeclaration::Location location = VariableDeclaration::Unspecified;
 	if (dynamic_cast<ElementaryTypeName*>(type.get()))
 	{
 		// Elementary types are OK

@@ -125,7 +125,7 @@ private:
 		boogie::VarDeclRef shadowVar; // Shadow variable that needs to be updated
 	};
 
-	ASTBoogieStats m_stats;
+	ASTBoogieStats const& m_stats;
 	boogie::Program m_program; // Result of the conversion is a single Boogie program (top-level node)
 
 	std::map<std::string, boogie::Decl::Ref> m_addressLiterals;
@@ -190,9 +190,9 @@ public:
 			langutil::ErrorReporter* errorReporter,
 			std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>> scopes,
 			langutil::EVMVersion evmVersion,
-			ASTBoogieStats stats);
+			ASTBoogieStats const& stats);
 
-	ASTBoogieStats& stats() { return m_stats; }
+	ASTBoogieStats const& stats() const { return m_stats; }
 	Encoding encoding() const { return m_encoding; }
 	bool isBvEncoding() const { return m_encoding == Encoding::BV; }
 	bool overflow() const { return m_overflow; }

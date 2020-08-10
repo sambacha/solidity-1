@@ -23,7 +23,7 @@ public:
 	ASTBoogieStats() : m_hasModifiesSpecs(false), m_hasEventSpecs(false) {}
 	bool hasModifiesSpecs() const { return m_hasModifiesSpecs; }
 	bool hasEventSpecs() const { return m_hasEventSpecs; }
-	std::list<ContractDefinition const*> allContracts() { return m_allContracts; }
+	std::list<ContractDefinition const*> const& allContracts() const { return m_allContracts; }
 
 	bool visit(ContractDefinition const& _node) override;
 	bool visit(FunctionDefinition const& _node) override;

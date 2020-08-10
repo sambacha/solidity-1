@@ -78,7 +78,7 @@ BoogieContext::BoogieContext(Encoding encoding,
 		std::map<ASTNode const*,
 		std::shared_ptr<DeclarationContainer>> scopes,
 		EVMVersion evmVersion,
-		ASTBoogieStats stats)
+		ASTBoogieStats const& stats)
 :
 		m_stats(stats), m_program(), m_encoding(encoding), m_overflow(overflow),
 		m_modAnalysis(modAnalysis), m_errorReporter(errorReporter),
