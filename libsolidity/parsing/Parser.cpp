@@ -2329,7 +2329,7 @@ void Parser::parseSpecificationExpression(std::shared_ptr<langutil::Scanner> con
 
 		solAssert(m_recursionDepth == 0, "");
 		if (m_scanner->currentToken() != Token::EOS)
-			parserError(string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
+			parserError(Error::Type::ParserError, string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
 	}
 	catch (FatalError const&)
 	{
