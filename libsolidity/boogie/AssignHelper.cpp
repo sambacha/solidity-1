@@ -126,8 +126,10 @@ void AssignHelper::makeTupleAssign(AssignParam lhs, AssignParam rhs, ASTNode con
 			tmpVars.push_back(nullptr);
 	}
 
-	for (int i = lhsElems.size() - 1; i >= 0; --i)
-	{
+	unsigned i = lhsElems.size();
+	solAssert(lhsElem.size() > 0, "Expected non-empty tuple");
+	do {
+		i --;
 		if (lhsElems[i])
 		{
 			auto const lhsElem = lhsTupleExpr ? lhsTupleExpr->components().at(i).get() : nullptr;
@@ -146,7 +148,7 @@ void AssignHelper::makeTupleAssign(AssignParam lhs, AssignParam rhs, ASTNode con
 					AssignParam{tmpVars[i]->getRefTo(), tmpVarType, rhsElem },
 					Token::Assign, assocNode, context, result);
 		}
-	}
+	} while (i != 0);
 }
 
 void AssignHelper::makeStructAssign(AssignParam lhs, AssignParam rhs, ASTNode const* assocNode, BoogieContext& context, AssignResult& result)

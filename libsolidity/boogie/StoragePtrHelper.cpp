@@ -38,10 +38,15 @@ bg::Expr::Ref StoragePtrHelper::packToLocalPtr(Expression const* expr, bg::Expr:
 	{
 		solAssert(packed.exprs.size() == packed.conds.size(), "Expression and condition mismatch");
 		// Start with last
-		bg::Expr::Ref result = toWriteExpr(packed.exprs[packed.exprs.size() - 1], context);
+		bg::Expr::Ref result = toWriteExpr(packed.exprs.back(), context);
+		packed.exprs.pop_back();
 		// Create if-then-else recursively using the rest
-		for (int i = packed.exprs.size() - 2; i >= 0; --i)
-			result = bg::Expr::cond(packed.conds[i], toWriteExpr(packed.exprs[i], context), result);
+		while (packed.exprs.size() > 0)
+		{
+			result = bg::Expr::cond(packed.conds.back(), toWriteExpr(packed.exprs.back(), context), result);
+			packed.conds.pop_back();
+			packed.exprs.pop_back();
+		}
 		return result;
 	}
 
