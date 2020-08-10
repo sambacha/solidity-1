@@ -77,16 +77,14 @@ Solidity is licensed under [GNU General Public License v3.0](LICENSE.txt).
 
 Some third-party code has its [own licensing terms](cmake/templates/license.h.in).
 
-<<<<<<< HEAD
 Any contributions are welcome!
+
+## Security
+
+The security policy may be [found here](SECURITY.md).
 
 # Formal Verification Extension
 
 This is an extended version of the compiler that is able to perform automated formal verification on Solidity code using annotations and modular program verification. For more information on building, installing and examples, see [SOLC-VERIFY-README.md](SOLC-VERIFY-README.md).
 
 A preliminary [paper](https://arxiv.org/abs/1907.04262) was also presented at [VSTTE'19](https://sri-csl.github.io/VSTTE19/) but the tool had major improvements since then, including [precise modeling of reference types and memory locations](https://arxiv.org/abs/2001.03256). Up-to-date information can be found in [SOLC-VERIFY-README.md](SOLC-VERIFY-README.md).
-=======
-## Security
-
-The security policy may be [found here](SECURITY.md).
->>>>>>> upstream/develop
