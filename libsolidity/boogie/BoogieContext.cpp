@@ -757,7 +757,7 @@ bg::TypeDeclRef BoogieContext::toBoogieType(TypePointer tp, ASTNode const* _asso
 	return errType();
 }
 
-bg::Expr::Ref BoogieContext::intLit(bg::bigint lit, int bits) const
+bg::Expr::Ref BoogieContext::intLit(bg::bigint lit, unsigned bits) const
 {
 	if (isBvEncoding())
 		return bg::Expr::bvlit(lit, bits);

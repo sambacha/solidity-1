@@ -2296,7 +2296,7 @@ ASTPointer<Expression> Parser::parseSpecificationExpression(std::shared_ptr<lang
 		auto result = parseSpecificationExpression(info);
 		solAssert(m_recursionDepth == 0, "");
 		if (m_scanner->currentToken() != Token::EOS)
-			parserError(string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
+			parserError(Error::Type::ParserError, string("Expected end of expression but got ") + tokenName(m_scanner->currentToken()));
 		return result;
 	}
 	catch (FatalError const&)

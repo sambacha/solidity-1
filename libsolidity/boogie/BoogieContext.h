@@ -372,7 +372,7 @@ public:
 	boogie::FuncDeclRef defaultArray(boogie::TypeDeclRef keyType, boogie::TypeDeclRef valueType, std::string valueSmt);
 
 	/** Creates an int literal corresponding to the encoding. */
-	boogie::Expr::Ref intLit(boogie::bigint lit, int bits) const;
+	boogie::Expr::Ref intLit(boogie::bigint lit, unsigned bits) const;
 	/** Gets the Boogie representation of a string literal. */
 	boogie::Expr::Ref getStringLiteral(std::string str);
 	/** Gets the Boogie representation of an address literal. */
