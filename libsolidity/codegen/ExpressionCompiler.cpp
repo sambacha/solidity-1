@@ -1930,11 +1930,7 @@ void ExpressionCompiler::endVisit(Identifier const& _identifier)
 		// we want to avoid having a reference to the runtime function entry point in the
 		// constructor context, since this would force the compiler to include unreferenced
 		// internal functions in the runtime context.
-<<<<<<< HEAD
-		utils().pushCombinedFunctionEntryLabel(m_context.resolveVirtualFunction(*functionDef));
-=======
 		utils().pushCombinedFunctionEntryLabel(functionDef->resolveVirtual(m_context.mostDerivedContract()));
->>>>>>> upstream/develop
 	else if (auto variable = dynamic_cast<VariableDeclaration const*>(declaration))
 		appendVariable(*variable, static_cast<Expression const&>(_identifier));
 	else if (auto contract = dynamic_cast<ContractDefinition const*>(declaration))
