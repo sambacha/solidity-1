@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Specific AST walker that generates the call graph.
  */
@@ -22,19 +23,23 @@
 
 #include <libyul/optimiser/ASTWalker.h>
 
-#include <libdevcore/InvertibleMap.h>
+#include <libsolutil/InvertibleMap.h>
 
 #include <map>
 #include <optional>
 #include <set>
 
-namespace yul
+namespace solidity::yul
 {
 
 struct CallGraph
 {
 	std::map<YulString, std::set<YulString>> functionCalls;
 	std::set<YulString> functionsWithLoops;
+	/// @returns the set of functions contained in cycles in the call graph, i.e.
+	/// functions that are part of a (mutual) recursion.
+	/// Note that this does not include functions that merely call recursive functions.
+	std::set<YulString> recursiveFunctions() const;
 };
 
 /**
@@ -50,7 +55,6 @@ public:
 	static CallGraph callGraph(Block const& _ast);
 
 	using ASTWalker::operator();
-	void operator()(FunctionalInstruction const& _functionalInstruction) override;
 	void operator()(FunctionCall const& _functionCall) override;
 	void operator()(ForLoop const& _forLoop) override;
 	void operator()(FunctionDefinition const& _functionDefinition) override;

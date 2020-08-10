@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @file ControlFlowGraph.cpp
  * @author Christian <c@ethdev.com>
@@ -31,8 +32,8 @@
 #include <libevmasm/KnownState.h>
 
 using namespace std;
-using namespace dev;
-using namespace dev::eth;
+using namespace solidity;
+using namespace solidity::evmasm;
 
 BlockId::BlockId(u256 const& _id):
 	m_id(unsigned(_id))

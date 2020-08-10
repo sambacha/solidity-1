@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2014
@@ -26,11 +27,14 @@
 #include <string>
 #include <vector>
 
-// Forward-declare all AST node types
+// Forward-declare all AST node types and related enums.
 
-namespace dev
+namespace solidity::langutil
 {
-namespace solidity
+enum class Token : unsigned int;
+}
+
+namespace solidity::frontend
 {
 
 class ASTNode;
@@ -39,6 +43,7 @@ class PragmaDirective;
 class ImportDirective;
 class Declaration;
 class CallableDeclaration;
+class OverrideSpecifier;
 class ContractDefinition;
 class InheritanceSpecifier;
 class UsingForDirective;
@@ -63,6 +68,8 @@ class Statement;
 class Block;
 class PlaceholderStatement;
 class IfStatement;
+class TryCatchClause;
+class TryStatement;
 class BreakableStatement;
 class WhileStatement;
 class ForStatement;
@@ -87,6 +94,7 @@ class PrimaryExpression;
 class Identifier;
 class ElementaryTypeNameExpression;
 class Literal;
+class StructuredDocumentation;
 
 class VariableScope;
 
@@ -98,5 +106,4 @@ using ASTPointer = std::shared_ptr<T>;
 
 using ASTString = std::string;
 
-}
 }

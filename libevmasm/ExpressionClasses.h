@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @file ExpressionClasses.h
  * @author Christian <c@ethdev.com>
@@ -23,7 +24,7 @@
 
 #pragma once
 
-#include <libdevcore/Common.h>
+#include <libsolutil/Common.h>
 #include <libevmasm/AssemblyItem.h>
 
 #include <vector>
@@ -31,14 +32,12 @@
 #include <memory>
 #include <set>
 
-namespace langutil
+namespace solidity::langutil
 {
 struct SourceLocation;
 }
 
-namespace dev
-{
-namespace eth
+namespace solidity::evmasm
 {
 
 class Pattern;
@@ -127,5 +126,4 @@ private:
 	std::vector<std::shared_ptr<AssemblyItem>> m_spareAssemblyItems;
 };
 
-}
 }

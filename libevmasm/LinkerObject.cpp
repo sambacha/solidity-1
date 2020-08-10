@@ -14,18 +14,20 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /** @file LinkerObject.cpp
  * @author Christian R <c@ethdev.com>
  * @date 2015
  */
 
 #include <libevmasm/LinkerObject.h>
-#include <libdevcore/CommonData.h>
-#include <libdevcore/Keccak256.h>
+#include <libsolutil/CommonData.h>
+#include <libsolutil/Keccak256.h>
 
-using namespace dev;
-using namespace dev::eth;
 using namespace std;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::evmasm;
 
 void LinkerObject::append(LinkerObject const& _other)
 {
@@ -39,7 +41,7 @@ void LinkerObject::link(map<string, h160> const& _libraryAddresses)
 	std::map<size_t, std::string> remainingRefs;
 	for (auto const& linkRef: linkReferences)
 		if (h160 const* address = matchLibrary(linkRef.second, _libraryAddresses))
-			copy(address->data(), address->data() + 20, bytecode.begin() + linkRef.first);
+			copy(address->data(), address->data() + 20, bytecode.begin() + vector<uint8_t>::difference_type(linkRef.first));
 		else
 			remainingRefs.insert(linkRef);
 	linkReferences.swap(remainingRefs);
@@ -47,7 +49,7 @@ void LinkerObject::link(map<string, h160> const& _libraryAddresses)
 
 string LinkerObject::toHex() const
 {
-	string hex = dev::toHex(bytecode);
+	string hex = solidity::util::toHex(bytecode);
 	for (auto const& ref: linkReferences)
 	{
 		size_t pos = ref.first * 2;

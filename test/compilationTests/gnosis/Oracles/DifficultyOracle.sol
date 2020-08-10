@@ -23,7 +23,6 @@ contract DifficultyOracle is Oracle {
     /// @dev Contract constructor validates and sets target block number
     /// @param _blockNumber Target block number
     constructor(uint _blockNumber)
-        public
     {
         // Block has to be in the future
         require(_blockNumber > block.number);
@@ -44,6 +43,7 @@ contract DifficultyOracle is Oracle {
     /// @return Is outcome set?
     function isOutcomeSet()
         public
+        override
         view
         returns (bool)
     {
@@ -55,6 +55,7 @@ contract DifficultyOracle is Oracle {
     /// @return Outcome
     function getOutcome()
         public
+        override
         view
         returns (int)
     {

@@ -14,14 +14,17 @@ object "main" {
     }
     data "abc" "Hello, World!"
 }
-// ====
-// step: commonSubexpressionEliminator
 // ----
-// {
-//     let r := "abc"
-//     let a := datasize("abc")
-//     let x := dataoffset("abc")
-//     let y := a
-//     datacopy(r, x, a)
-//     mstore(a, x)
+// step: commonSubexpressionEliminator
+//
+// object "main" {
+//     code {
+//         let r := "abc"
+//         let a := datasize("abc")
+//         let x := dataoffset("abc")
+//         let y := a
+//         datacopy(r, x, a)
+//         mstore(a, x)
+//     }
+//     data "abc" hex"48656c6c6f2c20576f726c6421"
 // }

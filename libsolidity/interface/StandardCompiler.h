@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Alex Beregszaszi
  * @date 2016
@@ -25,12 +26,10 @@
 #include <libsolidity/interface/CompilerStack.h>
 
 #include <optional>
-#include <boost/variant.hpp>
+#include <utility>
+#include <variant>
 
-namespace dev
-{
-
-namespace solidity
+namespace solidity::frontend
 {
 
 /**
@@ -41,10 +40,10 @@ class StandardCompiler: boost::noncopyable
 {
 public:
 	/// Creates a new StandardCompiler.
-	/// @param _readFile callback to used to read files for import statements. Must return
+	/// @param _readFile callback used to read files for import statements. Must return
 	/// and must not emit exceptions.
-	explicit StandardCompiler(ReadCallback::Callback const& _readFile = ReadCallback::Callback()):
-		m_readFile(_readFile)
+	explicit StandardCompiler(ReadCallback::Callback _readFile = ReadCallback::Callback()):
+		m_readFile(std::move(_readFile))
 	{
 	}
 
@@ -62,18 +61,20 @@ private:
 		Json::Value errors;
 		bool parserErrorRecovery = false;
 		std::map<std::string, std::string> sources;
-		std::map<h256, std::string> smtLib2Responses;
+		std::map<util::h256, std::string> smtLib2Responses;
 		langutil::EVMVersion evmVersion;
 		std::vector<CompilerStack::Remapping> remappings;
+		RevertStrings revertStrings = RevertStrings::Default;
 		OptimiserSettings optimiserSettings = OptimiserSettings::minimal();
-		std::map<std::string, h160> libraries;
+		std::map<std::string, util::h160> libraries;
 		bool metadataLiteralSources = false;
+		CompilerStack::MetadataHash metadataHash = CompilerStack::MetadataHash::IPFS;
 		Json::Value outputSelection;
 	};
 
 	/// Parses the input json (and potentially invokes the read callback) and either returns
 	/// it in condensed form or an error as a json object.
-	boost::variant<InputsAndSettings, Json::Value> parseInput(Json::Value const& _input);
+	std::variant<InputsAndSettings, Json::Value> parseInput(Json::Value const& _input);
 
 	Json::Value compileSolidity(InputsAndSettings _inputsAndSettings);
 	Json::Value compileYul(InputsAndSettings _inputsAndSettings);
@@ -81,5 +82,4 @@ private:
 	ReadCallback::Callback m_readFile;
 };
 
-}
 }

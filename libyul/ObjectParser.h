@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Parser for Yul code and data object container.
  */
@@ -27,16 +28,16 @@
 #include <liblangutil/ErrorReporter.h>
 #include <liblangutil/ParserBase.h>
 
-#include <libdevcore/Common.h>
+#include <libsolutil/Common.h>
 
 #include <memory>
 
-namespace langutil
+namespace solidity::langutil
 {
 class Scanner;
 }
 
-namespace yul
+namespace solidity::yul
 {
 
 /**

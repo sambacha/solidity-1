@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimisation stage that replaces expressions of type ``sload(x)`` by the value
  * currently stored in storage, if known.
@@ -28,8 +29,8 @@
 #include <libyul/AsmData.h>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
 
 void LoadResolver::run(OptimiserStepContext& _context, Block& _ast)
 {
@@ -55,16 +56,11 @@ void LoadResolver::visit(Expression& _e)
 			if (builtin->instruction)
 				tryResolve(_e, *builtin->instruction, funCall.arguments);
 	}
-	else if (holds_alternative<FunctionalInstruction>(_e))
-	{
-		FunctionalInstruction const& instruction = std::get<FunctionalInstruction>(_e);
-		tryResolve(_e, instruction.instruction, instruction.arguments);
-	}
 }
 
 void LoadResolver::tryResolve(
 	Expression& _e,
-	dev::eth::Instruction _instruction,
+	evmasm::Instruction _instruction,
 	vector<Expression> const& _arguments
 )
 {
@@ -73,13 +69,13 @@ void LoadResolver::tryResolve(
 
 	YulString key = std::get<Identifier>(_arguments.at(0)).name;
 	if (
-		_instruction == dev::eth::Instruction::SLOAD &&
+		_instruction == evmasm::Instruction::SLOAD &&
 		m_storage.values.count(key)
 	)
 		_e = Identifier{locationOf(_e), m_storage.values[key]};
 	else if (
 		m_optimizeMLoad &&
-		_instruction == dev::eth::Instruction::MLOAD &&
+		_instruction == evmasm::Instruction::MLOAD &&
 		m_memory.values.count(key)
 	)
 		_e = Identifier{locationOf(_e), m_memory.values[key]};

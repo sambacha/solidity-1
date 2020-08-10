@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @file CommonSubexpressionEliminator.h
  * @author Christian <c@ethdev.com>
@@ -28,8 +29,8 @@
 #include <set>
 #include <tuple>
 #include <ostream>
-#include <libdevcore/CommonIO.h>
-#include <libdevcore/Exceptions.h>
+#include <libsolutil/CommonIO.h>
+#include <libsolutil/Exceptions.h>
 #include <libevmasm/ExpressionClasses.h>
 #include <libevmasm/SemanticInformation.h>
 #include <libevmasm/KnownState.h>
@@ -39,9 +40,7 @@ namespace langutil
 struct SourceLocation;
 }
 
-namespace dev
-{
-namespace eth
+namespace solidity::evmasm
 {
 
 class AssemblyItem;
@@ -71,8 +70,8 @@ public:
 	/// Feeds AssemblyItems into the eliminator and @returns the iterator pointing at the first
 	/// item that must be fed into a new instance of the eliminator.
 	/// @param _msizeImportant if false, do not consider modification of MSIZE a side-effect
-	template <class _AssemblyItemIterator>
-	_AssemblyItemIterator feedItems(_AssemblyItemIterator _iterator, _AssemblyItemIterator _end, bool _msizeImportant);
+	template <class AssemblyItemIterator>
+	AssemblyItemIterator feedItems(AssemblyItemIterator _iterator, AssemblyItemIterator _end, bool _msizeImportant);
 
 	/// @returns the resulting items after optimization.
 	AssemblyItems getOptimizedItems();
@@ -171,10 +170,10 @@ private:
 	std::map<int, Id> m_targetStack;
 };
 
-template <class _AssemblyItemIterator>
-_AssemblyItemIterator CommonSubexpressionEliminator::feedItems(
-	_AssemblyItemIterator _iterator,
-	_AssemblyItemIterator _end,
+template <class AssemblyItemIterator>
+AssemblyItemIterator CommonSubexpressionEliminator::feedItems(
+	AssemblyItemIterator _iterator,
+	AssemblyItemIterator _end,
 	bool _msizeImportant
 )
 {
@@ -186,5 +185,4 @@ _AssemblyItemIterator CommonSubexpressionEliminator::feedItems(
 	return _iterator;
 }
 
-}
 }

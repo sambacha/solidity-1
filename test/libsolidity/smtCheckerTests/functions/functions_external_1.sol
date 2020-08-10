@@ -1,8 +1,8 @@
 pragma experimental SMTChecker;
 
-contract D
+abstract contract D
 {
-	function g(uint x) public;
+	function g(uint x) public virtual;
 }
 
 contract C
@@ -17,4 +17,3 @@ contract C
 	}
 }
 // ----
-// Warning: (240-254): Assertion violation happens here

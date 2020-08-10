@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @file SemanticInformation.cpp
  * @author Christian <c@ethdev.com>
@@ -25,8 +26,8 @@
 #include <libevmasm/AssemblyItem.h>
 
 using namespace std;
-using namespace dev;
-using namespace dev::eth;
+using namespace solidity;
+using namespace solidity::evmasm;
 
 bool SemanticInformation::breaksCSEAnalysisBlock(AssemblyItem const& _item, bool _msizeImportant)
 {
@@ -36,6 +37,7 @@ bool SemanticInformation::breaksCSEAnalysisBlock(AssemblyItem const& _item, bool
 	case UndefinedItem:
 	case Tag:
 	case PushDeployTimeAddress:
+	case AssignImmutable:
 		return true;
 	case Push:
 	case PushString:
@@ -45,6 +47,7 @@ bool SemanticInformation::breaksCSEAnalysisBlock(AssemblyItem const& _item, bool
 	case PushProgramSize:
 	case PushData:
 	case PushLibraryAddress:
+	case PushImmutable:
 		return false;
 	case Operation:
 	{
@@ -96,14 +99,14 @@ bool SemanticInformation::isDupInstruction(AssemblyItem const& _item)
 {
 	if (_item.type() != Operation)
 		return false;
-	return dev::eth::isDupInstruction(_item.instruction());
+	return evmasm::isDupInstruction(_item.instruction());
 }
 
 bool SemanticInformation::isSwapInstruction(AssemblyItem const& _item)
 {
 	if (_item.type() != Operation)
 		return false;
-	return dev::eth::isSwapInstruction(_item.instruction());
+	return evmasm::isSwapInstruction(_item.instruction());
 }
 
 bool SemanticInformation::isJumpInstruction(AssemblyItem const& _item)
@@ -152,6 +155,26 @@ bool SemanticInformation::terminatesControlFlow(Instruction _instruction)
 		return true;
 	default:
 		return false;
+	}
+}
+
+bool SemanticInformation::reverts(AssemblyItem const& _item)
+{
+	if (_item.type() != Operation)
+		return false;
+	else
+		return reverts(_item.instruction());
+}
+
+bool SemanticInformation::reverts(Instruction _instruction)
+{
+	switch (_instruction)
+	{
+		case Instruction::INVALID:
+		case Instruction::REVERT:
+			return true;
+		default:
+			return false;
 	}
 }
 

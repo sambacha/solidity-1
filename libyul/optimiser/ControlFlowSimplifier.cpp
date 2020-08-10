@@ -14,21 +14,23 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 #include <libyul/optimiser/ControlFlowSimplifier.h>
 #include <libyul/optimiser/Semantics.h>
 #include <libyul/optimiser/OptimiserStep.h>
+#include <libyul/optimiser/TypeInfo.h>
 #include <libyul/AsmData.h>
 #include <libyul/Utilities.h>
 #include <libyul/Dialect.h>
-#include <libdevcore/CommonData.h>
-#include <libdevcore/Visitor.h>
+#include <libsolutil/CommonData.h>
+#include <libsolutil/Visitor.h>
 
 #include <boost/range/algorithm_ext/erase.hpp>
-#include <boost/algorithm/cxx11/any_of.hpp>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::yul;
 
 using OptionalStatements = std::optional<vector<Statement>>;
 
@@ -37,14 +39,13 @@ namespace
 
 ExpressionStatement makeDiscardCall(
 	langutil::SourceLocation const& _location,
-	Dialect const& _dialect,
+	BuiltinFunction const& _discardFunction,
 	Expression&& _expression
 )
 {
-	yulAssert(_dialect.discardFunction(), "No discard function available.");
 	return {_location, FunctionCall{
 		_location,
-		Identifier{_location, _dialect.discardFunction()->name},
+		Identifier{_location, _discardFunction.name},
 		{std::move(_expression)}
 	}};
 }
@@ -59,8 +60,9 @@ void removeEmptyDefaultFromSwitch(Switch& _switchStmt)
 
 void removeEmptyCasesFromSwitch(Switch& _switchStmt)
 {
-	bool hasDefault = boost::algorithm::any_of(
-		_switchStmt.cases,
+	bool hasDefault = std::any_of(
+		_switchStmt.cases.begin(),
+		_switchStmt.cases.end(),
 		[](Case const& _case) { return !_case.value; }
 	);
 
@@ -73,67 +75,24 @@ void removeEmptyCasesFromSwitch(Switch& _switchStmt)
 	);
 }
 
-OptionalStatements reduceNoCaseSwitch(Dialect const& _dialect, Switch& _switchStmt)
-{
-	yulAssert(_switchStmt.cases.empty(), "Expected no case!");
-	if (!_dialect.discardFunction())
-		return {};
-
-	auto loc = locationOf(*_switchStmt.expression);
-
-	return make_vector<Statement>(makeDiscardCall(
-		loc,
-		_dialect,
-		std::move(*_switchStmt.expression)
-	));
-}
-
-OptionalStatements reduceSingleCaseSwitch(Dialect const& _dialect, Switch& _switchStmt)
-{
-	yulAssert(_switchStmt.cases.size() == 1, "Expected only one case!");
-
-	auto& switchCase = _switchStmt.cases.front();
-	auto loc = locationOf(*_switchStmt.expression);
-	if (switchCase.value)
-	{
-		if (!_dialect.equalityFunction())
-			return {};
-		return make_vector<Statement>(If{
-			std::move(_switchStmt.location),
-			make_unique<Expression>(FunctionCall{
-				loc,
-				Identifier{loc, _dialect.equalityFunction()->name},
-				{std::move(*switchCase.value), std::move(*_switchStmt.expression)}
-			}),
-			std::move(switchCase.body)
-		});
-	}
-	else
-	{
-		if (!_dialect.discardFunction())
-			return {};
-
-		return make_vector<Statement>(
-			makeDiscardCall(
-				loc,
-				_dialect,
-				std::move(*_switchStmt.expression)
-			),
-			std::move(switchCase.body)
-		);
-	}
-}
-
 }
 
 void ControlFlowSimplifier::run(OptimiserStepContext& _context, Block& _ast)
 {
-	ControlFlowSimplifier{_context.dialect}(_ast);
+	TypeInfo typeInfo(_context.dialect, _ast);
+	ControlFlowSimplifier{_context.dialect, typeInfo}(_ast);
 }
 
 void ControlFlowSimplifier::operator()(Block& _block)
 {
 	simplify(_block.statements);
+}
+
+void ControlFlowSimplifier::operator()(FunctionDefinition& _funDef)
+{
+	ASTModifier::operator()(_funDef);
+	if (!_funDef.body.statements.empty() && holds_alternative<Leave>(_funDef.body.statements.back()))
+		_funDef.body.statements.pop_back();
 }
 
 void ControlFlowSimplifier::visit(Statement& _st)
@@ -159,7 +118,10 @@ void ControlFlowSimplifier::visit(Statement& _st)
 				isTerminating = true;
 				--m_numBreakStatements;
 			}
-			else if (controlFlow == TerminationFinder::ControlFlow::Terminate)
+			else if (
+				controlFlow == TerminationFinder::ControlFlow::Terminate ||
+				controlFlow == TerminationFinder::ControlFlow::Leave
+			)
 				isTerminating = true;
 
 			if (isTerminating && m_numContinueStatements == 0 && m_numBreakStatements == 0)
@@ -183,12 +145,12 @@ void ControlFlowSimplifier::simplify(std::vector<yul::Statement>& _statements)
 	GenericVisitor visitor{
 		VisitorFallback<OptionalStatements>{},
 		[&](If& _ifStmt) -> OptionalStatements {
-			if (_ifStmt.body.statements.empty() && m_dialect.discardFunction())
+			if (_ifStmt.body.statements.empty() && m_dialect.discardFunction(m_dialect.boolType))
 			{
 				OptionalStatements s = vector<Statement>{};
 				s->emplace_back(makeDiscardCall(
 					_ifStmt.location,
-					m_dialect,
+					*m_dialect.discardFunction(m_dialect.boolType),
 					std::move(*_ifStmt.condition)
 				));
 				return s;
@@ -200,9 +162,9 @@ void ControlFlowSimplifier::simplify(std::vector<yul::Statement>& _statements)
 			removeEmptyCasesFromSwitch(_switchStmt);
 
 			if (_switchStmt.cases.empty())
-				return reduceNoCaseSwitch(m_dialect, _switchStmt);
+				return reduceNoCaseSwitch(_switchStmt);
 			else if (_switchStmt.cases.size() == 1)
-				return reduceSingleCaseSwitch(m_dialect, _switchStmt);
+				return reduceSingleCaseSwitch(_switchStmt);
 
 			return {};
 		}
@@ -220,3 +182,58 @@ void ControlFlowSimplifier::simplify(std::vector<yul::Statement>& _statements)
 		}
 	);
 }
+
+OptionalStatements ControlFlowSimplifier::reduceNoCaseSwitch(Switch& _switchStmt) const
+{
+	yulAssert(_switchStmt.cases.empty(), "Expected no case!");
+	BuiltinFunction const* discardFunction =
+		m_dialect.discardFunction(m_typeInfo.typeOf(*_switchStmt.expression));
+	if (!discardFunction)
+		return {};
+
+	auto loc = locationOf(*_switchStmt.expression);
+
+	return make_vector<Statement>(makeDiscardCall(
+		loc,
+		*discardFunction,
+		std::move(*_switchStmt.expression)
+	));
+}
+
+OptionalStatements ControlFlowSimplifier::reduceSingleCaseSwitch(Switch& _switchStmt) const
+{
+	yulAssert(_switchStmt.cases.size() == 1, "Expected only one case!");
+
+	auto& switchCase = _switchStmt.cases.front();
+	auto loc = locationOf(*_switchStmt.expression);
+	YulString type = m_typeInfo.typeOf(*_switchStmt.expression);
+	if (switchCase.value)
+	{
+		if (!m_dialect.equalityFunction(type))
+			return {};
+		return make_vector<Statement>(If{
+			std::move(_switchStmt.location),
+			make_unique<Expression>(FunctionCall{
+				loc,
+				Identifier{loc, m_dialect.equalityFunction(type)->name},
+				{std::move(*switchCase.value), std::move(*_switchStmt.expression)}
+			}),
+			std::move(switchCase.body)
+		});
+	}
+	else
+	{
+		if (!m_dialect.discardFunction(type))
+			return {};
+
+		return make_vector<Statement>(
+			makeDiscardCall(
+				loc,
+				*m_dialect.discardFunction(type),
+				std::move(*_switchStmt.expression)
+			),
+			std::move(switchCase.body)
+		);
+	}
+}
+

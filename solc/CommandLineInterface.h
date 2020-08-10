@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Lefteris <lefteris@ethdev.com>
  * @date 2014
@@ -22,6 +23,7 @@
 #pragma once
 
 #include <libsolidity/interface/CompilerStack.h>
+#include <libsolidity/interface/DebugSettings.h>
 #include <libyul/AssemblyStack.h>
 #include <liblangutil/EVMVersion.h>
 
@@ -30,9 +32,7 @@
 
 #include <memory>
 
-namespace dev
-{
-namespace solidity
+namespace solidity::frontend
 {
 
 //forward declaration
@@ -55,9 +55,14 @@ private:
 	/// @returns the ``// <identifier> -> name`` hint for library placeholders.
 	static std::string libraryPlaceholderHint(std::string const& _libraryName);
 	/// @returns the full object with library placeholder hints in hex.
-	static std::string objectWithLinkRefsHex(eth::LinkerObject const& _obj);
+	static std::string objectWithLinkRefsHex(evmasm::LinkerObject const& _obj);
 
-	bool assemble(yul::AssemblyStack::Language _language, yul::AssemblyStack::Machine _targetMachine, bool _optimize);
+	bool assemble(
+		yul::AssemblyStack::Language _language,
+		yul::AssemblyStack::Machine _targetMachine,
+		bool _optimize,
+		std::optional<std::string> _yulOptimiserSteps = std::nullopt
+	);
 
 	void outputCompilationResults();
 
@@ -67,7 +72,8 @@ private:
 	void handleBinary(std::string const& _contract);
 	void handleOpcode(std::string const& _contract);
 	void handleIR(std::string const& _contract);
-	void handleEWasm(std::string const& _contract);
+	void handleIROptimized(std::string const& _contract);
+	void handleEwasm(std::string const& _contract);
 	void handleBytecode(std::string const& _contract);
 	void handleSignatureHashes(std::string const& _contract);
 	void handleMetadata(std::string const& _contract);
@@ -75,12 +81,19 @@ private:
 	void handleNatspec(bool _natspecDev, std::string const& _contract);
 	void handleGasEstimation(std::string const& _contract);
 	void handleFormal();
+	void handleStorageLayout(std::string const& _contract);
 
 	/// Fills @a m_sourceCodes initially and @a m_redirects.
 	bool readInputFilesAndConfigureRemappings();
 	/// Tries to read from the file @a _input or interprets _input literally if that fails.
 	/// It then tries to parse the contents and appends to m_libraries.
 	bool parseLibraryOption(std::string const& _input);
+
+	/// Tries to read @ m_sourceCodes as a JSONs holding ASTs
+	/// such that they can be imported into the compiler  (importASTs())
+	/// (produced by --combined-json ast,compact-format <file.sol>
+	/// or standard-json output
+	std::map<std::string, Json::Value> parseAstFromInput();
 
 	/// Create a file in the given directory
 	/// @arg _fileName the name of the file
@@ -91,6 +104,9 @@ private:
 	/// @arg _fileName the name of the file (the extension will be replaced with .json)
 	/// @arg _json json string to be written
 	void createJson(std::string const& _fileName, std::string const& _json);
+
+	size_t countEnabledOptions(std::vector<std::string> const& _optionNames) const;
+	static std::string joinOptionNames(std::vector<std::string> const& _optionNames, std::string _separator = ", ");
 
 	bool m_error = false; ///< If true, some error occurred.
 
@@ -103,18 +119,25 @@ private:
 	/// map of input files to source code strings
 	std::map<std::string, std::string> m_sourceCodes;
 	/// list of remappings
-	std::vector<dev::solidity::CompilerStack::Remapping> m_remappings;
+	std::vector<frontend::CompilerStack::Remapping> m_remappings;
 	/// list of allowed directories to read files from
 	std::vector<boost::filesystem::path> m_allowedDirectories;
+	/// Base path, used for resolving relative paths in imports.
+	boost::filesystem::path m_basePath;
 	/// map of library names to addresses
-	std::map<std::string, h160> m_libraries;
+	std::map<std::string, util::h160> m_libraries;
 	/// Solidity compiler stack
-	std::unique_ptr<dev::solidity::CompilerStack> m_compiler;
+	std::unique_ptr<frontend::CompilerStack> m_compiler;
 	/// EVM version to use
 	langutil::EVMVersion m_evmVersion;
+	/// How to handle revert strings
+	RevertStrings m_revertStrings = RevertStrings::Default;
+	/// Chosen hash method for the bytecode metadata.
+	CompilerStack::MetadataHash m_metadataHash = CompilerStack::MetadataHash::IPFS;
 	/// Whether or not to colorize diagnostics output.
 	bool m_coloredOutput = true;
+	/// Whether or not to output error IDs.
+	bool m_withErrorIds = false;
 };
 
-}
 }

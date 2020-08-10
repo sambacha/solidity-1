@@ -17,7 +17,6 @@ contract MajorityOracle is Oracle {
     /// @dev Allows to create an oracle for a majority vote based on other oracles
     /// @param _oracles List of oracles taking part in the majority vote
     constructor(Oracle[] memory _oracles)
-        public
     {
         // At least 2 oracles should be defined
         require(_oracles.length > 2);
@@ -28,8 +27,8 @@ contract MajorityOracle is Oracle {
     }
 
     /// @dev Allows to registers oracles for a majority vote
-    /// @return Is outcome set?
-    /// @return Outcome
+    /// @return outcomeSet Is outcome set?
+    /// @return outcome Outcome
     function getStatusAndOutcome()
         public
         view
@@ -70,6 +69,7 @@ contract MajorityOracle is Oracle {
     /// @return Is outcome set?
     function isOutcomeSet()
         public
+        override
         view
         returns (bool)
     {
@@ -81,6 +81,7 @@ contract MajorityOracle is Oracle {
     /// @return Outcome
     function getOutcome()
         public
+        override
         view
         returns (int)
     {

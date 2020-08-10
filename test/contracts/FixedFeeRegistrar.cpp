@@ -14,14 +14,18 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2015
  * Tests for a fixed fee registrar contract.
  */
 
+#include <libsolutil/LazyInit.h>
+
 #include <string>
 #include <tuple>
+#include <optional>
 
 #if defined(_MSC_VER)
 #pragma warning(push)
@@ -35,13 +39,11 @@
 #include <test/libsolidity/SolidityExecutionFramework.h>
 
 using namespace std;
-using namespace dev::test;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::test;
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+namespace solidity::frontend::test
 {
 
 namespace
@@ -53,15 +55,15 @@ static char const* registrarCode = R"DELIMITER(
 // @authors:
 //   Gav Wood <g@ethdev.com>
 
-pragma solidity >=0.4.0 <0.6.0;
+pragma solidity >=0.4.0 <0.8.0;
 
-contract Registrar {
+abstract contract Registrar {
 	event Changed(string indexed name);
 
-	function owner(string memory _name) public view returns (address o_owner);
-	function addr(string memory _name) public view returns (address o_address);
-	function subRegistrar(string memory _name) public view returns (address o_subRegistrar);
-	function content(string memory _name) public view returns (bytes32 o_content);
+	function owner(string memory _name) public virtual view returns (address o_owner);
+	function addr(string memory _name) public virtual view returns (address o_address);
+	function subRegistrar(string memory _name) virtual public view returns (address o_subRegistrar);
+	function content(string memory _name) public virtual view returns (bytes32 o_content);
 }
 
 contract FixedFeeRegistrar is Registrar {
@@ -111,10 +113,10 @@ contract FixedFeeRegistrar is Registrar {
 		o_content = rec.content;
 		o_owner = rec.owner;
 	}
-	function addr(string memory _name) public view returns (address) { return m_record(_name).addr; }
-	function subRegistrar(string memory _name) public view returns (address) { return m_record(_name).subRegistrar; }
-	function content(string memory _name) public view returns (bytes32) { return m_record(_name).content; }
-	function owner(string memory _name) public view returns (address) { return m_record(_name).owner; }
+	function addr(string memory _name) public override view returns (address) { return m_record(_name).addr; }
+	function subRegistrar(string memory _name) public override view returns (address) { return m_record(_name).subRegistrar; }
+	function content(string memory _name) public override view returns (bytes32) { return m_record(_name).content; }
+	function owner(string memory _name) public override view returns (address) { return m_record(_name).owner; }
 
 	Record[2**253] m_recordData;
 	function m_record(string memory _name) view internal returns (Record storage o_record) {
@@ -124,17 +126,18 @@ contract FixedFeeRegistrar is Registrar {
 }
 )DELIMITER";
 
-static unique_ptr<bytes> s_compiledRegistrar;
+static LazyInit<bytes> s_compiledRegistrar;
 
 class RegistrarTestFramework: public SolidityExecutionFramework
 {
 protected:
 	void deployRegistrar()
 	{
-		if (!s_compiledRegistrar)
-			s_compiledRegistrar = make_unique<bytes>(compileContract(registrarCode, "FixedFeeRegistrar"));
+		bytes const& compiled = s_compiledRegistrar.init([&]{
+			return compileContract(registrarCode, "FixedFeeRegistrar");
+		});
 
-		sendMessage(*s_compiledRegistrar, true);
+		sendMessage(compiled, true);
 		BOOST_REQUIRE(m_transactionSuccessful);
 		BOOST_REQUIRE(!m_output.empty());
 	}
@@ -161,7 +164,7 @@ BOOST_AUTO_TEST_CASE(reserve)
 	BOOST_REQUIRE(callContractFunctionWithValue("reserve(string)", m_fee + 1, encodeDyn(name[1])) == encodeArgs());
 	BOOST_CHECK(callContractFunction("owner(string)", encodeDyn(name[1])) == encodeArgs(h256(account(0), h256::AlignRight)));
 	BOOST_REQUIRE(callContractFunctionWithValue("reserve(string)", m_fee - 1, encodeDyn(name[2])) == encodeArgs());
-	BOOST_CHECK(callContractFunction("owner(string)", encodeDyn(name[2])) == encodeArgs(h256(0)));
+	BOOST_CHECK(callContractFunction("owner(string)", encodeDyn(name[2])) == encodeArgs(h256{}));
 }
 
 BOOST_AUTO_TEST_CASE(double_reserve)
@@ -249,6 +252,4 @@ BOOST_AUTO_TEST_CASE(disown)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
-}
 } // end namespaces

@@ -20,39 +20,37 @@
 
 #include <test/libsolidity/ABIJsonTest.h>
 
-#include <test/Options.h>
+#include <test/Common.h>
 
 #include <libsolidity/interface/CompilerStack.h>
-#include <libdevcore/JSON.h>
-#include <libdevcore/AnsiColorized.h>
-
-#include <boost/algorithm/string.hpp>
+#include <libsolutil/JSON.h>
+#include <libsolutil/AnsiColorized.h>
 
 #include <fstream>
 
 using namespace std;
-using namespace dev;
-using namespace dev::solidity;
-using namespace dev::solidity::test;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::frontend;
+using namespace solidity::frontend::test;
 
-ABIJsonTest::ABIJsonTest(string const& _filename)
+ABIJsonTest::ABIJsonTest(string const& _filename):
+	TestCase(_filename)
 {
-	ifstream file(_filename);
-	if (!file)
-		BOOST_THROW_EXCEPTION(runtime_error("Cannot open test contract: \"" + _filename + "\"."));
-	file.exceptions(ios::badbit);
-
-	m_source = parseSourceAndSettings(file);
-	m_expectation = parseSimpleExpectations(file);
+	m_source = m_reader.source();
+	m_expectation = m_reader.simpleExpectations();
 }
 
 TestCase::TestResult ABIJsonTest::run(ostream& _stream, string const& _linePrefix, bool _formatted)
 {
 	CompilerStack compiler;
 
-	compiler.setSources({{"", "pragma solidity >=0.0;\n" + m_source}});
-	compiler.setEVMVersion(dev::test::Options::get().evmVersion());
-	compiler.setOptimiserSettings(dev::test::Options::get().optimize);
+	compiler.setSources({{
+		"",
+		"pragma solidity >=0.0;\n// SPDX-License-Identifier: GPL-3.0\n" + m_source
+	}});
+	compiler.setEVMVersion(solidity::test::CommonOptions::get().evmVersion());
+	compiler.setOptimiserSettings(solidity::test::CommonOptions::get().optimize);
 	if (!compiler.parseAndAnalyze())
 		BOOST_THROW_EXCEPTION(runtime_error("Parsing contract failed"));
 
@@ -66,38 +64,6 @@ TestCase::TestResult ABIJsonTest::run(ostream& _stream, string const& _linePrefi
 		m_obtainedResult += jsonPrettyPrint(compiler.contractABI(contractName)) + "\n";
 		first = false;
 	}
-	if (m_expectation != m_obtainedResult)
-	{
-		string nextIndentLevel = _linePrefix + "  ";
-		AnsiColorized(_stream, _formatted, {formatting::BOLD, formatting::CYAN}) << _linePrefix << "Expected result:" << endl;
-		printIndented(_stream, m_expectation, nextIndentLevel);
-		AnsiColorized(_stream, _formatted, {formatting::BOLD, formatting::CYAN}) << _linePrefix << "Obtained result:" << endl;
-		printIndented(_stream, m_obtainedResult, nextIndentLevel);
-		return TestResult::Failure;
-	}
-	return TestResult::Success;
+
+	return checkResult(_stream, _linePrefix, _formatted);
 }
-
-
-void ABIJsonTest::printSource(ostream& _stream, string const& _linePrefix, bool const) const
-{
-	printIndented(_stream, m_source, _linePrefix);
-}
-
-void ABIJsonTest::printUpdatedExpectations(ostream& _stream, string const& _linePrefix) const
-{
-	printIndented(_stream, m_obtainedResult, _linePrefix);
-}
-
-void ABIJsonTest::printIndented(ostream& _stream, string const& _output, string const& _linePrefix) const
-{
-	stringstream output(_output);
-	string line;
-	while (getline(output, line))
-		if (line.empty())
-			// Avoid trailing spaces.
-			_stream << boost::trim_right_copy(_linePrefix) << endl;
-		else
-			_stream << _linePrefix << line << endl;
-}
-

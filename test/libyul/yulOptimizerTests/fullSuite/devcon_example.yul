@@ -14,17 +14,19 @@
         v := calldataload(add(data, mul(i, 0x20)))
     }
 }
-// ====
-// step: fullSuite
 // ----
+// step: fullSuite
+//
 // {
 //     {
 //         let _1 := calldataload(0)
 //         let sum := 0
+//         let length := calldataload(_1)
 //         let i := sum
-//         for { } lt(i, calldataload(_1)) { i := add(i, 1) }
+//         for { } lt(i, length) { i := add(i, 1) }
 //         {
-//             sum := add(sum, calldataload(add(add(_1, mul(i, 0x20)), 0x20)))
+//             let _2 := 0x20
+//             sum := add(sum, calldataload(add(add(_1, mul(i, _2)), _2)))
 //         }
 //         sstore(0, sum)
 //     }

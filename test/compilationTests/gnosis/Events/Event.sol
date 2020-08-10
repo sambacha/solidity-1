@@ -6,7 +6,7 @@ import "../Oracles/Oracle.sol";
 
 /// @title Event contract - Provide basic functionality required by different event types
 /// @author Stefan George - <stefan@gnosis.pm>
-contract Event {
+abstract contract Event {
 
     /*
      *  Events
@@ -34,7 +34,6 @@ contract Event {
     /// @param _oracle Oracle contract used to resolve the event
     /// @param outcomeCount Number of event outcomes
     constructor(Token _collateralToken, Oracle _oracle, uint8 outcomeCount)
-        public
     {
         // Validate input
         require(address(_collateralToken) != address(0) && address(_oracle) != address(0) && outcomeCount >= 2);
@@ -107,7 +106,7 @@ contract Event {
     }
 
     /// @dev Returns the amount of outcome tokens held by owner
-    /// @return Outcome token distribution
+    /// @return outcomeTokenDistribution Outcome token distribution
     function getOutcomeTokenDistribution(address owner)
         public
         view
@@ -120,9 +119,9 @@ contract Event {
 
     /// @dev Calculates and returns event hash
     /// @return Event hash
-    function getEventHash() public view returns (bytes32);
+    function getEventHash() virtual public view returns (bytes32);
 
     /// @dev Exchanges sender's winning outcome tokens for collateral tokens
     /// @return Sender's winnings
-    function redeemWinnings() public returns (uint);
+    function redeemWinnings() virtual public returns (uint);
 }

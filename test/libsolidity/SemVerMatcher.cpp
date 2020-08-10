@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <chris@ethereum.org>
  * @date 2016
@@ -25,16 +26,14 @@
 #include <tuple>
 #include <liblangutil/Scanner.h>
 #include <liblangutil/SemVerHandler.h>
-#include <test/Options.h>
+#include <test/Common.h>
+
+#include <boost/test/unit_test.hpp>
 
 using namespace std;
-using namespace langutil;
+using namespace solidity::langutil;
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+namespace solidity::frontend::test
 {
 
 BOOST_AUTO_TEST_SUITE(SemVerMatcher)
@@ -238,6 +237,4 @@ BOOST_AUTO_TEST_CASE(negative_range)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
-}
 } // end namespaces

@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #include <fstream>
 
@@ -26,21 +27,24 @@
 #include <liblangutil/EVMVersion.h>
 #include <libyul/Exceptions.h>
 
-using namespace yul;
-using namespace yul::test::yul_fuzzer;
+using namespace solidity;
+using namespace solidity::yul;
+using namespace solidity::yul::test::yul_fuzzer;
+using namespace solidity::langutil;
 using namespace std;
 
 DEFINE_PROTO_FUZZER(Program const& _input)
 {
 	ProtoConverter converter;
 	string yul_source = converter.programToString(_input);
+	EVMVersion version = converter.version();
 
 	if (const char* dump_path = getenv("PROTO_FUZZER_DUMP_PATH"))
 	{
 		// With libFuzzer binary run this to generate a YUL source file x.yul:
 		// PROTO_FUZZER_DUMP_PATH=x.yul ./a.out proto-input
 		ofstream of(dump_path);
-		of.write(yul_source.data(), yul_source.size());
+		of.write(yul_source.data(), static_cast<streamsize>(yul_source.size()));
 	}
 
 	if (yul_source.size() > 1200)
@@ -50,19 +54,19 @@ DEFINE_PROTO_FUZZER(Program const& _input)
 
 	// AssemblyStack entry point
 	AssemblyStack stack(
-		langutil::EVMVersion(),
+		version,
 		AssemblyStack::Language::StrictAssembly,
-		dev::solidity::OptimiserSettings::full()
+		solidity::frontend::OptimiserSettings::full()
 	);
 
 	// Parse protobuf mutated YUL code
-	if (!stack.parseAndAnalyze("source", yul_source))
-		return;
-
-	yulAssert(stack.errors().empty(), "Parsed successfully but had errors.");
-
-	if (!stack.parserResult()->code || !stack.parserResult()->analysisInfo)
-		return;
+	if (
+		!stack.parseAndAnalyze("source", yul_source) ||
+		!stack.parserResult()->code ||
+		!stack.parserResult()->analysisInfo ||
+		!Error::containsOnlyWarnings(stack.errors())
+	)
+		yulAssert(false, "Proto fuzzer generated malformed program");
 
 	// Optimize
 	stack.optimize();

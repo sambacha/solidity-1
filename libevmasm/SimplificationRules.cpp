@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @file ExpressionClasses.cpp
  * @author Christian <c@ethdev.com>
@@ -27,18 +28,15 @@
 #include <libevmasm/Assembly.h>
 #include <libevmasm/CommonSubexpressionEliminator.h>
 #include <libevmasm/RuleList.h>
-#include <libdevcore/Assertions.h>
-
-#include <boost/range/adaptor/reversed.hpp>
-#include <boost/noncopyable.hpp>
+#include <libsolutil/Assertions.h>
 
 #include <utility>
 #include <functional>
 
 using namespace std;
-using namespace dev;
-using namespace dev::eth;
-using namespace langutil;
+using namespace solidity;
+using namespace solidity::evmasm;
+using namespace solidity::langutil;
 
 SimplificationRule<Pattern> const* Rules::findFirstMatch(
 	Expression const& _expr,
@@ -95,7 +93,7 @@ Rules::Rules()
 	Y.setMatchGroup(6, m_matchGroups);
 	Z.setMatchGroup(7, m_matchGroups);
 
-	addRules(simplificationRuleList(A, B, C, W, X, Y, Z));
+	addRules(simplificationRuleList(nullopt, A, B, C, W, X, Y, Z));
 	assertThrow(isInitialized(), OptimizerException, "Rule list not properly initialized.");
 }
 

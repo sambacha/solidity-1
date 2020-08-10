@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2015
@@ -29,17 +30,17 @@
 #include <libevmasm/ControlFlowGraph.h>
 #include <libevmasm/KnownState.h>
 #include <libevmasm/PathGasMeter.h>
-#include <libdevcore/Keccak256.h>
+#include <libsolutil/Keccak256.h>
 
 #include <functional>
 #include <map>
 #include <memory>
 
 using namespace std;
-using namespace dev;
-using namespace dev::eth;
-using namespace langutil;
-using namespace dev::solidity;
+using namespace solidity;
+using namespace solidity::evmasm;
+using namespace solidity::frontend;
+using namespace solidity::langutil;
 
 GasEstimator::ASTGasConsumptionSelfAccumulated GasEstimator::structuralEstimation(
 	AssemblyItems const& _items,
@@ -54,8 +55,8 @@ GasEstimator::ASTGasConsumptionSelfAccumulated GasEstimator::structuralEstimatio
 	{
 		solAssert(!!block.startState, "");
 		GasMeter meter(block.startState->copy(), m_evmVersion);
-		auto const end = _items.begin() + block.end;
-		for (auto iter = _items.begin() + block.begin; iter != end; ++iter)
+		auto const end = _items.begin() + static_cast<ptrdiff_t>(block.end);
+		for (auto iter = _items.begin() + static_cast<ptrdiff_t>(block.begin); iter != end; ++iter)
 			particularCosts[iter->location()] += meter.estimateMax(*iter);
 	}
 
@@ -140,7 +141,7 @@ GasEstimator::GasConsumption GasEstimator::functionalEstimation(
 		ExpressionClasses& classes = state->expressionClasses();
 		using Id = ExpressionClasses::Id;
 		using Ids = vector<Id>;
-		Id hashValue = classes.find(u256(FixedHash<4>::Arith(FixedHash<4>(dev::keccak256(_signature)))));
+		Id hashValue = classes.find(u256(util::FixedHash<4>::Arith(util::FixedHash<4>(util::keccak256(_signature)))));
 		Id calldata = classes.find(Instruction::CALLDATALOAD, Ids{classes.find(u256(0))});
 		if (!m_evmVersion.hasBitwiseShifting())
 			// div(calldataload(0), 1 << 224) equals to hashValue

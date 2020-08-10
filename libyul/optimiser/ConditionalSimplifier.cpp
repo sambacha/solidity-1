@@ -14,17 +14,19 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 #include <libyul/optimiser/ConditionalSimplifier.h>
 #include <libyul/optimiser/Semantics.h>
 #include <libyul/AsmData.h>
 #include <libyul/Utilities.h>
 #include <libyul/optimiser/NameCollector.h>
-#include <libdevcore/CommonData.h>
-#include <libdevcore/Visitor.h>
+#include <libsolutil/CommonData.h>
+#include <libsolutil/Visitor.h>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
+using namespace solidity::util;
 
 void ConditionalSimplifier::operator()(Switch& _switch)
 {
@@ -76,12 +78,7 @@ void ConditionalSimplifier::operator()(Block& _block)
 						Assignment{
 							location,
 							{Identifier{location, condition}},
-							make_unique<Expression>(Literal{
-								location,
-								LiteralKind::Number,
-								"0"_yulstring,
-								{}
-							})
+							make_unique<Expression>(m_dialect.zeroLiteralForType(m_dialect.boolType))
 						}
 					);
 				}

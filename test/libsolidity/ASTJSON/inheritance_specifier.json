@@ -16,10 +16,10 @@
   "nodes":
   [
     {
+      "abstract": false,
       "baseContracts": [],
       "contractDependencies": [],
       "contractKind": "contract",
-      "documentation": null,
       "fullyImplemented": true,
       "id": 1,
       "linearizedBaseContracts":
@@ -33,13 +33,12 @@
       "src": "0:14:1"
     },
     {
+      "abstract": false,
       "baseContracts":
       [
         {
-          "arguments": null,
           "baseName":
           {
-            "contractScope": null,
             "id": 2,
             "name": "C1",
             "nodeType": "UserDefinedTypeName",
@@ -61,7 +60,6 @@
         1
       ],
       "contractKind": "contract",
-      "documentation": null,
       "fullyImplemented": true,
       "id": 4,
       "linearizedBaseContracts":

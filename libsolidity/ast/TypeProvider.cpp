@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/ast/TypeProvider.h>
@@ -21,8 +22,9 @@
 #include <boost/algorithm/string/split.hpp>
 
 using namespace std;
-using namespace dev;
 using namespace solidity;
+using namespace solidity::frontend;
+using namespace solidity::util;
 
 BoolType const TypeProvider::m_boolean{};
 InaccessibleDynamicType const TypeProvider::m_inaccessibleDynamic{};
@@ -31,6 +33,7 @@ InaccessibleDynamicType const TypeProvider::m_inaccessibleDynamic{};
 /// they rely on `byte` being available which we cannot guarantee in the static init context.
 unique_ptr<ArrayType> TypeProvider::m_bytesStorage;
 unique_ptr<ArrayType> TypeProvider::m_bytesMemory;
+unique_ptr<ArrayType> TypeProvider::m_bytesCalldata;
 unique_ptr<ArrayType> TypeProvider::m_stringStorage;
 unique_ptr<ArrayType> TypeProvider::m_stringMemory;
 
@@ -177,6 +180,7 @@ void TypeProvider::reset()
 	clearCache(m_inaccessibleDynamic);
 	clearCache(m_bytesStorage);
 	clearCache(m_bytesMemory);
+	clearCache(m_bytesCalldata);
 	clearCache(m_stringStorage);
 	clearCache(m_stringMemory);
 	clearCache(m_emptyTuple);
@@ -200,7 +204,7 @@ inline T const* TypeProvider::createAndGet(Args&& ... _args)
 	return static_cast<T const*>(instance().m_generalTypes.back().get());
 }
 
-Type const* TypeProvider::fromElementaryTypeName(ElementaryTypeNameToken const& _type)
+Type const* TypeProvider::fromElementaryTypeName(ElementaryTypeNameToken const& _type, std::optional<StateMutability> _stateMutability)
 {
 	solAssert(
 		TokenTraits::isElementaryTypeName(_type.token()),
@@ -233,7 +237,14 @@ Type const* TypeProvider::fromElementaryTypeName(ElementaryTypeNameToken const& 
 	case Token::UFixed:
 		return fixedPoint(128, 18, FixedPointType::Modifier::Unsigned);
 	case Token::Address:
+	{
+		if (_stateMutability)
+		{
+			solAssert(*_stateMutability == StateMutability::Payable, "");
+			return payableAddress();
+		}
 		return address();
+	}
 	case Token::Bool:
 		return boolean();
 	case Token::Bytes:
@@ -307,6 +318,13 @@ ArrayType const* TypeProvider::bytesMemory()
 	return m_bytesMemory.get();
 }
 
+ArrayType const* TypeProvider::bytesCalldata()
+{
+	if (!m_bytesCalldata)
+		m_bytesCalldata = make_unique<ArrayType>(DataLocation::CallData, false);
+	return m_bytesCalldata.get();
+}
+
 ArrayType const* TypeProvider::stringStorage()
 {
 	if (!m_stringStorage)
@@ -331,6 +349,7 @@ TypePointer TypeProvider::forLiteral(Literal const& _literal)
 	case Token::Number:
 		return rationalNumber(_literal);
 	case Token::StringLiteral:
+	case Token::UnicodeStringLiteral:
 	case Token::HexStringLiteral:
 		return stringLiteral(_literal.value());
 	default:
@@ -397,9 +416,9 @@ ReferenceType const* TypeProvider::withLocation(ReferenceType const* _type, Data
 	return static_cast<ReferenceType const*>(instance().m_generalTypes.back().get());
 }
 
-FunctionType const* TypeProvider::function(FunctionDefinition const& _function, bool _isInternal)
+FunctionType const* TypeProvider::function(FunctionDefinition const& _function, FunctionType::Kind _kind)
 {
-	return createAndGet<FunctionType>(_function, _isInternal);
+	return createAndGet<FunctionType>(_function, _kind);
 }
 
 FunctionType const* TypeProvider::function(VariableDeclaration const& _varDecl)
@@ -442,7 +461,8 @@ FunctionType const* TypeProvider::function(
 	Declaration const* _declaration,
 	bool _gasSet,
 	bool _valueSet,
-	bool _bound
+	bool _bound,
+	bool _saltSet
 )
 {
 	return createAndGet<FunctionType>(
@@ -456,7 +476,8 @@ FunctionType const* TypeProvider::function(
 		_declaration,
 		_gasSet,
 		_valueSet,
-		_bound
+		_bound,
+		_saltSet
 	);
 }
 
@@ -492,6 +513,11 @@ ArrayType const* TypeProvider::array(DataLocation _location, Type const* _baseTy
 ArrayType const* TypeProvider::array(DataLocation _location, Type const* _baseType, u256 const& _length)
 {
 	return createAndGet<ArrayType>(_location, _baseType, _length);
+}
+
+ArraySliceType const* TypeProvider::arraySlice(ArrayType const& _arrayType)
+{
+	return createAndGet<ArraySliceType>(_arrayType);
 }
 
 ContractType const* TypeProvider::contract(ContractDefinition const& _contractDef, bool _isSuper)
@@ -532,7 +558,13 @@ MagicType const* TypeProvider::magic(MagicType::Kind _kind)
 
 MagicType const* TypeProvider::meta(Type const* _type)
 {
-	solAssert(_type && _type->category() == Type::Category::Contract, "Only contracts supported for now.");
+	solAssert(
+		_type && (
+			_type->category() == Type::Category::Contract ||
+			_type->category() == Type::Category::Integer
+		),
+		"Only contracts or integer types supported for now."
+	);
 	return createAndGet<MagicType>(_type);
 }
 

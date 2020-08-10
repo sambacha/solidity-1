@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @file SemanticInformation.h
  * @author Christian <c@ethdev.com>
@@ -25,9 +26,7 @@
 
 #include <libevmasm/Instruction.h>
 
-namespace dev
-{
-namespace eth
+namespace solidity::evmasm
 {
 
 class AssemblyItem;
@@ -49,6 +48,8 @@ struct SemanticInformation
 	static bool altersControlFlow(AssemblyItem const& _item);
 	static bool terminatesControlFlow(AssemblyItem const& _item);
 	static bool terminatesControlFlow(Instruction _instruction);
+	static bool reverts(AssemblyItem const& _item);
+	static bool reverts(Instruction _instruction);
 	/// @returns false if the value put on the stack by _item depends on anything else than
 	/// the information in the current block header, memory, storage or stack.
 	static bool isDeterministic(AssemblyItem const& _item);
@@ -74,5 +75,4 @@ struct SemanticInformation
 	static bool invalidInViewFunctions(Instruction _instruction);
 };
 
-}
 }

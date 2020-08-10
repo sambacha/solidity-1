@@ -14,17 +14,18 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimiser component that combines syntactically equivalent functions.
  */
 
 #include <libyul/optimiser/EquivalentFunctionCombiner.h>
 #include <libyul/AsmData.h>
-#include <libdevcore/CommonData.h>
+#include <libsolutil/CommonData.h>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
 
 void EquivalentFunctionCombiner::run(OptimiserStepContext&, Block& _ast)
 {

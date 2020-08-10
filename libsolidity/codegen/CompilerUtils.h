@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2014
@@ -24,18 +25,19 @@
 
 #include <libsolidity/ast/ASTForward.h>
 #include <libsolidity/ast/TypeProvider.h>
+#include <libsolidity/interface/DebugSettings.h>
 #include <libsolidity/codegen/CompilerContext.h>
 #include <libsolidity/codegen/CompilerContext.h>
 
-namespace dev {
-namespace solidity {
+namespace solidity::frontend {
 
 class Type; // forward
 
 class CompilerUtils
 {
 public:
-	explicit CompilerUtils(CompilerContext& _context): m_context(_context) {}
+	explicit CompilerUtils(CompilerContext& _context): m_context(_context)
+	{}
 
 	/// Stores the initial value of the free-memory-pointer at its position;
 	void initialiseFreeMemoryPointer();
@@ -66,6 +68,10 @@ public:
 	/// Stack pre: string data
 	/// Stack post:
 	void revertWithStringData(Type const& _argumentType);
+
+	/// Allocates a new array and copies the return data to it.
+	/// If the EVM does not support return data, creates an empty array.
+	void returnDataToArray();
 
 	/// Computes the absolute calldata offset of a tail given a base reference and the (absolute)
 	/// offset of the tail pointer. Performs bounds checks. If @a _type is a dynamically sized array it also
@@ -102,10 +108,11 @@ public:
 	/// and also updates that. For reference types, only copies the data pointer. Fails for
 	/// non-memory-references.
 	/// @param _padToWords if true, adds zeros to pad to multiple of 32 bytes. Array elements
+	/// @param _cleanup if true, adds code to cleanup the value before storing it.
 	/// are always padded (except for byte arrays), regardless of this parameter.
 	/// Stack pre: memory_offset value...
 	/// Stack post: (memory_offset+length)
-	void storeInMemoryDynamic(Type const& _type, bool _padToWords = true);
+	void storeInMemoryDynamic(Type const& _type, bool _padToWords = true, bool _cleanup = true);
 
 	/// Creates code that unpacks the arguments according to their types specified by a vector of TypePointers.
 	/// From memory if @a _fromMemory is true, otherwise from call data.
@@ -262,7 +269,7 @@ public:
 	/// Pops slots from the stack such that its height is _toHeight.
 	/// Adds jump to _jumpTo.
 	/// Readjusts the stack offset to the original value.
-	void popAndJump(unsigned _toHeight, eth::AssemblyItem const& _jumpTo);
+	void popAndJump(unsigned _toHeight, evmasm::AssemblyItem const& _jumpTo);
 
 	template <class T>
 	static unsigned sizeOnStack(std::vector<T> const& _variables);
@@ -304,7 +311,8 @@ private:
 	void cleanHigherOrderBits(IntegerType const& _typeOnStack);
 
 	/// Prepares the given type for storing in memory by shifting it if necessary.
-	unsigned prepareMemoryStore(Type const& _type, bool _padToWords);
+	/// @param _cleanup if true, also cleanup the value when preparing to store it in memory
+	unsigned prepareMemoryStore(Type const& _type, bool _padToWords, bool _cleanup = true);
 	/// Loads type from memory assuming memory offset is on stack top.
 	unsigned loadFromMemoryHelper(Type const& _type, bool _fromCalldata, bool _padToWords);
 
@@ -321,5 +329,4 @@ unsigned CompilerUtils::sizeOnStack(std::vector<T> const& _variables)
 	return size;
 }
 
-}
 }

@@ -14,20 +14,19 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #pragma once
 
-#include <libsolidity/formal/SolverInterface.h>
+#include <libsolidity/formal/SymbolicState.h>
 #include <libsolidity/formal/SymbolicVariables.h>
+
+#include <libsmtutil/SolverInterface.h>
 
 #include <unordered_map>
 #include <set>
 
-namespace dev
-{
-namespace solidity
-{
-namespace smt
+namespace solidity::frontend::smt
 {
 
 /**
@@ -42,13 +41,17 @@ public:
 	/// alive because of state variables and inlined function calls.
 	/// To be used in the beginning of a root function visit.
 	void reset();
+	/// Resets the fresh id for slack variables.
+	void resetUniqueId();
+	/// Returns the current fresh slack id and increments it.
+	unsigned newUniqueId();
 	/// Clears the entire context, erasing everything.
 	/// To be used before a model checking engine starts.
 	void clear();
 
 	/// Sets the current solver used by the current engine for
 	/// SMT variable declaration.
-	void setSolver(std::shared_ptr<SolverInterface> _solver)
+	void setSolver(smtutil::SolverInterface* _solver)
 	{
 		solAssert(_solver, "");
 		m_solver = _solver;
@@ -58,7 +61,7 @@ public:
 	void setAssertionAccumulation(bool _acc) { m_accumulateAssertions = _acc; }
 
 	/// Forwards variable creation to the solver.
-	Expression newVariable(std::string _name, SortPointer _sort)
+	smtutil::Expression newVariable(std::string _name, smtutil::SortPointer _sort)
 	{
 		solAssert(m_solver, "");
 		return m_solver->newVariable(move(_name), move(_sort));
@@ -67,48 +70,48 @@ public:
 	/// Variables.
 	//@{
 	/// @returns the symbolic representation of a program variable.
-	std::shared_ptr<SymbolicVariable> variable(solidity::VariableDeclaration const& _varDecl);
+	std::shared_ptr<SymbolicVariable> variable(frontend::VariableDeclaration const& _varDecl);
 	/// @returns all symbolic variables.
-	std::unordered_map<solidity::VariableDeclaration const*, std::shared_ptr<SymbolicVariable>> const& variables() const { return m_variables; }
+	std::unordered_map<frontend::VariableDeclaration const*, std::shared_ptr<SymbolicVariable>> const& variables() const { return m_variables; }
 
 	/// Creates a symbolic variable and
 	/// @returns true if a variable's type is not supported and is therefore abstract.
-	bool createVariable(solidity::VariableDeclaration const& _varDecl);
+	bool createVariable(frontend::VariableDeclaration const& _varDecl);
 	/// @returns true if variable was created.
-	bool knownVariable(solidity::VariableDeclaration const& _varDecl);
+	bool knownVariable(frontend::VariableDeclaration const& _varDecl);
 
 	/// Resets a specific variable.
-	void resetVariable(solidity::VariableDeclaration const& _variable);
+	void resetVariable(frontend::VariableDeclaration const& _variable);
 	/// Resets a set of variables.
-	void resetVariables(std::set<solidity::VariableDeclaration const*> const& _variables);
+	void resetVariables(std::set<frontend::VariableDeclaration const*> const& _variables);
 	/// Resets variables according to a predicate.
-	void resetVariables(std::function<bool(solidity::VariableDeclaration const&)> const& _filter);
+	void resetVariables(std::function<bool(frontend::VariableDeclaration const&)> const& _filter);
 	///Resets all variables.
 	void resetAllVariables();
 
 	/// Allocates a new index for the declaration, updates the current
 	/// index to this value and returns the expression.
-	Expression newValue(solidity::VariableDeclaration const& _decl);
+	smtutil::Expression newValue(frontend::VariableDeclaration const& _decl);
 	/// Sets the value of the declaration to zero.
-	void setZeroValue(solidity::VariableDeclaration const& _decl);
+	void setZeroValue(frontend::VariableDeclaration const& _decl);
 	void setZeroValue(SymbolicVariable& _variable);
 	/// Resets the variable to an unknown value (in its range).
-	void setUnknownValue(solidity::VariableDeclaration const& decl);
+	void setUnknownValue(frontend::VariableDeclaration const& decl);
 	void setUnknownValue(SymbolicVariable& _variable);
 	//@}
 
 	/// Expressions.
 	////@{
 	/// @returns the symbolic representation of an AST node expression.
-	std::shared_ptr<SymbolicVariable> expression(solidity::Expression const& _e);
+	std::shared_ptr<SymbolicVariable> expression(frontend::Expression const& _e);
 	/// @returns all symbolic expressions.
-	std::unordered_map<solidity::Expression const*, std::shared_ptr<SymbolicVariable>> const& expressions() const { return m_expressions; }
+	std::unordered_map<frontend::Expression const*, std::shared_ptr<SymbolicVariable>> const& expressions() const { return m_expressions; }
 
 	/// Creates the expression (value can be arbitrary).
 	/// @returns true if type is not supported.
-	bool createExpression(solidity::Expression const& _e, std::shared_ptr<SymbolicVariable> _symbExpr = nullptr);
+	bool createExpression(frontend::Expression const& _e, std::shared_ptr<SymbolicVariable> _symbExpr = nullptr);
 	/// Checks if expression was created.
-	bool knownExpression(solidity::Expression const& _e) const;
+	bool knownExpression(frontend::Expression const& _e) const;
 	//@}
 
 	/// Global variables and functions.
@@ -120,73 +123,59 @@ public:
 
 	/// Defines a new global variable or function
 	/// and @returns true if type was abstracted.
-	bool createGlobalSymbol(std::string const& _name, solidity::Expression const& _expr);
+	bool createGlobalSymbol(std::string const& _name, frontend::Expression const& _expr);
 	/// Checks if special variable or function was seen.
 	bool knownGlobalSymbol(std::string const& _var) const;
-	//@}
-
-	/// Blockchain.
-	//@{
-	/// Value of `this` address.
-	Expression thisAddress();
-	/// @returns the symbolic balance of address `this`.
-	Expression balance();
-	/// @returns the symbolic balance of an address.
-	Expression balance(Expression _address);
-	/// Transfer _value from _from to _to.
-	void transfer(Expression _from, Expression _to, Expression _value);
 	//@}
 
 	/// Solver.
 	//@{
 	/// @returns conjunction of all added assertions.
-	Expression assertions();
+	smtutil::Expression assertions();
 	void pushSolver();
 	void popSolver();
-	void addAssertion(Expression const& _e);
-	std::shared_ptr<SolverInterface> solver()
+	void addAssertion(smtutil::Expression const& _e);
+	unsigned solverStackHeigh() { return m_assertions.size(); } const
+	smtutil::SolverInterface* solver()
 	{
 		solAssert(m_solver, "");
 		return m_solver;
 	}
 	//@}
 
-private:
-	/// Adds _value to _account's balance.
-	void addBalance(Expression _account, Expression _value);
+	SymbolicState& state() { return m_state; }
 
+private:
 	/// Symbolic expressions.
 	//{@
 	/// Symbolic variables.
-	std::unordered_map<solidity::VariableDeclaration const*, std::shared_ptr<SymbolicVariable>> m_variables;
+	std::unordered_map<frontend::VariableDeclaration const*, std::shared_ptr<SymbolicVariable>> m_variables;
 
 	/// Symbolic expressions.
-	std::unordered_map<solidity::Expression const*, std::shared_ptr<SymbolicVariable>> m_expressions;
+	std::unordered_map<frontend::Expression const*, std::shared_ptr<SymbolicVariable>> m_expressions;
 
 	/// Symbolic representation of global symbols including
 	/// variables and functions.
 	std::unordered_map<std::string, std::shared_ptr<smt::SymbolicVariable>> m_globalContext;
 
-	/// Symbolic `this` address.
-	std::unique_ptr<SymbolicAddressVariable> m_thisAddress;
-
-	/// Symbolic balances.
-	std::unique_ptr<SymbolicVariable> m_balances;
+	/// Symbolic representation of the blockchain state.
+	SymbolicState m_state;
 	//@}
 
 	/// Solver related.
 	//@{
 	/// Solver can be SMT solver or Horn solver in the future.
-	std::shared_ptr<SolverInterface> m_solver;
+	smtutil::SolverInterface* m_solver = nullptr;
 
 	/// Assertion stack.
-	std::vector<Expression> m_assertions;
+	std::vector<smtutil::Expression> m_assertions;
 
 	/// Whether to conjoin assertions in the assertion stack.
 	bool m_accumulateAssertions = true;
 	//@}
+
+	/// Central source of unique ids.
+	unsigned m_nextUniqueId = 0;
 };
 
-}
-}
 }

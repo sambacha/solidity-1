@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimisation stage that replaces expressions of type ``sload(x)`` by the value
  * currently stored in storage, if known.
@@ -25,7 +26,7 @@
 #include <libyul/optimiser/OptimiserStep.h>
 #include <libevmasm/Instruction.h>
 
-namespace yul
+namespace solidity::yul
 {
 
 struct EVMDialect;
@@ -62,7 +63,7 @@ protected:
 
 	void tryResolve(
 		Expression& _e,
-		dev::eth::Instruction _instruction,
+		evmasm::Instruction _instruction,
 		std::vector<Expression> const& _arguments
 	);
 

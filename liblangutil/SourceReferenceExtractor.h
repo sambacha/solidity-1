@@ -14,19 +14,18 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 #pragma once
 
+#include <liblangutil/Exceptions.h>
+
 #include <iosfwd>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
 
-namespace dev
-{
-struct Exception;
-}
-
-namespace langutil
+namespace solidity::langutil
 {
 
 struct LineColumn
@@ -49,15 +48,14 @@ struct SourceReference
 	int endColumn = {-1};     ///< Highlighting range-end of text field.
 
 	/// Constructs a SourceReference containing a message only.
-	static SourceReference MessageOnly(std::string _msg)
+	static SourceReference MessageOnly(std::string _msg, std::string _sourceName = {})
 	{
 		SourceReference sref;
 		sref.message = std::move(_msg);
+		sref.sourceName = std::move(_sourceName);
 		return sref;
 	}
 };
-
-struct SourceLocation;
 
 namespace SourceReferenceExtractor
 {
@@ -66,9 +64,11 @@ namespace SourceReferenceExtractor
 		SourceReference primary;
 		std::string category; // "Error", "Warning", ...
 		std::vector<SourceReference> secondary;
+		std::optional<ErrorId> errorId;
 	};
 
-	Message extract(dev::Exception const& _exception, std::string _category);
+	Message extract(util::Exception const& _exception, std::string _category);
+	Message extract(Error const& _error);
 	SourceReference extract(SourceLocation const* _location, std::string message = "");
 }
 

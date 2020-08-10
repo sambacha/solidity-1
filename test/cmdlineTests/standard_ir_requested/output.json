@@ -9,20 +9,16 @@
 object \"C_6\" {
     code {
         mstore(64, 128)
+        if callvalue() { revert(0, 0) }
 
-        // Begin state variable initialization for contract \"C\" (0 variables)
-        // End state variable initialization for contract \"C\".
-
+        constructor_C_6()
 
         codecopy(0, dataoffset(\"C_6_deployed\"), datasize(\"C_6_deployed\"))
+
         return(0, datasize(\"C_6_deployed\"))
 
+        function constructor_C_6() {
 
-        function fun_f_5()  {
-            for { let return_flag := 1 } return_flag {} {
-
-                break
-            }
         }
 
     }
@@ -48,8 +44,8 @@ object \"C_6\" {
 
                 default {}
             }
+            if iszero(calldatasize()) {  }
             revert(0, 0)
-
 
             function abi_decode_tuple_(headStart, dataEnd)   {
                 if slt(sub(dataEnd, headStart), 0) { revert(0, 0) }
@@ -69,11 +65,8 @@ object \"C_6\" {
                 mstore(64, newFreePtr)
             }
 
-            function fun_f_5()  {
-                for { let return_flag := 1 } return_flag {} {
+            function fun_f_5() {
 
-                    break
-                }
             }
 
             function shift_right_224_unsigned(value) -> newValue {
@@ -84,7 +77,9 @@ object \"C_6\" {
             }
 
         }
+
     }
+
 }
 
 "}}},"sources":{"A":{"id":0}}}

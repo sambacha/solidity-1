@@ -14,19 +14,21 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Lefteris Karapetsas <lefteris@ethdev.com>
  * @date 2015
  * Unit tests for Assembly Items from evmasm/Assembly.h
  */
 
-#include <test/Options.h>
+#include <test/Common.h>
 
 #include <liblangutil/SourceLocation.h>
 #include <libevmasm/Assembly.h>
 
 #include <liblangutil/Scanner.h>
 #include <libsolidity/parsing/Parser.h>
+#include <libsolidity/analysis/DeclarationTypeChecker.h>
 #include <libsolidity/analysis/NameAndTypeResolver.h>
 #include <libsolidity/codegen/Compiler.h>
 #include <libsolidity/ast/AST.h>
@@ -39,55 +41,49 @@
 #include <iostream>
 
 using namespace std;
-using namespace langutil;
-using namespace dev::eth;
+using namespace solidity::langutil;
+using namespace solidity::evmasm;
 
-namespace dev
-{
-namespace solidity
-{
-class Contract;
-namespace test
+namespace solidity::frontend::test
 {
 
 namespace
 {
 
-eth::AssemblyItems compileContract(std::shared_ptr<CharStream> _sourceCode)
+evmasm::AssemblyItems compileContract(std::shared_ptr<CharStream> _sourceCode)
 {
 	ErrorList errors;
 	ErrorReporter errorReporter(errors);
-	Parser parser(errorReporter, dev::test::Options::get().evmVersion());
+	Parser parser(errorReporter, solidity::test::CommonOptions::get().evmVersion());
 	ASTPointer<SourceUnit> sourceUnit;
 	BOOST_REQUIRE_NO_THROW(sourceUnit = parser.parse(make_shared<Scanner>(_sourceCode)));
 	BOOST_CHECK(!!sourceUnit);
 
-	map<ASTNode const*, shared_ptr<DeclarationContainer>> scopes;
 	GlobalContext globalContext;
-	NameAndTypeResolver resolver(globalContext, dev::test::Options::get().evmVersion(), scopes, errorReporter);
+	NameAndTypeResolver resolver(globalContext, solidity::test::CommonOptions::get().evmVersion(), errorReporter);
+	DeclarationTypeChecker declarationTypeChecker(errorReporter, solidity::test::CommonOptions::get().evmVersion());
 	solAssert(Error::containsOnlyWarnings(errorReporter.errors()), "");
 	resolver.registerDeclarations(*sourceUnit);
+	BOOST_REQUIRE_NO_THROW(resolver.resolveNamesAndTypes(*sourceUnit));
+	if (!Error::containsOnlyWarnings(errorReporter.errors()))
+		return AssemblyItems();
 	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())
-		if (ContractDefinition* contract = dynamic_cast<ContractDefinition*>(node.get()))
-		{
-			BOOST_REQUIRE_NO_THROW(resolver.resolveNamesAndTypes(*contract));
-			if (!Error::containsOnlyWarnings(errorReporter.errors()))
-				return AssemblyItems();
-		}
-	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())
-		if (ContractDefinition* contract = dynamic_cast<ContractDefinition*>(node.get()))
-		{
-			TypeChecker checker(dev::test::Options::get().evmVersion(), errorReporter);
-			BOOST_REQUIRE_NO_THROW(checker.checkTypeRequirements(*contract));
-			if (!Error::containsOnlyWarnings(errorReporter.errors()))
-				return AssemblyItems();
-		}
+	{
+		BOOST_REQUIRE_NO_THROW(declarationTypeChecker.check(*node));
+		if (!Error::containsOnlyWarnings(errorReporter.errors()))
+			return AssemblyItems();
+	}
+	TypeChecker checker(solidity::test::CommonOptions::get().evmVersion(), errorReporter);
+	BOOST_REQUIRE_NO_THROW(checker.checkTypeRequirements(*sourceUnit));
+	if (!Error::containsOnlyWarnings(errorReporter.errors()))
+		return AssemblyItems();
 	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())
 		if (ContractDefinition* contract = dynamic_cast<ContractDefinition*>(node.get()))
 		{
 			Compiler compiler(
-				dev::test::Options::get().evmVersion(),
-				dev::test::Options::get().optimize ? OptimiserSettings::standard() : OptimiserSettings::minimal()
+				solidity::test::CommonOptions::get().evmVersion(),
+				RevertStrings::Default,
+				solidity::test::CommonOptions::get().optimize ? OptimiserSettings::standard() : OptimiserSettings::minimal()
 			);
 			compiler.compileContract(*contract, map<ContractDefinition const*, shared_ptr<Compiler const>>{}, bytes());
 
@@ -104,13 +100,13 @@ void printAssemblyLocations(AssemblyItems const& _items)
 		cout <<
 			"\t\tvector<SourceLocation>(" <<
 			_repetitions <<
-			", SourceLocation(" <<
+			", SourceLocation{" <<
 			_loc.start <<
 			", " <<
 			_loc.end <<
 			", make_shared<string>(\"" <<
 			_loc.source->name() <<
-			"\"))) +" << endl;
+			"\")}) +" << endl;
 	};
 
 	vector<SourceLocation> locations;
@@ -165,34 +161,20 @@ BOOST_AUTO_TEST_CASE(location_test)
 	}
 	)", "");
 	AssemblyItems items = compileContract(sourceCode);
-	bool hasShifts = dev::test::Options::get().evmVersion().hasBitwiseShifting();
+	bool hasShifts = solidity::test::CommonOptions::get().evmVersion().hasBitwiseShifting();
 
 	auto codegenCharStream = make_shared<CharStream>("", "--CODEGEN--");
 
 	vector<SourceLocation> locations;
-	if (dev::test::Options::get().optimize)
+	if (solidity::test::CommonOptions::get().optimize)
 		locations =
-			vector<SourceLocation>(4, SourceLocation{2, 82, sourceCode}) +
-			vector<SourceLocation>(1, SourceLocation{8, 17, codegenCharStream}) +
-			vector<SourceLocation>(3, SourceLocation{5, 7, codegenCharStream}) +
-			vector<SourceLocation>(1, SourceLocation{30, 31, codegenCharStream}) +
-			vector<SourceLocation>(1, SourceLocation{27, 28, codegenCharStream}) +
-			vector<SourceLocation>(1, SourceLocation{20, 32, codegenCharStream}) +
-			vector<SourceLocation>(1, SourceLocation{5, 7, codegenCharStream}) +
-			vector<SourceLocation>(19, SourceLocation{2, 82, sourceCode}) +
+			vector<SourceLocation>(31, SourceLocation{2, 82, sourceCode}) +
 			vector<SourceLocation>(21, SourceLocation{20, 79, sourceCode}) +
 			vector<SourceLocation>(1, SourceLocation{72, 74, sourceCode}) +
 			vector<SourceLocation>(2, SourceLocation{20, 79, sourceCode});
 	else
 		locations =
-			vector<SourceLocation>(4, SourceLocation{2, 82, sourceCode}) +
-			vector<SourceLocation>(1, SourceLocation{8, 17, codegenCharStream}) +
-			vector<SourceLocation>(3, SourceLocation{5, 7, codegenCharStream}) +
-			vector<SourceLocation>(1, SourceLocation{30, 31, codegenCharStream}) +
-			vector<SourceLocation>(1, SourceLocation{27, 28, codegenCharStream}) +
-			vector<SourceLocation>(1, SourceLocation{20, 32, codegenCharStream}) +
-			vector<SourceLocation>(1, SourceLocation{5, 7, codegenCharStream}) +
-			vector<SourceLocation>(hasShifts ? 19 : 20, SourceLocation{2, 82, sourceCode}) +
+			vector<SourceLocation>(hasShifts ? 31 : 32, SourceLocation{2, 82, sourceCode}) +
 			vector<SourceLocation>(24, SourceLocation{20, 79, sourceCode}) +
 			vector<SourceLocation>(1, SourceLocation{49, 58, sourceCode}) +
 			vector<SourceLocation>(1, SourceLocation{72, 74, sourceCode}) +
@@ -201,8 +183,30 @@ BOOST_AUTO_TEST_CASE(location_test)
 	checkAssemblyLocations(items, locations);
 }
 
+
+BOOST_AUTO_TEST_CASE(jump_type)
+{
+	auto sourceCode = make_shared<CharStream>(R"(
+	contract C {
+		function f(uint a) public pure returns (uint t) {
+			assembly {
+				function g(x) -> y { if x { leave } y := 8 }
+				t := g(a)
+			}
+		}
+	}
+	)", "");
+	AssemblyItems items = compileContract(sourceCode);
+
+	string jumpTypes;
+	for (AssemblyItem const& item: items)
+		if (item.getJumpType() != AssemblyItem::JumpType::Ordinary)
+			jumpTypes += item.getJumpTypeAsString() + "\n";
+
+	BOOST_CHECK_EQUAL(jumpTypes, "[in]\n[out]\n[in]\n[out]\n");
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()
 
-}
-}
 } // end namespaces

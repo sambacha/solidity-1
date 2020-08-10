@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2016
@@ -26,7 +27,7 @@
 
 #include <test/evmc/evmc.hpp>
 
-#include <libdevcore/CommonIO.h>
+#include <libsolutil/CommonIO.h>
 
 #include <boost/test/framework.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -34,30 +35,33 @@
 #include <cstdlib>
 
 using namespace std;
-using namespace dev;
-using namespace dev::test;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::test;
 
 ExecutionFramework::ExecutionFramework():
-	ExecutionFramework(dev::test::Options::get().evmVersion())
+	ExecutionFramework(solidity::test::CommonOptions::get().evmVersion())
 {
 }
 
 ExecutionFramework::ExecutionFramework(langutil::EVMVersion _evmVersion):
 	m_evmVersion(_evmVersion),
-	m_optimiserSettings(solidity::OptimiserSettings::minimal()),
-	m_showMessages(dev::test::Options::get().showMessages),
+	m_optimiserSettings(solidity::frontend::OptimiserSettings::minimal()),
+	m_showMessages(solidity::test::CommonOptions::get().showMessages),
 	m_evmHost(make_shared<EVMHost>(m_evmVersion))
 {
-	if (dev::test::Options::get().optimizeYul)
-		m_optimiserSettings = solidity::OptimiserSettings::full();
-	else if (dev::test::Options::get().optimize)
-		m_optimiserSettings = solidity::OptimiserSettings::standard();
-	m_evmHost->reset();
+	if (solidity::test::CommonOptions::get().optimize)
+		m_optimiserSettings = solidity::frontend::OptimiserSettings::standard();
 
+	reset();
+}
+
+void ExecutionFramework::reset()
+{
+	m_evmHost->reset();
 	for (size_t i = 0; i < 10; i++)
 		m_evmHost->accounts[EVMHost::convertToEVMC(account(i))].balance =
 			EVMHost::convertToEVMC(u256(1) << 100);
-
 }
 
 std::pair<bool, string> ExecutionFramework::compareAndCreateMessage(
@@ -98,7 +102,9 @@ u256 ExecutionFramework::gasPrice() const
 
 u256 ExecutionFramework::blockHash(u256 const& _number) const
 {
-	return {EVMHost::convertFromEVMC(m_evmHost->get_block_hash(uint64_t(_number & numeric_limits<uint64_t>::max())))};
+	return {EVMHost::convertFromEVMC(
+		m_evmHost->get_block_hash(static_cast<int64_t>(_number & numeric_limits<uint64_t>::max()))
+	)};
 }
 
 u256 ExecutionFramework::blockNumber() const
@@ -150,7 +156,7 @@ void ExecutionFramework::sendMessage(bytes const& _data, bool _isCreation, u256 
 	if (m_showMessages)
 	{
 		cout << " out:     " << toHex(m_output) << endl;
-		cout << " result: " << size_t(result.status_code) << endl;
+		cout << " result: " << static_cast<size_t>(result.status_code) << endl;
 		cout << " gas used: " << m_gasUsed.str() << endl;
 	}
 }
@@ -177,7 +183,7 @@ void ExecutionFramework::sendEther(Address const& _addr, u256 const& _amount)
 
 size_t ExecutionFramework::currentTimestamp()
 {
-	return m_evmHost->tx_context.block_timestamp;
+	return static_cast<size_t>(m_evmHost->tx_context.block_timestamp);
 }
 
 size_t ExecutionFramework::blockTimestamp(u256 _block)
@@ -185,7 +191,7 @@ size_t ExecutionFramework::blockTimestamp(u256 _block)
 	if (_block > blockNumber())
 		return 0;
 	else
-		return size_t((currentTimestamp() / blockNumber()) * _block);
+		return static_cast<size_t>((currentTimestamp() / blockNumber()) * _block);
 }
 
 Address ExecutionFramework::account(size_t _idx)

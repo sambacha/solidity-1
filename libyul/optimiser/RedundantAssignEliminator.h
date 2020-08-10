@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimiser component that removes assignments to variables that are not used
  * until they go out of scope or are re-assigned.
@@ -28,7 +29,7 @@
 #include <map>
 #include <vector>
 
-namespace yul
+namespace solidity::yul
 {
 struct Dialect;
 
@@ -91,6 +92,8 @@ struct Dialect;
  * For switch statements that have a "default"-case, there is no control-flow
  * part that skips the switch.
  *
+ * At ``leave`` statements, all return variables are set to "used".
+ *
  * When a variable goes out of scope, all statements still in the "undecided"
  * state are changed to "unused", unless the variable is the return
  * parameter of a function - there, the state changes to "used".
@@ -125,6 +128,7 @@ public:
 	void operator()(ForLoop const&) override;
 	void operator()(Break const&) override;
 	void operator()(Continue const&) override;
+	void operator()(Leave const&) override;
 	void operator()(Block const& _block) override;
 
 private:
@@ -161,6 +165,7 @@ private:
 
 	Dialect const* m_dialect;
 	std::set<YulString> m_declaredVariables;
+	std::set<YulString> m_returnVariables;
 	std::set<Assignment const*> m_pendingRemovals;
 	TrackedAssignments m_assignments;
 

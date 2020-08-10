@@ -112,7 +112,7 @@ contract MilestoneTracker {
         address _arbitrator,
         address _donor,
         address _recipient
-    ) public {
+    ) {
         arbitrator = _arbitrator;
         donor = _donor;
         recipient = _recipient;
@@ -227,7 +227,7 @@ contract MilestoneTracker {
 
             RLP.RLPItem memory itmProposal = itrProposals.next();
 
-            Milestone storage milestone = milestones[milestones.length ++];
+            Milestone storage milestone = milestones.push();
 
             if (!itmProposal.isList()) revert();
 
@@ -264,10 +264,10 @@ contract MilestoneTracker {
             &&(msg.sender != recipient))
             revert();
         if (milestone.status != MilestoneStatus.AcceptedAndInProgress) revert();
-        if (now < milestone.minCompletionDate) revert();
-        if (now > milestone.maxCompletionDate) revert();
+        if (block.timestamp < milestone.minCompletionDate) revert();
+        if (block.timestamp > milestone.maxCompletionDate) revert();
         milestone.status = MilestoneStatus.Completed;
-        milestone.doneTime = now;
+        milestone.doneTime = block.timestamp;
         emit ProposalStatusChanged(_idMilestone, milestone.status);
     }
 
@@ -312,7 +312,7 @@ contract MilestoneTracker {
             &&(msg.sender != recipient))
             revert();
         if  ((milestone.status != MilestoneStatus.Completed) ||
-             (now < milestone.doneTime + milestone.reviewTime))
+             (block.timestamp < milestone.doneTime + milestone.reviewTime))
             revert();
 
         authorizePayment(_idMilestone);
@@ -360,7 +360,7 @@ contract MilestoneTracker {
         // Recheck again to not pay twice
         if (milestone.status == MilestoneStatus.AuthorizedForPayment) revert();
         milestone.status = MilestoneStatus.AuthorizedForPayment;
-        (bool success,) = milestone.paymentSource.call.value(0)(milestone.payData);
+        (bool success,) = milestone.paymentSource.call{value: 0}(milestone.payData);
         require(success);
         emit ProposalStatusChanged(_idMilestone, milestone.status);
     }

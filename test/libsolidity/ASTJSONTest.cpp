@@ -14,28 +14,56 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
+#include <boost/algorithm/string/replace.hpp>
 #include <test/libsolidity/ASTJSONTest.h>
-#include <test/Options.h>
-#include <libdevcore/AnsiColorized.h>
+#include <test/Common.h>
+#include <libsolutil/AnsiColorized.h>
 #include <liblangutil/SourceReferenceFormatterHuman.h>
 #include <libsolidity/ast/ASTJsonConverter.h>
 #include <libsolidity/interface/CompilerStack.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/throw_exception.hpp>
+#include <boost/test/unit_test.hpp>
 #include <fstream>
 #include <memory>
 #include <stdexcept>
 
-using namespace langutil;
-using namespace dev::solidity;
-using namespace dev::solidity::test;
-using namespace dev::formatting;
-using namespace dev;
+using namespace solidity::langutil;
+using namespace solidity::frontend;
+using namespace solidity::frontend::test;
+using namespace solidity::util::formatting;
+using namespace solidity::util;
+using namespace solidity;
 using namespace std;
 namespace fs = boost::filesystem;
 using namespace boost::unit_test;
+
+namespace
+{
+
+void replaceVersionWithTag(string& _input)
+{
+	boost::algorithm::replace_all(
+		_input,
+		"\"" + solidity::test::CommonOptions::get().evmVersion().name() + "\"",
+		"%EVMVERSION%"
+	);
+}
+
+void replaceTagWithVersion(string& _input)
+{
+	boost::algorithm::replace_all(
+		_input,
+		"%EVMVERSION%",
+		"\"" + solidity::test::CommonOptions::get().evmVersion().name() + "\""
+	);
+}
+
+}
+
 
 ASTJSONTest::ASTJSONTest(string const& _filename)
 {
@@ -102,16 +130,19 @@ TestCase::TestResult ASTJSONTest::run(ostream& _stream, string const& _linePrefi
 		sourceIndices[m_sources[i].first] = i + 1;
 	}
 	c.setSources(sources);
-	c.setEVMVersion(dev::test::Options::get().evmVersion());
+	c.setEVMVersion(solidity::test::CommonOptions::get().evmVersion());
 	if (c.parse())
 		c.analyze();
 	else
 	{
-		SourceReferenceFormatterHuman formatter(_stream, _formatted);
+		SourceReferenceFormatterHuman formatter(_stream, _formatted, false);
 		for (auto const& error: c.errors())
 			formatter.printErrorInformation(*error);
 		return TestResult::FatalError;
 	}
+
+	if (m_sources.size() > 1)
+		m_result += "[\n";
 
 	for (size_t i = 0; i < m_sources.size(); i++)
 	{
@@ -123,7 +154,12 @@ TestCase::TestResult ASTJSONTest::run(ostream& _stream, string const& _linePrefi
 		m_result += "\n";
 	}
 
+	if (m_sources.size() > 1)
+		m_result += "]\n";
+
 	bool resultsMatch = true;
+
+	replaceTagWithVersion(m_expectation);
 
 	if (m_expectation != m_result)
 	{
@@ -156,6 +192,8 @@ TestCase::TestResult ASTJSONTest::run(ostream& _stream, string const& _linePrefi
 			m_resultLegacy += ",";
 		m_resultLegacy += "\n";
 	}
+
+	replaceTagWithVersion(m_expectationLegacy);
 
 	if (m_expectationLegacy != m_resultLegacy)
 	{
@@ -201,12 +239,21 @@ void ASTJSONTest::printUpdatedExpectations(std::ostream&, std::string const&) co
 	ofstream file(m_astFilename.c_str());
 	if (!file) BOOST_THROW_EXCEPTION(runtime_error("Cannot write AST expectation to \"" + m_astFilename + "\"."));
 	file.exceptions(ios::badbit);
-	file << m_result;
+
+	string replacedResult = m_result;
+	replaceVersionWithTag(replacedResult);
+
+	file << replacedResult;
 	file.flush();
 	file.close();
+
 	file.open(m_legacyAstFilename.c_str());
 	if (!file) BOOST_THROW_EXCEPTION(runtime_error("Cannot write legacy AST expectation to \"" + m_legacyAstFilename + "\"."));
-	file << m_resultLegacy;
+
+	string replacedResultLegacy = m_resultLegacy;
+	replaceVersionWithTag(replacedResultLegacy);
+
+	file << replacedResultLegacy;
 	file.flush();
 	file.close();
 }

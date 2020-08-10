@@ -1,7 +1,7 @@
 // bug #1801
 contract test {
     enum ActionChoices { GoLeft, GoRight, GoStraight, Sit }
-    constructor(ActionChoices param) public {}
+    constructor(ActionChoices param) {}
     function ret() public returns (ActionChoices) {
         ActionChoices action = ActionChoices.GoLeft;
         return action;
@@ -19,12 +19,10 @@ contract test {
 //         "type": "uint8"
 //       }
 //     ],
-//     "payable": false,
 //     "stateMutability": "nonpayable",
 //     "type": "constructor"
 //   },
 //   {
-//     "constant": false,
 //     "inputs": [],
 //     "name": "ret",
 //     "outputs":
@@ -35,7 +33,6 @@ contract test {
 //         "type": "uint8"
 //       }
 //     ],
-//     "payable": false,
 //     "stateMutability": "nonpayable",
 //     "type": "function"
 //   }

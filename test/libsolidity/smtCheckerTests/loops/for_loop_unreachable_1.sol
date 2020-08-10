@@ -6,5 +6,7 @@ contract C {
         assert(x == 2);
     }
 }
+// ====
+// SMTSolvers: z3
 // ----
-// Warning: (122-127): Condition is always false.
+// Warning 6838: (122-127): Condition is always false.

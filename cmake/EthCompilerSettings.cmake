@@ -16,15 +16,28 @@
 
 include(EthCheckCXXCompilerFlag)
 
-eth_add_cxx_compiler_flag_if_supported(-fstack-protector-strong have_stack_protector_strong_support)
-if(NOT have_stack_protector_strong_support)
-	eth_add_cxx_compiler_flag_if_supported(-fstack-protector)
+if(NOT EMSCRIPTEN)
+	eth_add_cxx_compiler_flag_if_supported(-fstack-protector-strong have_stack_protector_strong_support)
+	if(NOT have_stack_protector_strong_support)
+		eth_add_cxx_compiler_flag_if_supported(-fstack-protector)
+	endif()
 endif()
 
 eth_add_cxx_compiler_flag_if_supported(-Wimplicit-fallthrough)
 
 # Prevent the path of the source directory from ending up in the binary via __FILE__ macros.
 eth_add_cxx_compiler_flag_if_supported("-fmacro-prefix-map=${CMAKE_SOURCE_DIR}=/solidity")
+
+# -Wpessimizing-move warns when a call to std::move would prevent copy elision
+# if the argument was not wrapped in a call.  This happens when moving a local
+# variable in a return statement when the variable is the same type as the
+# return type or using a move to create a new object from a temporary object.
+eth_add_cxx_compiler_flag_if_supported(-Wpessimizing-move)
+
+# -Wredundant-move warns when an implicit move would already be made, so the
+# std::move call is not needed, such as when moving a local variable in a return
+# that is different from the return type.
+eth_add_cxx_compiler_flag_if_supported(-Wredundant-move)
 
 if (("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang"))
 	# Enables all the warnings about constructions that some users consider questionable,
@@ -34,6 +47,10 @@ if (("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MA
 	add_compile_options(-Wall)
 	add_compile_options(-Wextra)
 	add_compile_options(-Werror)
+	add_compile_options(-pedantic)
+	add_compile_options(-Wno-unknown-pragmas)
+	add_compile_options(-Wimplicit-fallthrough)
+	add_compile_options(-Wsign-conversion)
 
 	# Configuration-specific compiler settings.
 	set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g3 -DETH_DEBUG")
@@ -50,6 +67,9 @@ if (("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MA
 		if (NOT (GCC_VERSION VERSION_GREATER 5.0 OR GCC_VERSION VERSION_EQUAL 5.0))
 			message(FATAL_ERROR "${PROJECT_NAME} requires g++ 5.0 or greater.")
 		endif ()
+
+		# Use fancy colors in the compiler diagnostics
+		add_compile_options(-fdiagnostics-color)
 
 	# Additional Clang-specific compiler settings.
 	elseif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
@@ -92,15 +112,13 @@ if (("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MA
 			# Re-enable exception catching (optimisations above -O1 disable it)
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s DISABLE_EXCEPTION_CATCHING=0")
 			# Remove any code related to exit (such as atexit)
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s NO_EXIT_RUNTIME=1")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s EXIT_RUNTIME=0")
 			# Remove any code related to filesystem access
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s NO_FILESYSTEM=1")
-			# Remove variables even if it needs to be duplicated (can improve speed at the cost of size)
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s AGGRESSIVE_VARIABLE_ELIMINATION=1")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s FILESYSTEM=0")
 			# Allow memory growth, but disable some optimisations
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s ALLOW_MEMORY_GROWTH=1")
 			# Disable eval()
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s NO_DYNAMIC_EXECUTION=1")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s DYNAMIC_EXECUTION=0")
 			# Disable greedy exception catcher
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s NODEJS_CATCH_EXIT=0")
 			# Abort if linking results in any undefined symbols
@@ -110,9 +128,13 @@ if (("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MA
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s STRICT=1")
 			# Export the Emscripten-generated auxiliary methods which are needed by solc-js.
 			# Which methods of libsolc itself are exported is specified in libsolc/CMakeLists.txt.
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap','addFunction','removeFunction','UTF8ToString','lengthBytesUTF8','_malloc','stringToUTF8','setValue']")
-			# Do not build as a WebAssembly target - we need an asm.js output.
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s WASM=0")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap','addFunction','removeFunction','UTF8ToString','lengthBytesUTF8','stringToUTF8','setValue']")
+			# Build for webassembly target.
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s WASM=1")
+			# Set webassembly build to synchronous loading.
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s WASM_ASYNC_COMPILATION=0")
+			# Output a single js file with the wasm binary embedded as base64 string.
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s SINGLE_FILE=1")
 
 			# Disable warnings about not being pure asm.js due to memory growth.
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-almost-asm")

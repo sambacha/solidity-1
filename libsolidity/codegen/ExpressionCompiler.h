@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @author Gav Wood <g@ethdev.com>
@@ -25,20 +26,21 @@
 
 #include <libsolidity/ast/ASTVisitor.h>
 #include <libsolidity/codegen/LValue.h>
+#include <libsolidity/interface/DebugSettings.h>
 #include <liblangutil/Exceptions.h>
 #include <liblangutil/SourceLocation.h>
-#include <libdevcore/Common.h>
+#include <libsolutil/Common.h>
 
 #include <boost/noncopyable.hpp>
 #include <functional>
 #include <memory>
 
-namespace dev {
-namespace eth
+namespace solidity::evmasm
 {
 class AssemblyItem; // forward
 }
-namespace solidity {
+
+namespace solidity::frontend {
 
 // forward declarations
 class CompilerContext;
@@ -55,8 +57,13 @@ class ArrayType;
 class ExpressionCompiler: private ASTConstVisitor
 {
 public:
-	explicit ExpressionCompiler(CompilerContext& _compilerContext, bool _optimiseOrderLiterals):
-		m_optimiseOrderLiterals(_optimiseOrderLiterals), m_context(_compilerContext) {}
+	ExpressionCompiler(
+		CompilerContext& _compilerContext,
+		bool _optimiseOrderLiterals
+	):
+		m_optimiseOrderLiterals(_optimiseOrderLiterals),
+		m_context(_compilerContext)
+	{}
 
 	/// Compile the given @a _expression and leave its value on the stack.
 	void compile(Expression const& _expression);
@@ -77,9 +84,11 @@ private:
 	bool visit(UnaryOperation const& _unaryOperation) override;
 	bool visit(BinaryOperation const& _binaryOperation) override;
 	bool visit(FunctionCall const& _functionCall) override;
+	bool visit(FunctionCallOptions const& _functionCallOptions) override;
 	bool visit(NewExpression const& _newExpression) override;
 	bool visit(MemberAccess const& _memberAccess) override;
 	bool visit(IndexAccess const& _indexAccess) override;
+	bool visit(IndexRangeAccess const& _indexAccess) override;
 	void endVisit(Identifier const& _identifier) override;
 	void endVisit(Literal const& _literal) override;
 
@@ -92,12 +101,16 @@ private:
 	void appendArithmeticOperatorCode(Token _operator, Type const& _type);
 	void appendBitOperatorCode(Token _operator);
 	void appendShiftOperatorCode(Token _operator, Type const& _valueType, Type const& _shiftAmountType);
+	void appendExpOperatorCode(Type const& _valueType, Type const& _exponentType);
 	/// @}
 
 	/// Appends code to call a function of the given type with the given arguments.
+	/// @param _tryCall if true, this is the external call of a try statement. In that case,
+	///                 returns success flag on top of stack and does not revert on failure.
 	void appendExternalFunctionCall(
 		FunctionType const& _functionType,
-		std::vector<ASTPointer<Expression const>> const& _arguments
+		std::vector<ASTPointer<Expression const>> const& _arguments,
+		bool _tryCall
 	);
 	/// Appends code that evaluates a single expression and moves the result to memory. The memory offset is
 	/// expected to be on the stack and is updated by this call.
@@ -114,8 +127,8 @@ private:
 	void setLValueToStorageItem(Expression const& _expression);
 	/// Sets the current LValue to a new LValue constructed from the arguments.
 	/// Also retrieves the value if it was not requested by @a _expression.
-	template <class _LValueType, class... _Arguments>
-	void setLValue(Expression const& _expression, _Arguments const&... _arguments);
+	template <class LValueType, class... Arguments>
+	void setLValue(Expression const& _expression, Arguments const&... _arguments);
 
 	/// @returns true if the operator applied to the given type requires a cleanup prior to the
 	/// operation.
@@ -132,16 +145,15 @@ private:
 
 };
 
-template <class _LValueType, class... _Arguments>
-void ExpressionCompiler::setLValue(Expression const& _expression, _Arguments const&... _arguments)
+template <class LValueType, class... Arguments>
+void ExpressionCompiler::setLValue(Expression const& _expression, Arguments const&... _arguments)
 {
 	solAssert(!m_currentLValue, "Current LValue not reset before trying to set new one.");
-	std::unique_ptr<_LValueType> lvalue = std::make_unique<_LValueType>(m_context, _arguments...);
-	if (_expression.annotation().lValueRequested)
+	std::unique_ptr<LValueType> lvalue = std::make_unique<LValueType>(m_context, _arguments...);
+	if (_expression.annotation().willBeWrittenTo)
 		m_currentLValue = move(lvalue);
 	else
 		lvalue->retrieveValue(_expression.location(), true);
 }
 
-}
 }

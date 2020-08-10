@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimisation stage that removes unused variables and functions.
  */
@@ -26,7 +27,7 @@
 #include <map>
 #include <set>
 
-namespace yul
+namespace solidity::yul
 {
 struct Dialect;
 struct OptimiserStepContext;
@@ -35,7 +36,7 @@ struct OptimiserStepContext;
  * Optimisation stage that removes unreachable code
  *
  * Unreachable code is any code within a block which is preceded by a
- * return, invalid, break, continue, selfdestruct or revert.
+ * leave, return, invalid, break, continue, selfdestruct or revert.
  *
  * Function definitions are retained as they might be called by earlier
  * code and thus are considered reachable.

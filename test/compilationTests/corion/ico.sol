@@ -50,7 +50,7 @@ contract ico is safeMath {
     uint256 public totalMint;
     uint256 public totalPremiumMint;
 
-    constructor(address payable foundation, address priceSet, uint256 exchangeRate, uint256 startBlockNum, address[] memory genesisAddr, uint256[] memory genesisValue) public {
+    constructor(address payable foundation, address priceSet, uint256 exchangeRate, uint256 startBlockNum, address[] memory genesisAddr, uint256[] memory genesisValue) {
         /*
             Installation function.
 
@@ -275,7 +275,7 @@ contract ico is safeMath {
         require( msg.sender.send(_val) );
     }
 
-    function () external payable {
+    receive () external payable {
         /*
             Callback function. Simply calls the buy function as a beneficiary and there is no affiliate address.
             If they call the contract without any function then this process will be taken place.

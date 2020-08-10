@@ -14,29 +14,22 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * @author Christian <c@ethdev.com>
- * @date 2015
- * Parses and analyses the doc strings.
- * Stores the parsing results in the AST annotations and reports errors.
- */
+// SPDX-License-Identifier: GPL-3.0
 
 #pragma once
 
 #include <libsolidity/ast/ASTVisitor.h>
 
-namespace langutil
+namespace solidity::langutil
 {
 class ErrorReporter;
 }
 
-namespace dev
-{
-namespace solidity
+namespace solidity::frontend
 {
 
 /**
- * Parses and analyses the doc strings.
+ * Analyses and validates the doc strings.
  * Stores the parsing results in the AST annotations and reports errors.
  */
 class DocStringAnalyser: private ASTConstVisitor
@@ -46,6 +39,7 @@ public:
 	bool analyseDocStrings(SourceUnit const& _sourceUnit);
 
 private:
+<<<<<<< HEAD
 
 	virtual bool visit(ContractDefinition const& _contract) override;
 	virtual bool visit(FunctionDefinition const& _function) override;
@@ -53,36 +47,26 @@ private:
 	virtual bool visit(EventDefinition const& _event) override;
 	virtual bool visit(ForStatement const& _loop) override;
 	virtual bool visit(WhileStatement const& _loop) override;
+=======
+	bool visit(FunctionDefinition const& _function) override;
+	bool visit(VariableDeclaration const& _variable) override;
+	bool visit(ModifierDefinition const& _modifier) override;
+	bool visit(EventDefinition const& _event) override;
+>>>>>>> upstream/develop
 
-	void checkParameters(
-		CallableDeclaration const& _callable,
-		DocumentedAnnotation& _annotation
-	);
-
-	void handleConstructor(
-		CallableDeclaration const& _callable,
-		Documented const& _node,
-		DocumentedAnnotation& _annotation
+	CallableDeclaration const* resolveInheritDoc(
+		std::set<CallableDeclaration const*> const& _baseFunctions,
+		StructurallyDocumented const& _node,
+		StructurallyDocumentedAnnotation& _annotation
 	);
 
 	void handleCallable(
 		CallableDeclaration const& _callable,
-		Documented const& _node,
-		DocumentedAnnotation& _annotation
+		StructurallyDocumented const& _node,
+		StructurallyDocumentedAnnotation& _annotation
 	);
 
-	void parseDocStrings(
-		Documented const& _node,
-		DocumentedAnnotation& _annotation,
-		std::set<std::string> const& _validTags,
-		std::string const& _nodeName
-	);
-
-	void appendError(std::string const& _description);
-
-	bool m_errorOccured = false;
 	langutil::ErrorReporter& m_errorReporter;
 };
 
-}
 }

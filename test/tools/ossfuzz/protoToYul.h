@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #include <cstdint>
 #include <cstddef>
@@ -27,15 +28,13 @@
 
 #include <test/tools/ossfuzz/yulProto.pb.h>
 
-#include <libdevcore/Common.h>
-#include <libdevcore/FixedHash.h>
-#include <libdevcore/Whiskers.h>
+#include <libsolutil/Common.h>
+#include <libsolutil/FixedHash.h>
+#include <libsolutil/Whiskers.h>
 
-namespace yul
-{
-namespace test
-{
-namespace yul_fuzzer
+#include <liblangutil/EVMVersion.h>
+
+namespace solidity::yul::test::yul_fuzzer
 {
 class ProtoConverter
 {
@@ -46,22 +45,31 @@ public:
 		m_globalVars = std::vector<std::vector<std::string>>{};
 		m_inForBodyScope = false;
 		m_inForInitScope = false;
+		m_inForCond = false;
 		m_numNestedForLoops = 0;
+		m_numForLoops = 0;
 		m_counter = 0;
 		m_inputSize = 0;
 		m_inFunctionDef = false;
 		m_objectId = 0;
 		m_isObject = false;
+		m_forInitScopeExtEnabled = true;
 	}
 	ProtoConverter(ProtoConverter const&) = delete;
 	ProtoConverter(ProtoConverter&&) = delete;
 	std::string programToString(Program const& _input);
 
+	/// Returns evm version
+	solidity::langutil::EVMVersion version()
+	{
+		return m_evmVersion;
+	}
+
 private:
 	void visit(BinaryOp const&);
 
 	/// Visits a basic block optionally adding @a _funcParams to scope.
-	/// @param _block Reference to a basic block of yul statements.
+	/// @param _block Reference to a basic block of Yul statements.
 	/// @param _funcParams List of function parameter names, defaults to
 	/// an empty vector.
 	void visit(Block const& _block);
@@ -70,6 +78,7 @@ private:
 	void visit(VarRef const&);
 	void visit(Expression const&);
 	void visit(VarDecl const&);
+	void visit(MultiVarDecl const&);
 	void visit(TypedVarDecl const&);
 	void visit(UnaryOp const&);
 	void visit(AssignmentStatement const&);
@@ -92,6 +101,7 @@ private:
 	void visit(FunctionCall const&);
 	void visit(FunctionDef const&);
 	void visit(PopStmt const&);
+	void visit(LeaveStmt const&);
 	void visit(LowLevelCall const&);
 	void visit(Create const&);
 	void visit(UnaryOpData const&);
@@ -111,6 +121,8 @@ private:
 	void closeFunctionScope();
 	/// Adds @a _vars to current scope
 	void addVarsToScope(std::vector<std::string> const& _vars);
+	/// @returns number of variables that are in scope
+	unsigned numVarsInScope();
 
 	std::string createHex(std::string const& _hexBytes);
 
@@ -188,7 +200,7 @@ private:
 	/// false otherwise
 	bool functionValid(FunctionCall_Returns _type, unsigned _numOutParams);
 
-	/// Converts protobuf function call to a yul function call and appends
+	/// Converts protobuf function call to a Yul function call and appends
 	/// it to output stream.
 	/// @param _x Protobuf function call
 	/// @param _name Function name
@@ -202,7 +214,7 @@ private:
 		bool _newLine = true
 	);
 
-	/// Prints a yul formatted variable declaration statement to the output
+	/// Prints a Yul formatted variable declaration statement to the output
 	/// stream.
 	/// Example 1: createVarDecls(0, 1, true) returns {"x_0"} and prints
 	///		let x_0 :=
@@ -227,21 +239,26 @@ private:
 	/// @return A vector of strings containing the printed variable names.
 	std::vector<std::string> createVars(unsigned _startIdx, unsigned _endIdx);
 
-	/// Print the yul syntax to make a call to a function named @a _funcName to
+	/// Manages scope of Yul variables
+	/// @param _varNames is a list of Yul variable names whose scope needs
+	/// to be tracked according to Yul scoping rules.
+	void scopeVariables(std::vector<std::string> const& _varNames);
+
+	/// Print the Yul syntax to make a call to a function named @a _funcName to
 	/// the output stream.
 	/// @param _funcName Name of the function to be called
 	/// @param _numInParams Number of input parameters in function signature
 	/// @param _numOutParams Number of output parameters in function signature
 	void createFunctionCall(std::string _funcName, unsigned _numInParams, unsigned _numOutParams);
 
-	/// Print the yul syntax to pass input arguments to a function that has
+	/// Print the Yul syntax to pass input arguments to a function that has
 	/// @a _numInParams number of input parameters to the output stream.
 	/// The input arguments are pseudo-randomly chosen from calldata, memory,
-	/// storage, or the yul optimizer hex dictionary.
+	/// storage, or the Yul optimizer hex dictionary.
 	/// @param _numInParams Number of input arguments to fill
 	void fillFunctionCallInput(unsigned _numInParams);
 
-	/// Print the yul syntax to save values returned by a function call
+	/// Print the Yul syntax to save values returned by a function call
 	/// to the output stream. The values are either stored to memory or
 	/// storage based on a simulated coin flip. The saved location is
 	/// decided pseudo-randomly.
@@ -258,7 +275,7 @@ private:
 
 	/// Build a tree of objects that contains the object/data
 	/// identifiers that are in scope in a given object.
-	/// @param _x root object of the yul protobuf specification.
+	/// @param _x root object of the Yul protobuf specification.
 	void buildObjectScopeTree(Object const& _x);
 
 	/// Returns a pseudo-random dictionary token.
@@ -268,7 +285,11 @@ private:
 	///		index = (m_inputSize * m_inputSize + counter) % dictionarySize
 	/// where m_inputSize is the size of the protobuf input and
 	/// dictionarySize is the total number of entries in the dictionary.
-	std::string dictionaryToken(dev::HexPrefix _p = dev::HexPrefix::Add);
+	std::string dictionaryToken(util::HexPrefix _p = util::HexPrefix::Add);
+
+	/// Returns an EVMVersion object corresponding to the protobuf
+	/// enum of type Program_Version
+	solidity::langutil::EVMVersion evmVersionMapping(Program_Version const& _x);
 
 	/// Returns a monotonically increasing counter that starts from zero.
 	unsigned counter()
@@ -286,7 +307,7 @@ private:
 
 	/// Returns a pseudo-randomly chosen object identifier that is in the
 	/// scope of the Yul object being visited.
-	std::string getObjectIdentifier(ObjectId const& _x);
+	std::string getObjectIdentifier(unsigned _x);
 
 	/// Return new object identifier as string. Identifier string
 	/// is a template of the form "\"object<n>\"" where <n> is
@@ -295,7 +316,7 @@ private:
 	/// enclosed within double quotes.
 	std::string newObjectId(bool _decorate = true)
 	{
-		return dev::Whiskers(R"(<?decorate>"</decorate>object<id><?decorate>"</decorate>)")
+		return util::Whiskers(R"(<?decorate>"</decorate>object<id><?decorate>"</decorate>)")
 			("decorate", _decorate)
 			("id", std::to_string(m_objectId++))
 			.render();
@@ -317,31 +338,42 @@ private:
 	std::vector<std::string const*> m_currentGlobalVars;
 	/// Functions in current scope
 	std::vector<std::vector<std::string>> m_scopeFuncs;
-	/// Variables
+	/// Global variables
 	std::vector<std::vector<std::string>> m_globalVars;
-	/// Functions
+	/// Variables declared in for loop init block that is in global scope
+	std::vector<std::vector<std::string>> m_globalForLoopInitVars;
+	/// Variables declared in for loop init block that is in function scope
+	std::vector<std::vector<std::vector<std::string>>> m_funcForLoopInitVars;
+	/// Vector of function names
 	std::vector<std::string> m_functions;
 	/// Maps FunctionDef object to its name
 	std::map<FunctionDef const*, std::string> m_functionDefMap;
 	// Set that is used for deduplicating switch case literals
-	std::stack<std::set<dev::u256>> m_switchLiteralSetPerScope;
+	std::stack<std::set<u256>> m_switchLiteralSetPerScope;
 	// Look-up table per function type that holds the number of input (output) function parameters
 	std::map<std::string, std::pair<unsigned, unsigned>> m_functionSigMap;
-	/// Tree of objects and their scopes
-	std::vector<std::vector<std::string>> m_objectScopeTree;
+	/// Map of object name to list of sub-object namespace(s) in scope
+	std::map<std::string, std::vector<std::string>> m_objectScope;
 	// mod input/output parameters impose an upper bound on the number of input/output parameters a function may have.
 	static unsigned constexpr s_modInputParams = 5;
 	static unsigned constexpr s_modOutputParams = 5;
 	/// Hard-coded identifier for a Yul object's data block
 	static auto constexpr s_dataIdentifier = "datablock";
-	/// Predicate to keep track of for body scope. If true, break/continue
+	/// Predicate to keep track of for body scope. If false, break/continue
 	/// statements can not be created.
 	bool m_inForBodyScope;
+	/// Maximum number of for loops that a test case may contain
+	static auto constexpr s_maxForLoops = 2;
 	// Index used for naming loop variable of bounded for loops
 	unsigned m_numNestedForLoops;
+	/// Counter for number of for loops
+	unsigned m_numForLoops;
 	/// Predicate to keep track of for loop init scope. If true, variable
 	/// or function declarations can not be created.
 	bool m_inForInitScope;
+	/// Flag that is true while converting for loop condition,
+	/// false otherwise.
+	bool m_inForCond;
 	/// Monotonically increasing counter
 	unsigned m_counter;
 	/// Size of protobuf input
@@ -353,7 +385,10 @@ private:
 	/// Flag to track whether program is an object (true) or a statement block
 	/// (false: default value)
 	bool m_isObject;
+	/// Flag to track whether scope extension of variables defined in for-init
+	/// block is enabled.
+	bool m_forInitScopeExtEnabled;
+	/// Object that holds the targeted evm version specified by protobuf input
+	solidity::langutil::EVMVersion m_evmVersion;
 };
-}
-}
 }

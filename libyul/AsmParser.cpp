@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2016
@@ -24,7 +25,7 @@
 #include <libyul/Exceptions.h>
 #include <liblangutil/Scanner.h>
 #include <liblangutil/ErrorReporter.h>
-#include <libdevcore/Common.h>
+#include <libsolutil/Common.h>
 
 #include <boost/algorithm/string.hpp>
 
@@ -32,21 +33,22 @@
 #include <algorithm>
 
 using namespace std;
-using namespace dev;
-using namespace langutil;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::langutil;
+using namespace solidity::yul;
 
-shared_ptr<Block> Parser::parse(std::shared_ptr<Scanner> const& _scanner, bool _reuseScanner)
+unique_ptr<Block> Parser::parse(std::shared_ptr<Scanner> const& _scanner, bool _reuseScanner)
 {
 	m_recursionDepth = 0;
 
-	_scanner->supportPeriodInIdentifier(true);
-	ScopeGuard resetScanner([&]{ _scanner->supportPeriodInIdentifier(false); });
+	_scanner->setScannerMode(ScannerKind::Yul);
+	ScopeGuard resetScanner([&]{ _scanner->setScannerMode(ScannerKind::Solidity); });
 
 	try
 	{
 		m_scanner = _scanner;
-		auto block = make_shared<Block>(parseBlock());
+		auto block = make_unique<Block>(parseBlock());
 		if (!_reuseScanner)
 			expectToken(Token::EOS);
 		return block;
@@ -59,27 +61,6 @@ shared_ptr<Block> Parser::parse(std::shared_ptr<Scanner> const& _scanner, bool _
 	return nullptr;
 }
 
-std::map<string, dev::eth::Instruction> const& Parser::instructions()
-{
-	// Allowed instructions, lowercase names.
-	static map<string, dev::eth::Instruction> s_instructions;
-	if (s_instructions.empty())
-	{
-		for (auto const& instruction: dev::eth::c_instructions)
-		{
-			if (
-				instruction.second == dev::eth::Instruction::JUMPDEST ||
-				dev::eth::isPushInstruction(instruction.second)
-			)
-				continue;
-			string name = instruction.first;
-			transform(name.begin(), name.end(), name.begin(), [](unsigned char _c) { return tolower(_c); });
-			s_instructions[name] = instruction.second;
-		}
-	}
-	return s_instructions;
-}
-
 Block Parser::parseBlock()
 {
 	RecursionGuard recursionGuard(*this);
@@ -87,7 +68,7 @@ Block Parser::parseBlock()
 	expectToken(Token::LBrace);
 	while (currentToken() != Token::RBrace)
 		block.statements.emplace_back(parseStatement());
-	block.location.end = endPosition();
+	block.location.end = currentLocation().end;
 	advance();
 	return block;
 }
@@ -121,11 +102,11 @@ Statement Parser::parseStatement()
 		if (currentToken() == Token::Default)
 			_switch.cases.emplace_back(parseCase());
 		if (currentToken() == Token::Default)
-			fatalParserError("Only one default case allowed.");
+			fatalParserError(6931_error, "Only one default case allowed.");
 		else if (currentToken() == Token::Case)
-			fatalParserError("Case not allowed after default case.");
+			fatalParserError(4904_error, "Case not allowed after default case.");
 		if (_switch.cases.empty())
-			fatalParserError("Switch statement without any cases.");
+			fatalParserError(2418_error, "Switch statement without any cases.");
 		_switch.location.end = _switch.cases.back().body.location.end;
 		return Statement{move(_switch)};
 	}
@@ -145,23 +126,16 @@ Statement Parser::parseStatement()
 		m_scanner->next();
 		return stmt;
 	}
-	case Token::Assign:
-	{
-		if (m_dialect.flavour != AsmFlavour::Loose)
-			break;
-		StackAssignment assignment = createWithLocation<StackAssignment>();
-		advance();
-		expectToken(Token::Colon);
-		assignment.variableName.location = location();
-		assignment.variableName.name = YulString(currentLiteral());
-		if (m_dialect.builtin(assignment.variableName.name))
-			fatalParserError("Identifier expected, got builtin symbol.");
-		else if (instructions().count(assignment.variableName.name.str()))
-			fatalParserError("Identifier expected, got instruction name.");
-		assignment.location.end = endPosition();
-		expectToken(Token::Identifier);
-		return Statement{move(assignment)};
-	}
+	case Token::Identifier:
+		if (currentLiteral() == "leave")
+		{
+			Statement stmt{createWithLocation<Leave>()};
+			if (!m_insideFunction)
+				m_errorReporter.syntaxError(8149_error, currentLocation(), "Keyword \"leave\" can only be used inside a function.");
+			m_scanner->next();
+			return stmt;
+		}
+		break;
 	default:
 		break;
 	}
@@ -181,7 +155,8 @@ Statement Parser::parseStatement()
 	case Token::Comma:
 	case Token::AssemblyAssign:
 	{
-		std::vector<Identifier> variableNames;
+		Assignment assignment;
+		assignment.location = locationOf(elementary);
 
 		while (true)
 		{
@@ -190,6 +165,7 @@ Statement Parser::parseStatement()
 				auto const token = currentToken() == Token::Comma ? "," : ":=";
 
 				fatalParserError(
+					2856_error,
 					std::string("Variable name must precede \"") +
 					token +
 					"\"" +
@@ -200,9 +176,9 @@ Statement Parser::parseStatement()
 			auto const& identifier = std::get<Identifier>(elementary);
 
 			if (m_dialect.builtin(identifier.name))
-				fatalParserError("Cannot assign to builtin function \"" + identifier.name.str() + "\".");
+				fatalParserError(6272_error, "Cannot assign to builtin function \"" + identifier.name.str() + "\".");
 
-			variableNames.emplace_back(identifier);
+			assignment.variableNames.emplace_back(identifier);
 
 			if (currentToken() != Token::Comma)
 				break;
@@ -212,10 +188,6 @@ Statement Parser::parseStatement()
 			elementary = parseElementaryOperation();
 		}
 
-		Assignment assignment =
-			createWithLocation<Assignment>(std::get<Identifier>(elementary).location);
-		assignment.variableNames = std::move(variableNames);
-
 		expectToken(Token::AssemblyAssign);
 
 		assignment.value = make_unique<Expression>(parseExpression());
@@ -223,26 +195,8 @@ Statement Parser::parseStatement()
 
 		return Statement{std::move(assignment)};
 	}
-	case Token::Colon:
-	{
-		if (!holds_alternative<Identifier>(elementary))
-			fatalParserError("Label name must precede \":\".");
-
-		Identifier const& identifier = std::get<Identifier>(elementary);
-
-		advance();
-
-		// label
-		if (m_dialect.flavour != AsmFlavour::Loose)
-			fatalParserError("Labels are not supported.");
-
-		Label label = createWithLocation<Label>(identifier.location);
-		label.name = identifier.name;
-		return label;
-	}
 	default:
-		if (m_dialect.flavour != AsmFlavour::Loose)
-			fatalParserError("Call or assignment expected.");
+		fatalParserError(6913_error, "Call or assignment expected.");
 		break;
 	}
 
@@ -258,8 +212,8 @@ Statement Parser::parseStatement()
 	}
 	else
 	{
-		yulAssert(holds_alternative<Instruction>(elementary), "Invalid elementary operation.");
-		return std::get<Instruction>(elementary);
+		yulAssert(false, "Invalid elementary operation.");
+		return {};
 	}
 }
 
@@ -274,7 +228,7 @@ Case Parser::parseCase()
 		advance();
 		ElementaryOperation literal = parseElementaryOperation();
 		if (!holds_alternative<Literal>(literal))
-			fatalParserError("Literal expected.");
+			fatalParserError(4805_error, "Literal expected.");
 		_case.value = make_unique<Literal>(std::get<Literal>(std::move(literal)));
 	}
 	else
@@ -312,47 +266,8 @@ Expression Parser::parseExpression()
 	RecursionGuard recursionGuard(*this);
 
 	ElementaryOperation operation = parseElementaryOperation();
-	if (holds_alternative<FunctionCall>(operation))
+	if (holds_alternative<FunctionCall>(operation) || currentToken() == Token::LParen)
 		return parseCall(std::move(operation));
-	else if (holds_alternative<Instruction>(operation))
-	{
-		yulAssert(m_dialect.flavour == AsmFlavour::Loose, "");
-		Instruction const& instr = std::get<Instruction>(operation);
-		// Disallow instructions returning multiple values (and DUP/SWAP) as expression.
-		if (
-			instructionInfo(instr.instruction).ret != 1 ||
-			isDupInstruction(instr.instruction) ||
-			isSwapInstruction(instr.instruction)
-		)
-			fatalParserError(
-				"Instruction \"" +
-				instructionNames().at(instr.instruction) +
-				"\" not allowed in this context."
-			);
-		if (m_dialect.flavour != AsmFlavour::Loose && currentToken() != Token::LParen)
-			fatalParserError(
-				"Non-functional instructions are not allowed in this context."
-			);
-		// Enforce functional notation for instructions requiring multiple arguments.
-		int args = instructionInfo(instr.instruction).args;
-		if (args > 0 && currentToken() != Token::LParen)
-			fatalParserError(string(
-				"Expected '(' (instruction \"" +
-				instructionNames().at(instr.instruction) +
-				"\" expects " +
-				to_string(args) +
-				" arguments)"
-			));
-	}
-	if (currentToken() == Token::LParen)
-		return parseCall(std::move(operation));
-	else if (holds_alternative<Instruction>(operation))
-	{
-		// Instructions not taking arguments are allowed as expressions.
-		yulAssert(m_dialect.flavour == AsmFlavour::Loose, "");
-		Instruction& instr = std::get<Instruction>(operation);
-		return FunctionalInstruction{std::move(instr.location), instr.instruction, {}};
-	}
 	else if (holds_alternative<Identifier>(operation))
 		return std::get<Identifier>(operation);
 	else
@@ -360,20 +275,6 @@ Expression Parser::parseExpression()
 		yulAssert(holds_alternative<Literal>(operation), "");
 		return std::get<Literal>(operation);
 	}
-}
-
-std::map<dev::eth::Instruction, string> const& Parser::instructionNames()
-{
-	static map<dev::eth::Instruction, string> s_instructionNames;
-	if (s_instructionNames.empty())
-	{
-		for (auto const& instr: instructions())
-			s_instructionNames[instr.second] = instr.first;
-		// set the ambiguous instructions to a clear default
-		s_instructionNames[dev::eth::Instruction::SELFDESTRUCT] = "selfdestruct";
-		s_instructionNames[dev::eth::Instruction::KECCAK256] = "keccak256";
-	}
-	return s_instructionNames;
 }
 
 Parser::ElementaryOperation Parser::parseElementaryOperation()
@@ -387,31 +288,19 @@ Parser::ElementaryOperation Parser::parseElementaryOperation()
 	case Token::Byte:
 	case Token::Bool:
 	case Token::Address:
+	case Token::Var:
+	case Token::In:
 	{
 		YulString literal{currentLiteral()};
-		// first search the set of builtins, then the instructions.
 		if (m_dialect.builtin(literal))
 		{
-			Identifier identifier{location(), literal};
+			Identifier identifier{currentLocation(), literal};
 			advance();
-			// If the builtin is not followed by `(` and we are in loose mode,
-			// fall back to instruction.
-			if (
-				m_dialect.flavour == AsmFlavour::Loose &&
-				instructions().count(identifier.name.str()) &&
-				m_scanner->currentToken() != Token::LParen
-			)
-				return Instruction{identifier.location, instructions().at(identifier.name.str())};
-			else
-				return FunctionCall{identifier.location, identifier, {}};
-		}
-		else if (m_dialect.flavour == AsmFlavour::Loose && instructions().count(literal.str()))
-		{
-			dev::eth::Instruction const& instr = instructions().at(literal.str());
-			ret = Instruction{location(), instr};
+			expectToken(Token::LParen, false);
+			return FunctionCall{identifier.location, identifier, {}};
 		}
 		else
-			ret = Identifier{location(), literal};
+			ret = Identifier{currentLocation(), literal};
 		advance();
 		break;
 	}
@@ -428,7 +317,7 @@ Parser::ElementaryOperation Parser::parseElementaryOperation()
 			break;
 		case Token::Number:
 			if (!isValidNumberLiteral(currentLiteral()))
-				fatalParserError("Invalid number literal.");
+				fatalParserError(4828_error, "Invalid number literal.");
 			kind = LiteralKind::Number;
 			break;
 		case Token::TrueLiteral:
@@ -440,29 +329,24 @@ Parser::ElementaryOperation Parser::parseElementaryOperation()
 		}
 
 		Literal literal{
-			location(),
+			currentLocation(),
 			kind,
 			YulString{currentLiteral()},
-			{}
+			kind == LiteralKind::Boolean ? m_dialect.boolType : m_dialect.defaultType
 		};
 		advance();
-		if (m_dialect.flavour == AsmFlavour::Yul)
+		if (currentToken() == Token::Colon)
 		{
 			expectToken(Token::Colon);
-			literal.location.end = endPosition();
+			literal.location.end = currentLocation().end;
 			literal.type = expectAsmIdentifier();
 		}
-		else if (kind == LiteralKind::Boolean)
-			fatalParserError("True and false are not valid literals.");
+
 		ret = std::move(literal);
 		break;
 	}
 	default:
-		fatalParserError(
-			m_dialect.flavour == AsmFlavour::Yul ?
-			"Literal or identifier expected." :
-			"Literal, identifier or instruction expected."
-		);
+		fatalParserError(1856_error, "Literal or identifier expected.");
 	}
 	return ret;
 }
@@ -497,7 +381,8 @@ FunctionDefinition Parser::parseFunctionDefinition()
 
 	if (m_currentForLoopComponent == ForLoopComponent::ForLoopPre)
 		m_errorReporter.syntaxError(
-			location(),
+			3441_error,
+			currentLocation(),
 			"Functions cannot be defined inside a for-loop init block."
 		);
 
@@ -528,7 +413,10 @@ FunctionDefinition Parser::parseFunctionDefinition()
 			expectToken(Token::Comma);
 		}
 	}
+	bool preInsideFunction = m_insideFunction;
+	m_insideFunction = true;
 	funDef.body = parseBlock();
+	m_insideFunction = preInsideFunction;
 	funDef.location.end = funDef.body.location.end;
 
 	m_currentForLoopComponent = outerForLoopComponent;
@@ -538,92 +426,31 @@ FunctionDefinition Parser::parseFunctionDefinition()
 Expression Parser::parseCall(Parser::ElementaryOperation&& _initialOp)
 {
 	RecursionGuard recursionGuard(*this);
-	if (holds_alternative<Instruction>(_initialOp))
-	{
-		yulAssert(m_dialect.flavour != AsmFlavour::Yul, "Instructions are invalid in Yul");
-		Instruction& instruction = std::get<Instruction>(_initialOp);
-		FunctionalInstruction ret;
-		ret.instruction = instruction.instruction;
-		ret.location = std::move(instruction.location);
-		dev::eth::Instruction instr = ret.instruction;
-		dev::eth::InstructionInfo instrInfo = instructionInfo(instr);
-		if (dev::eth::isDupInstruction(instr))
-			fatalParserError("DUPi instructions not allowed for functional notation");
-		if (dev::eth::isSwapInstruction(instr))
-			fatalParserError("SWAPi instructions not allowed for functional notation");
-		expectToken(Token::LParen);
-		unsigned args = unsigned(instrInfo.args);
-		for (unsigned i = 0; i < args; ++i)
-		{
-			/// check for premature closing parentheses
-			if (currentToken() == Token::RParen)
-				fatalParserError(string(
-					"Expected expression (instruction \"" +
-					instructionNames().at(instr) +
-					"\" expects " +
-					to_string(args) +
-					" arguments)"
-				));
 
-			ret.arguments.emplace_back(parseExpression());
-			if (i != args - 1)
-			{
-				if (currentToken() != Token::Comma)
-					fatalParserError(string(
-						"Expected ',' (instruction \"" +
-						instructionNames().at(instr) +
-						"\" expects " +
-						to_string(args) +
-						" arguments)"
-					));
-				else
-					advance();
-			}
-		}
-		ret.location.end = endPosition();
-		if (currentToken() == Token::Comma)
-			fatalParserError(string(
-				"Expected ')' (instruction \"" +
-				instructionNames().at(instr) +
-				"\" expects " +
-				to_string(args) +
-				" arguments)"
-			));
-		expectToken(Token::RParen);
-		return ret;
-	}
-	else if (holds_alternative<Identifier>(_initialOp) || holds_alternative<FunctionCall>(_initialOp))
+	FunctionCall ret;
+	if (holds_alternative<Identifier>(_initialOp))
 	{
-		FunctionCall ret;
-		if (holds_alternative<Identifier>(_initialOp))
-		{
-			ret.functionName = std::move(std::get<Identifier>(_initialOp));
-			ret.location = ret.functionName.location;
-		}
-		else
-			ret = std::move(std::get<FunctionCall>(_initialOp));
-		expectToken(Token::LParen);
-		if (currentToken() != Token::RParen)
-		{
-			ret.arguments.emplace_back(parseExpression());
-			while (currentToken() != Token::RParen)
-			{
-				expectToken(Token::Comma);
-				ret.arguments.emplace_back(parseExpression());
-			}
-		}
-		ret.location.end = endPosition();
-		expectToken(Token::RParen);
-		return ret;
+		ret.functionName = std::move(std::get<Identifier>(_initialOp));
+		ret.location = ret.functionName.location;
 	}
+	else if (holds_alternative<FunctionCall>(_initialOp))
+		ret = std::move(std::get<FunctionCall>(_initialOp));
 	else
-		fatalParserError(
-			m_dialect.flavour == AsmFlavour::Yul ?
-			"Function name expected." :
-			"Assembly instruction or function name required in front of \"(\")"
-		);
+		fatalParserError(9980_error, "Function name expected.");
 
-	return {};
+	expectToken(Token::LParen);
+	if (currentToken() != Token::RParen)
+	{
+		ret.arguments.emplace_back(parseExpression());
+		while (currentToken() != Token::RParen)
+		{
+			expectToken(Token::Comma);
+			ret.arguments.emplace_back(parseExpression());
+		}
+	}
+	ret.location.end = currentLocation().end;
+	expectToken(Token::RParen);
+	return ret;
 }
 
 TypedName Parser::parseTypedName()
@@ -631,12 +458,15 @@ TypedName Parser::parseTypedName()
 	RecursionGuard recursionGuard(*this);
 	TypedName typedName = createWithLocation<TypedName>();
 	typedName.name = expectAsmIdentifier();
-	if (m_dialect.flavour == AsmFlavour::Yul)
+	if (currentToken() == Token::Colon)
 	{
 		expectToken(Token::Colon);
-		typedName.location.end = endPosition();
+		typedName.location.end = currentLocation().end;
 		typedName.type = expectAsmIdentifier();
 	}
+	else
+		typedName.type = m_dialect.defaultType;
+
 	return typedName;
 }
 
@@ -650,6 +480,8 @@ YulString Parser::expectAsmIdentifier()
 	case Token::Address:
 	case Token::Bool:
 	case Token::Identifier:
+	case Token::Var:
+	case Token::In:
 		break;
 	default:
 		expectToken(Token::Identifier);
@@ -657,9 +489,7 @@ YulString Parser::expectAsmIdentifier()
 	}
 
 	if (m_dialect.builtin(name))
-		fatalParserError("Cannot use builtin function name \"" + name.str() + "\" as identifier name.");
-	else if (m_dialect.flavour == AsmFlavour::Loose && instructions().count(name.str()))
-		fatalParserError("Cannot use instruction name \"" + name.str() + "\" as identifier name.");
+		fatalParserError(5568_error, "Cannot use builtin function name \"" + name.str() + "\" as identifier name.");
 	advance();
 	return name;
 }
@@ -669,13 +499,13 @@ void Parser::checkBreakContinuePosition(string const& _which)
 	switch (m_currentForLoopComponent)
 	{
 	case ForLoopComponent::None:
-		m_errorReporter.syntaxError(location(), "Keyword \"" + _which + "\" needs to be inside a for-loop body.");
+		m_errorReporter.syntaxError(2592_error, currentLocation(), "Keyword \"" + _which + "\" needs to be inside a for-loop body.");
 		break;
 	case ForLoopComponent::ForLoopPre:
-		m_errorReporter.syntaxError(location(), "Keyword \"" + _which + "\" in for-loop init block is not allowed.");
+		m_errorReporter.syntaxError(9615_error, currentLocation(), "Keyword \"" + _which + "\" in for-loop init block is not allowed.");
 		break;
 	case ForLoopComponent::ForLoopPost:
-		m_errorReporter.syntaxError(location(), "Keyword \"" + _which + "\" in for-loop post block is not allowed.");
+		m_errorReporter.syntaxError(2461_error, currentLocation(), "Keyword \"" + _which + "\" in for-loop post block is not allowed.");
 		break;
 	case ForLoopComponent::ForLoopBody:
 		break;
@@ -687,8 +517,7 @@ bool Parser::isValidNumberLiteral(string const& _literal)
 	try
 	{
 		// Try to convert _literal to u256.
-		auto tmp = u256(_literal);
-		(void) tmp;
+		[[maybe_unused]] auto tmp = u256(_literal);
 	}
 	catch (...)
 	{

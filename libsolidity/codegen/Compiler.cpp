@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2014
@@ -26,8 +27,8 @@
 #include <libevmasm/Assembly.h>
 
 using namespace std;
-using namespace dev;
-using namespace dev::solidity;
+using namespace solidity;
+using namespace solidity::frontend;
 
 void Compiler::compileContract(
 	ContractDefinition const& _contract,
@@ -49,15 +50,18 @@ void Compiler::compileContract(
 	m_runtimeSub = creationCompiler.compileConstructor(_contract, _otherCompilers);
 
 	m_context.optimise(m_optimiserSettings);
+
+	solAssert(m_context.requestedYulFunctionsRan(), "requestedYulFunctions() was not called.");
+	solAssert(m_runtimeContext.requestedYulFunctionsRan(), "requestedYulFunctions() was not called.");
 }
 
-std::shared_ptr<eth::Assembly> Compiler::runtimeAssemblyPtr() const
+std::shared_ptr<evmasm::Assembly> Compiler::runtimeAssemblyPtr() const
 {
 	solAssert(m_context.runtimeContext(), "");
 	return m_context.runtimeContext()->assemblyPtr();
 }
 
-eth::AssemblyItem Compiler::functionEntryLabel(FunctionDefinition const& _function) const
+evmasm::AssemblyItem Compiler::functionEntryLabel(FunctionDefinition const& _function) const
 {
 	return m_runtimeContext.functionEntryLabelIfExists(_function);
 }

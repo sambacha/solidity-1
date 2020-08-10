@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * EVM execution host, i.e. component that implements a simulated Ethereum blockchain
  * for testing purposes.
@@ -27,13 +28,11 @@
 
 #include <liblangutil/EVMVersion.h>
 
-#include <libdevcore/FixedHash.h>
+#include <libsolutil/FixedHash.h>
 
-namespace dev
+namespace solidity::test
 {
-namespace test
-{
-using Address = h160;
+using Address = util::h160;
 
 class EVMHost: public evmc::MockedHost
 {
@@ -69,8 +68,8 @@ public:
 
 	static Address convertFromEVMC(evmc::address const& _addr);
 	static evmc::address convertToEVMC(Address const& _addr);
-	static h256 convertFromEVMC(evmc::bytes32 const& _data);
-	static evmc::bytes32 convertToEVMC(h256 const& _data);
+	static util::h256 convertFromEVMC(evmc::bytes32 const& _data);
+	static evmc::bytes32 convertToEVMC(util::h256 const& _data);
 
 private:
 	evmc::address m_currentAddress = {};
@@ -96,5 +95,4 @@ private:
 };
 
 
-}
 }

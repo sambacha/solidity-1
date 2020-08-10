@@ -19,7 +19,7 @@
  * Unit tests for the Yul object parser.
  */
 
-#include <test/Options.h>
+#include <test/Common.h>
 
 #include <test/libsolidity/ErrorCheck.h>
 
@@ -28,17 +28,17 @@
 #include <libsolidity/interface/OptimiserSettings.h>
 
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/test/unit_test.hpp>
 
 #include <memory>
 #include <optional>
 #include <string>
 
 using namespace std;
-using namespace langutil;
+using namespace solidity::frontend;
+using namespace solidity::langutil;
 
-namespace yul
-{
-namespace test
+namespace solidity::yul::test
 {
 
 namespace
@@ -49,9 +49,9 @@ std::pair<bool, ErrorList> parse(string const& _source)
 	try
 	{
 		AssemblyStack asmStack(
-			dev::test::Options::get().evmVersion(),
+			solidity::test::CommonOptions::get().evmVersion(),
 			AssemblyStack::Language::StrictAssembly,
-			dev::solidity::OptimiserSettings::none()
+			solidity::frontend::OptimiserSettings::none()
 		);
 		bool success = asmStack.parseAndAnalyze("source", _source);
 		return {success, asmStack.errors()};
@@ -108,7 +108,7 @@ do \
 { \
 	Error err = expectError((text), false); \
 	BOOST_CHECK(err.type() == (Error::Type::typ)); \
-	BOOST_CHECK(dev::solidity::searchErrorMessage(err, (substring))); \
+	BOOST_CHECK(::solidity::frontend::test::searchErrorMessage(err, (substring))); \
 } while(0)
 
 BOOST_AUTO_TEST_SUITE(YulObjectParser)
@@ -116,21 +116,6 @@ BOOST_AUTO_TEST_SUITE(YulObjectParser)
 BOOST_AUTO_TEST_CASE(empty_code)
 {
 	BOOST_CHECK(successParse("{ }"));
-}
-
-BOOST_AUTO_TEST_CASE(object_with_empty_code)
-{
-	BOOST_CHECK(successParse("object \"a\" { code { } }"));
-}
-
-BOOST_AUTO_TEST_CASE(non_object)
-{
-	CHECK_ERROR("code {}", ParserError, "Expected keyword \"object\"");
-}
-
-BOOST_AUTO_TEST_CASE(empty_name)
-{
-	CHECK_ERROR("object \"\" { code {} }", ParserError, "Object name cannot be empty");
 }
 
 BOOST_AUTO_TEST_CASE(recursion_depth)
@@ -142,77 +127,6 @@ BOOST_AUTO_TEST_CASE(recursion_depth)
 		input += "}";
 
 	CHECK_ERROR(input, ParserError, "recursion");
-}
-
-BOOST_AUTO_TEST_CASE(object_with_code)
-{
-	BOOST_CHECK(successParse("object \"a\" { code { let x := mload(0) sstore(0, x) } }"));
-}
-
-BOOST_AUTO_TEST_CASE(object_with_code_and_data)
-{
-	BOOST_CHECK(successParse("object \"a\" { code { let x := mload(0) sstore(0, x) } data \"b\" hex\"01010202\" }"));
-}
-
-BOOST_AUTO_TEST_CASE(object_with_non_code_at_start)
-{
-	CHECK_ERROR("object \"a\" { data \"d\" hex\"0102\" code {  } }", ParserError, "Expected keyword \"code\"");
-}
-
-BOOST_AUTO_TEST_CASE(nested_object)
-{
-	string code = R"(
-		object "outer" {
-			code { let x := mload(0) }
-			data "x" "stringdata"
-			object "inner" {
-				code { mstore(0, 1) }
-				object "inner inner" { code {} }
-				data "innerx" "abc"
-				data "innery" "def"
-			}
-		}
-	)";
-	BOOST_CHECK(successParse(code));
-}
-
-BOOST_AUTO_TEST_CASE(incomplete)
-{
-	CHECK_ERROR("object \"abc\" { code {} } object", ParserError, "Expected end of source");
-}
-
-BOOST_AUTO_TEST_CASE(reuse_object_name)
-{
-	string code = R"(
-		object "outer" {
-			code { }
-			data "outer" "stringdata"
-		}
-	)";
-	CHECK_ERROR(code, ParserError, "Object name cannot be the same as the name of the containing object");
-}
-
-BOOST_AUTO_TEST_CASE(reuse_object_in_subobject)
-{
-	string code = R"(
-		object "outer" {
-			code { }
-			object "outer" { code {} }
-		}
-	)";
-	CHECK_ERROR(code, ParserError, "Object name cannot be the same as the name of the containing object");
-}
-
-BOOST_AUTO_TEST_CASE(reuse_object_of_sibling)
-{
-	string code = R"(
-		object "O" {
-			code { }
-			object "i" { code {} }
-			data "i" "abc"
-		}
-	)";
-	CHECK_ERROR(code, ParserError, "already exists inside the");
 }
 
 BOOST_AUTO_TEST_CASE(to_string)
@@ -240,58 +154,14 @@ BOOST_AUTO_TEST_CASE(to_string)
 )";
 	expectation = boost::replace_all_copy(expectation, "\t", "    ");
 	AssemblyStack asmStack(
-		dev::test::Options::get().evmVersion(),
+		solidity::test::CommonOptions::get().evmVersion(),
 		AssemblyStack::Language::StrictAssembly,
-		dev::solidity::OptimiserSettings::none()
+		solidity::frontend::OptimiserSettings::none()
 	);
 	BOOST_REQUIRE(asmStack.parseAndAnalyze("source", code));
 	BOOST_CHECK_EQUAL(asmStack.print(), expectation);
 }
 
-BOOST_AUTO_TEST_CASE(arg_to_dataoffset_must_be_literal)
-{
-	string code = R"(
-		object "outer" {
-			code { let x := "outer" let y := dataoffset(x) }
-		}
-	)";
-	CHECK_ERROR(code, TypeError, "Function expects direct literals as arguments.");
-}
-
-BOOST_AUTO_TEST_CASE(arg_to_datasize_must_be_literal)
-{
-	string code = R"(
-		object "outer" {
-			code { let x := "outer" let y := datasize(x) }
-		}
-	)";
-	CHECK_ERROR(code, TypeError, "Function expects direct literals as arguments.");
-}
-
-BOOST_AUTO_TEST_CASE(args_to_datacopy_are_arbitrary)
-{
-	string code = R"(
-		object "outer" {
-			code { let x := 0 let y := 2 let s := 3 datacopy(x, y, s) }
-		}
-	)";
-	BOOST_CHECK(successParse(code));
-}
-
-
-BOOST_AUTO_TEST_CASE(non_existing_objects)
-{
-	BOOST_CHECK(successParse(
-		"object \"main\" { code { pop(datasize(\"main\")) } }"
-	));
-	CHECK_ERROR(
-		"object \"main\" { code { pop(datasize(\"abc\")) } }",
-		TypeError,
-		"Unknown data object"
-	);
-}
-
 BOOST_AUTO_TEST_SUITE_END()
 
-}
 }

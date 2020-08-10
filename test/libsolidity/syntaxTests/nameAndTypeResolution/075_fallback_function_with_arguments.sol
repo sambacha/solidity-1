@@ -1,6 +1,6 @@
 contract C {
     uint x;
-    function(uint a) external { x = 2; }
+    fallback(uint a) external { x = 2; }
 }
 // ----
-// TypeError: (37-45): Fallback function cannot take parameters.
+// TypeError 3978: (37-45): Fallback function cannot take parameters.

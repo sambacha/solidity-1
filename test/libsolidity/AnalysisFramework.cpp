@@ -14,13 +14,14 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Framework for testing features from the analysis phase of compiler.
  */
 
 #include <test/libsolidity/AnalysisFramework.h>
 
-#include <test/Options.h>
+#include <test/Common.h>
 
 #include <libsolidity/interface/CompilerStack.h>
 #include <liblangutil/SourceReferenceFormatter.h>
@@ -29,28 +30,33 @@
 
 #include <liblangutil/Scanner.h>
 
-#include <libdevcore/Keccak256.h>
+#include <libsolutil/Keccak256.h>
 
 #include <boost/test/unit_test.hpp>
 
 using namespace std;
-using namespace dev;
-using namespace langutil;
-using namespace dev::solidity;
-using namespace dev::solidity::test;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::langutil;
+using namespace solidity::frontend;
+using namespace solidity::frontend::test;
 
 pair<SourceUnit const*, ErrorList>
 AnalysisFramework::parseAnalyseAndReturnError(
 	string const& _source,
 	bool _reportWarnings,
-	bool _insertVersionPragma,
+	bool _insertLicenseAndVersionPragma,
 	bool _allowMultipleErrors,
 	bool _allowRecoveryErrors
 )
 {
 	compiler().reset();
-	compiler().setSources({{"", _insertVersionPragma ? "pragma solidity >=0.0;\n" + _source : _source}});
-	compiler().setEVMVersion(dev::test::Options::get().evmVersion());
+	compiler().setSources({{"",
+		_insertLicenseAndVersionPragma ?
+		"pragma solidity >=0.0;\n// SPDX-License-Identifier: GPL-3.0\n" + _source :
+		_source
+	}});
+	compiler().setEVMVersion(solidity::test::CommonOptions::get().evmVersion());
 	compiler().setParserErrorRecovery(_allowRecoveryErrors);
 	_allowMultipleErrors = _allowMultipleErrors || _allowRecoveryErrors;
 	if (!compiler().parse())
@@ -147,6 +153,6 @@ FunctionTypePointer AnalysisFramework::retrieveFunctionBySignature(
 	std::string const& _signature
 )
 {
-	FixedHash<4> hash(dev::keccak256(_signature));
+	FixedHash<4> hash(util::keccak256(_signature));
 	return _contract.interfaceFunctions()[hash];
 }

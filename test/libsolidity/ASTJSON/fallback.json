@@ -12,10 +12,10 @@
   "nodes":
   [
     {
+      "abstract": false,
       "baseContracts": [],
       "contractDependencies": [],
       "contractKind": "contract",
-      "documentation": null,
       "fullyImplemented": true,
       "id": 5,
       "linearizedBaseContracts":
@@ -34,7 +34,6 @@
             "src": "43:5:1",
             "statements": []
           },
-          "documentation": null,
           "id": 4,
           "implemented": true,
           "kind": "fallback",
@@ -58,7 +57,7 @@
           "scope": 5,
           "src": "15:33:1",
           "stateMutability": "payable",
-          "superFunction": null,
+          "virtual": false,
           "visibility": "external"
         }
       ],

@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2014
@@ -25,8 +26,9 @@
 #include <liblangutil/Exceptions.h>
 
 using namespace std;
-using namespace dev;
-using namespace langutil;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::langutil;
 
 void SourceReferenceFormatter::printSourceLocation(SourceLocation const* _location)
 {
@@ -50,7 +52,7 @@ void SourceReferenceFormatter::printSourceLocation(SourceReference const& _ref)
 		);
 		m_stream << "^";
 		if (_ref.endColumn > _ref.startColumn + 2)
-			m_stream << string(_ref.endColumn - _ref.startColumn - 2, '-');
+			m_stream << string(static_cast<size_t>(_ref.endColumn - _ref.startColumn - 2), '-');
 		if (_ref.endColumn > _ref.startColumn + 1)
 			m_stream << "^";
 		m_stream << endl;
@@ -59,7 +61,7 @@ void SourceReferenceFormatter::printSourceLocation(SourceReference const& _ref)
 		m_stream <<
 			_ref.text <<
 			endl <<
-			string(_ref.startColumn, ' ') <<
+			string(static_cast<size_t>(_ref.startColumn), ' ') <<
 			"^ (Relevant source part starts here and spans across multiple lines)." <<
 			endl;
 }
@@ -68,19 +70,18 @@ void SourceReferenceFormatter::printSourceName(SourceReference const& _ref)
 {
 	if (_ref.position.line != -1)
 		m_stream << _ref.sourceName << ":" << (_ref.position.line + 1) << ":" << (_ref.position.column + 1) << ": ";
+	else if (!_ref.sourceName.empty())
+		m_stream << _ref.sourceName << ": ";
 }
 
-void SourceReferenceFormatter::printExceptionInformation(dev::Exception const& _exception, std::string const& _category)
+void SourceReferenceFormatter::printExceptionInformation(util::Exception const& _exception, std::string const& _category)
 {
 	printExceptionInformation(SourceReferenceExtractor::extract(_exception, _category));
 }
 
 void SourceReferenceFormatter::printErrorInformation(Error const& _error)
 {
-	printExceptionInformation(
-		_error,
-		(_error.type() == Error::Type::Warning) ? "Warning" : "Error"
-	);
+	printExceptionInformation(SourceReferenceExtractor::extract(_error));
 }
 
 void SourceReferenceFormatter::printExceptionInformation(SourceReferenceExtractor::Message const& _msg)

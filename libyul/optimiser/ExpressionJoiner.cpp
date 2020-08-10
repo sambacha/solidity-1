@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimiser component that undoes what the ExpressionSplitter did, i.e.
  * it more or less inlines variable declarations.
@@ -26,24 +27,19 @@
 #include <libyul/Exceptions.h>
 #include <libyul/AsmData.h>
 
-#include <libdevcore/CommonData.h>
+#include <libsolutil/CommonData.h>
 
 #include <boost/range/adaptor/reversed.hpp>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
 
 void ExpressionJoiner::run(OptimiserStepContext&, Block& _ast)
 {
 	ExpressionJoiner{_ast}(_ast);
 }
 
-
-void ExpressionJoiner::operator()(FunctionalInstruction& _instruction)
-{
-	handleArguments(_instruction.arguments);
-}
 
 void ExpressionJoiner::operator()(FunctionCall& _funCall)
 {
@@ -124,7 +120,7 @@ void ExpressionJoiner::decrementLatestStatementPointer()
 void ExpressionJoiner::resetLatestStatementPointer()
 {
 	m_currentBlock = nullptr;
-	m_latestStatementInBlock = size_t(-1);
+	m_latestStatementInBlock = numeric_limits<size_t>::max();
 }
 
 Statement* ExpressionJoiner::latestStatement()

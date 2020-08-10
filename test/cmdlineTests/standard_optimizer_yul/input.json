@@ -4,14 +4,13 @@
 	{
 		"A":
 		{
-			"content": "pragma solidity >=0.0; contract C { function f() public pure {} }"
+			"content": "//SPDX-License-Identifier: GPL-3.0\npragma solidity >=0.0; contract C { function f() public pure {} }"
 		}
 	},
 	"settings":
 	{
 		"optimizer": {
-			"enabled": true,
-			"details": { "yul": true }
+			"enabled": true
 		}
 	}
 }

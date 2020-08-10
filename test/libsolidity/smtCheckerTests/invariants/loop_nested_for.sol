@@ -12,3 +12,4 @@ contract Simple {
 		assert(y == x);
 	}
 }
+// ----

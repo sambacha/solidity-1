@@ -1,9 +1,9 @@
 contract C {
     function f() public pure {
         assembly {
-            _slot
+            let x := .slot
         }
     }
 }
 // ----
-// DeclarationError: (75-80): In variable names _slot and _offset can only be used as a suffix.
+// ParserError 1856: (84-85): Literal or identifier expected.

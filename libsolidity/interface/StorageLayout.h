@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Generates the storage layout of a contract.
  */
@@ -25,9 +26,7 @@
 
 #include <json/json.h>
 
-namespace dev
-{
-namespace solidity
+namespace solidity::frontend
 {
 
 class StorageLayout
@@ -54,5 +53,4 @@ private:
 	ContractDefinition const* m_contract = nullptr;
 };
 
-}
 }

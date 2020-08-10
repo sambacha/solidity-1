@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Base class to perform data flow analysis during AST walks.
  * Tracks assignments and is used as base class for both Rematerialiser and
@@ -31,15 +32,23 @@
 // TODO avoid
 #include <libevmasm/Instruction.h>
 
-#include <libdevcore/InvertibleMap.h>
+#include <libsolutil/InvertibleMap.h>
 
 #include <map>
 #include <set>
 
-namespace yul
+namespace solidity::yul
 {
 struct Dialect;
 struct SideEffects;
+
+/// Value assigned to a variable.
+struct AssignedValue
+{
+	Expression const* value{nullptr};
+	/// Loop nesting depth of the definition of the variable.
+	size_t loopDepth{0};
+};
 
 /**
  * Base class to perform data flow analysis during AST walks.
@@ -63,6 +72,10 @@ struct SideEffects;
  * This works also for memory (where addresses overlap) because one branch is always an
  * older version of the other and thus overlapping contents would have been deleted already
  * at the point of assignment.
+ *
+ * The DataFlowAnalyzer currently does not deal with the ``leave`` statement. This is because
+ * it only matters at the end of a function body, which is a point in the code a derived class
+ * can not easily deal with.
  *
  * Prerequisite: Disambiguator, ForLoopInitRewriter.
  */
@@ -106,6 +119,8 @@ protected:
 	/// for example at points where control flow is merged.
 	void clearValues(std::set<YulString> _names);
 
+	void assignValue(YulString _variable, Expression const* _value);
+
 	/// Clears knowledge about storage or memory if they may be modified inside the block.
 	void clearKnowledgeIfInvalidated(Block const& _block);
 
@@ -128,9 +143,18 @@ protected:
 	/// Returns true iff the variable is in scope.
 	bool inScope(YulString _variableName) const;
 
+	/// Checks if the statement is sstore(a, b) / mstore(a, b)
+	/// where a and b are variables and returns these variables in that case.
 	std::optional<std::pair<YulString, YulString>> isSimpleStore(
-		dev::eth::Instruction _store,
+		evmasm::Instruction _store,
 		ExpressionStatement const& _statement
+	) const;
+
+	/// Checks if the expression is sload(a) / mload(a)
+	/// where a is a variable and returns the variable in that case.
+	std::optional<YulString> isSimpleLoad(
+		evmasm::Instruction _load,
+		Expression const& _expression
 	) const;
 
 	Dialect const& m_dialect;
@@ -139,7 +163,7 @@ protected:
 	std::map<YulString, SideEffects> m_functionSideEffects;
 
 	/// Current values of variables, always movable.
-	std::map<YulString, Expression const*> m_value;
+	std::map<YulString, AssignedValue> m_value;
 	/// m_references.forward[a].contains(b) <=> the current expression assigned to a references b
 	/// m_references.backward[b].contains(a) <=> the current expression assigned to a references b
 	InvertibleRelation<YulString> m_references;
@@ -148,6 +172,9 @@ protected:
 	InvertibleMap<YulString, YulString> m_memory;
 
 	KnowledgeBase m_knowledgeBase;
+
+	/// Current nesting depth of loops.
+	size_t m_loopDepth{0};
 
 	struct Scope
 	{

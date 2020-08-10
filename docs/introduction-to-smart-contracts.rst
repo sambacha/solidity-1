@@ -17,7 +17,8 @@ Storage Example
 
 ::
 
-    pragma solidity >=0.4.0 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.16 <0.8.0;
 
     contract SimpleStorage {
         uint storedData;
@@ -31,8 +32,12 @@ Storage Example
         }
     }
 
-The first line tells you that the source code is written for
-Solidity version 0.4.0, or a newer version of the language up to, but not including version 0.7.0.
+The first line tells you that the source code is licensed under the
+GPL version 3.0. Machine-readable license specifiers are important
+in a setting where publishing the source code is the default.
+
+The next line specifies that the source code is written for
+Solidity version 0.4.16, or a newer version of the language up to, but not including version 0.8.0.
 This is to ensure that the contract is not compilable with a new (breaking) compiler version, where it could behave differently.
 :ref:`Pragmas<pragma>` are common instructions for compilers about how to treat the
 source code (e.g. `pragma once <https://en.wikipedia.org/wiki/Pragma_once>`_).
@@ -42,7 +47,8 @@ data (its *state*) that resides at a specific address on the Ethereum
 blockchain. The line ``uint storedData;`` declares a state variable called ``storedData`` of
 type ``uint`` (*u*\nsigned *int*\eger of *256* bits). You can think of it as a single slot
 in a database that you can query and alter by calling functions of the
-code that manages the database. In this example, the contract defines the functions ``set`` and ``get`` that can be used to modify
+code that manages the database. In this example, the contract defines the
+functions ``set`` and ``get`` that can be used to modify
 or retrieve the value of the variable.
 
 To access a state variable, you do not need the prefix ``this.`` as is common in
@@ -70,13 +76,14 @@ Subcurrency Example
 ===================
 
 The following contract implements the simplest form of a
-cryptocurrency. The contract allows only its creator to create new coins (different issuance scheme are possible).
+cryptocurrency. The contract allows only its creator to create new coins (different issuance schemes are possible).
 Anyone can send coins to each other without a need for
 registering with a username and password, all you need is an Ethereum keypair.
 
 ::
 
-    pragma solidity >=0.5.0 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >0.5.99 <0.8.0;
 
     contract Coin {
         // The keyword "public" makes variables
@@ -90,7 +97,7 @@ registering with a username and password, all you need is an Ethereum keypair.
 
         // Constructor code is only run when the contract
         // is created
-        constructor() public {
+        constructor() {
             minter = msg.sender;
         }
 
@@ -116,7 +123,8 @@ This contract introduces some new concepts, let us go through them one by one.
 
 The line ``address public minter;`` declares a state variable of type :ref:`address<address>`.
 The ``address`` type is a 160-bit value that does not allow any arithmetic operations.
-It is suitable for storing addresses of contracts, or a hash of the public half of a keypair belonging to :ref:`external accounts<accounts>`.
+It is suitable for storing addresses of contracts, or a hash of the public half
+of a keypair belonging to :ref:`external accounts<accounts>`.
 
 The keyword ``public`` automatically generates a function that allows you to access the current value of the state
 variable from outside of the contract. Without this keyword, other contracts have no way to access the variable.
@@ -178,7 +186,7 @@ and any user interface calls the automatically generated ``balances`` function f
 
 .. index:: coin
 
-The :ref:`constructor<constructor>` is a special function run during the creation of the contract and
+The :ref:`constructor<constructor>` is a special function that is executed during the creation of the contract and
 cannot be called afterwards. In this case, it permanently stores the address of the person creating the
 contract. The ``msg`` variable (together with ``tx`` and ``block``) is a
 :ref:`special global variable <special-variables-functions>` that
@@ -190,7 +198,7 @@ The functions that make up the contract, and that users and contracts can call a
 The ``mint`` function sends an amount of newly created coins to another address.
 The :ref:`require <assert-and-require>` function call defines conditions that reverts all changes if not met.
 In this example, ``require(msg.sender == minter);`` ensures that only the creator of the contract can call ``mint``,
-and ``require(amount < 1e60);`` ensures a maximum amount of tokens, without which could cause overflow errors in the future.
+and ``require(amount < 1e60);`` ensures a maximum amount of tokens. This ensures that there are no overflow errors in the future.
 
 The ``send`` function can be used by anyone (who already
 has some of these coins) to send coins to anyone else. If the sender does not have
@@ -214,7 +222,9 @@ Blockchain Basics
 *****************
 
 Blockchains as a concept are not too hard to understand for programmers. The reason is that
-most of the complications (mining, `hashing <https://en.wikipedia.org/wiki/Cryptographic_hash_function>`_, `elliptic-curve cryptography <https://en.wikipedia.org/wiki/Elliptic_curve_cryptography>`_, `peer-to-peer networks <https://en.wikipedia.org/wiki/Peer-to-peer>`_, etc.)
+most of the complications (mining, `hashing <https://en.wikipedia.org/wiki/Cryptographic_hash_function>`_,
+`elliptic-curve cryptography <https://en.wikipedia.org/wiki/Elliptic_curve_cryptography>`_,
+`peer-to-peer networks <https://en.wikipedia.org/wiki/Peer-to-peer>`_, etc.)
 are just there to provide a certain set of features and promises for the platform. Once you accept these
 features as given, you do not have to worry about the underlying technology - or do you have
 to know how Amazon's AWS works internally in order to use it?
@@ -319,7 +329,7 @@ Every account has a persistent key-value store mapping 256-bit words to 256-bit
 words called **storage**.
 
 Furthermore, every account has a **balance** in
-Ether (in "Wei" to be exact, `1 ether` is `10**18 wei`) which can be modified by sending transactions that
+Ether (in "Wei" to be exact, ``1 ether`` is ``10**18 wei``) which can be modified by sending transactions that
 include Ether.
 
 .. index:: ! transaction
@@ -508,12 +518,22 @@ receives the address of the new contract on the stack.
 Deactivate and Self-destruct
 ============================
 
-The only way to remove code from the blockchain is when a contract at that address performs the ``selfdestruct`` operation. The remaining Ether stored at that address is sent to a designated target and then the storage and code is removed from the state. Removing the contract in theory sounds like a good idea, but it is potentially dangerous, as if someone sends Ether to removed contracts, the Ether is forever lost.
+The only way to remove code from the blockchain is when a contract at that
+address performs the ``selfdestruct`` operation. The remaining Ether stored
+at that address is sent to a designated target and then the storage and code
+is removed from the state. Removing the contract in theory sounds like a good
+idea, but it is potentially dangerous, as if someone sends Ether to removed
+contracts, the Ether is forever lost.
 
 .. warning::
-    Even if a contract is removed by "selfdestruct", it is still part of the history of the blockchain and probably retained by most Ethereum nodes. So using "selfdestruct" is not the same as deleting data from a hard disk.
+    Even if a contract is removed by ``selfdestruct``, it is still part of the
+    history of the blockchain and probably retained by most Ethereum nodes.
+    So using ``selfdestruct`` is not the same as deleting data from a hard disk.
 
 .. note::
-    Even if a contract's code does not contain a call to ``selfdestruct``, it can still perform that operation using ``delegatecall`` or ``callcode``.
+    Even if a contract's code does not contain a call to ``selfdestruct``,
+    it can still perform that operation using ``delegatecall`` or ``callcode``.
 
-If you want to deactivate your contracts, you should instead **disable** them by changing some internal state which causes all functions to revert. This makes it impossible to use the contract, as it returns Ether immediately.
+If you want to deactivate your contracts, you should instead **disable** them
+by changing some internal state which causes all functions to revert. This
+makes it impossible to use the contract, as it returns Ether immediately.

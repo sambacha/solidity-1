@@ -15,6 +15,7 @@
     {
       "attributes":
       {
+        "abstract": false,
         "baseContracts":
         [
           null
@@ -24,7 +25,6 @@
           null
         ],
         "contractKind": "contract",
-        "documentation": null,
         "fullyImplemented": true,
         "linearizedBaseContracts":
         [
@@ -38,7 +38,7 @@
         {
           "attributes":
           {
-            "documentation": null,
+            "functionSelector": "26121ff0",
             "implemented": true,
             "isConstructor": false,
             "kind": "function",
@@ -49,7 +49,7 @@
             "name": "f",
             "scope": 11,
             "stateMutability": "nonpayable",
-            "superFunction": null,
+            "virtual": false,
             "visibility": "public"
           },
           "children":
@@ -97,12 +97,12 @@
                       "attributes":
                       {
                         "constant": false,
+                        "mutability": "mutable",
                         "name": "a",
                         "scope": 9,
                         "stateVariable": false,
                         "storageLocation": "default",
                         "type": "uint256",
-                        "value": null,
                         "visibility": "internal"
                       },
                       "children":
@@ -125,7 +125,6 @@
                     {
                       "attributes":
                       {
-                        "argumentTypes": null,
                         "commonType":
                         {
                           "typeIdentifier": "t_rational_5_by_1",
@@ -143,13 +142,11 @@
                         {
                           "attributes":
                           {
-                            "argumentTypes": null,
                             "hexvalue": "32",
                             "isConstant": false,
                             "isLValue": false,
                             "isPure": true,
                             "lValueRequested": false,
-                            "subdenomination": null,
                             "token": "number",
                             "type": "int_const 2",
                             "value": "2"
@@ -161,13 +158,11 @@
                         {
                           "attributes":
                           {
-                            "argumentTypes": null,
                             "hexvalue": "33",
                             "isConstant": false,
                             "isLValue": false,
                             "isPure": true,
                             "lValueRequested": false,
-                            "subdenomination": null,
                             "token": "number",
                             "type": "int_const 3",
                             "value": "3"

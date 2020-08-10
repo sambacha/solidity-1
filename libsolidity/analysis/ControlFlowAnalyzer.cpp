@@ -14,16 +14,17 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #include <libsolidity/analysis/ControlFlowAnalyzer.h>
 
 #include <liblangutil/SourceLocation.h>
-#include <libdevcore/Algorithms.h>
+#include <libsolutil/Algorithms.h>
 #include <boost/range/algorithm/sort.hpp>
 
 using namespace std;
-using namespace langutil;
-using namespace dev::solidity;
+using namespace solidity::langutil;
+using namespace solidity::frontend;
 
 bool ControlFlowAnalyzer::analyze(ASTNode const& _astRoot)
 {
@@ -37,7 +38,7 @@ bool ControlFlowAnalyzer::visit(FunctionDefinition const& _function)
 	{
 		auto const& functionFlow = m_cfg.functionFlow(_function);
 		checkUninitializedAccess(functionFlow.entry, functionFlow.exit);
-		checkUnreachable(functionFlow.entry, functionFlow.exit, functionFlow.revert);
+		checkUnreachable(functionFlow.entry, functionFlow.exit, functionFlow.revert, functionFlow.transactionReturn);
 	}
 	return false;
 }
@@ -94,7 +95,10 @@ void ControlFlowAnalyzer::checkUninitializedAccess(CFGNode const* _entry, CFGNod
 				case VariableOccurrence::Kind::Return:
 					if (unassignedVariables.count(&variableOccurrence.declaration()))
 					{
-						if (variableOccurrence.declaration().type()->dataStoredIn(DataLocation::Storage))
+						if (
+							variableOccurrence.declaration().type()->dataStoredIn(DataLocation::Storage) ||
+							variableOccurrence.declaration().type()->dataStoredIn(DataLocation::CallData)
+						)
 							// Merely store the unassigned access. We do not generate an error right away, since this
 							// path might still always revert. It is only an error if this is propagated to the exit
 							// node of the function (i.e. there is a path with an uninitialized access).
@@ -135,12 +139,16 @@ void ControlFlowAnalyzer::checkUninitializedAccess(CFGNode const* _entry, CFGNod
 			if (variableOccurrence->occurrence())
 				ssl.append("The variable was declared here.", variableOccurrence->declaration().location());
 
+			bool isStorage = variableOccurrence->declaration().type()->dataStoredIn(DataLocation::Storage);
 			m_errorReporter.typeError(
+				3464_error,
 				variableOccurrence->occurrence() ?
-					variableOccurrence->occurrence()->location() :
+					*variableOccurrence->occurrence() :
 					variableOccurrence->declaration().location(),
 				ssl,
-				string("This variable is of storage pointer type and can be ") +
+				"This variable is of " +
+				string(isStorage ? "storage" : "calldata") +
+				" pointer type and can be " +
 				(variableOccurrence->kind() == VariableOccurrence::Kind::Return ? "returned" : "accessed") +
 				" without prior assignment, which would lead to undefined behaviour."
 			);
@@ -148,22 +156,22 @@ void ControlFlowAnalyzer::checkUninitializedAccess(CFGNode const* _entry, CFGNod
 	}
 }
 
-void ControlFlowAnalyzer::checkUnreachable(CFGNode const* _entry, CFGNode const* _exit, CFGNode const* _revert) const
+void ControlFlowAnalyzer::checkUnreachable(CFGNode const* _entry, CFGNode const* _exit, CFGNode const* _revert, CFGNode const* _transactionReturn) const
 {
 	// collect all nodes reachable from the entry point
-	std::set<CFGNode const*> reachable = BreadthFirstSearch<CFGNode const*>{{_entry}}.run(
+	std::set<CFGNode const*> reachable = util::BreadthFirstSearch<CFGNode const*>{{_entry}}.run(
 		[](CFGNode const* _node, auto&& _addChild) {
 			for (CFGNode const* exit: _node->exits)
 				_addChild(exit);
 		}
 	).visited;
 
-	// traverse all paths backwards from exit and revert
+	// traverse all paths backwards from exit, revert and transaction return
 	// and extract (valid) source locations of unreachable nodes into sorted set
 	std::set<SourceLocation> unreachable;
-	BreadthFirstSearch<CFGNode const*>{{_exit, _revert}}.run(
+	util::BreadthFirstSearch<CFGNode const*>{{_exit, _revert, _transactionReturn}}.run(
 		[&](CFGNode const* _node, auto&& _addChild) {
-			if (!reachable.count(_node) && !_node->location.isEmpty())
+			if (!reachable.count(_node) && _node->location.isValid())
 				unreachable.insert(_node->location);
 			for (CFGNode const* entry: _node->entries)
 				_addChild(entry);
@@ -176,6 +184,6 @@ void ControlFlowAnalyzer::checkUnreachable(CFGNode const* _entry, CFGNode const*
 		// Extend the location, as long as the next location overlaps (unreachable is sorted).
 		for (; it != unreachable.end() && it->start <= location.end; ++it)
 			location.end = std::max(location.end, it->end);
-		m_errorReporter.warning(location, "Unreachable code.");
+		m_errorReporter.warning(5740_error, location, "Unreachable code.");
 	}
 }

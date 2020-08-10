@@ -14,15 +14,17 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 #pragma once
 
 #include <libyul/optimiser/ASTWalker.h>
 #include <libyul/optimiser/OptimiserStep.h>
 
-namespace yul
+namespace solidity::yul
 {
 struct Dialect;
 struct OptimiserStepContext;
+class TypeInfo;
 
 /**
  * Simplifies several control-flow structures:
@@ -34,6 +36,7 @@ struct OptimiserStepContext;
  * - replace switch with only default case with pop(expression) and body
  * - replace switch with const expr with matching case body
  * - replace ``for`` with terminating control flow and without other break/continue by ``if``
+ * - remove ``leave`` at the end of a function.
  *
  * None of these operations depend on the data flow. The StructuralSimplifier
  * performs similar tasks that do depend on data flow.
@@ -55,15 +58,23 @@ public:
 	void operator()(Break&) override { ++m_numBreakStatements; }
 	void operator()(Continue&) override { ++m_numContinueStatements; }
 	void operator()(Block& _block) override;
+	void operator()(FunctionDefinition& _funDef) override;
 
 	void visit(Statement& _st) override;
 
 private:
-	ControlFlowSimplifier(Dialect const& _dialect): m_dialect(_dialect) {}
+	ControlFlowSimplifier(Dialect const& _dialect, TypeInfo const& _typeInfo):
+		m_dialect(_dialect),
+		m_typeInfo(_typeInfo)
+	{}
 
 	void simplify(std::vector<Statement>& _statements);
 
+	std::optional<std::vector<Statement>> reduceNoCaseSwitch(Switch& _switchStmt) const;
+	std::optional<std::vector<Statement>> reduceSingleCaseSwitch(Switch& _switchStmt) const;
+
 	Dialect const& m_dialect;
+	TypeInfo const& m_typeInfo;
 	size_t m_numBreakStatements = 0;
 	size_t m_numContinueStatements = 0;
 };

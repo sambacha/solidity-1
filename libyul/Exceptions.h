@@ -14,25 +14,26 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Exceptions in Yul.
  */
 
 #pragma once
 
-#include <libdevcore/Exceptions.h>
-#include <libdevcore/Assertions.h>
+#include <libsolutil/Exceptions.h>
+#include <libsolutil/Assertions.h>
 
-namespace yul
+namespace solidity::yul
 {
 
-struct YulException: virtual dev::Exception {};
+struct YulException: virtual util::Exception {};
 struct OptimizerException: virtual YulException {};
 struct CodegenException: virtual YulException {};
 struct YulAssertion: virtual YulException {};
 
 /// Assertion that throws an YulAssertion containing the given description if it is not met.
 #define yulAssert(CONDITION, DESCRIPTION) \
-	assertThrow(CONDITION, ::yul::YulAssertion, DESCRIPTION)
+	assertThrow(CONDITION, ::solidity::yul::YulAssertion, DESCRIPTION)
 
 }

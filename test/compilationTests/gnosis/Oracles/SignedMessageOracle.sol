@@ -39,7 +39,6 @@ contract SignedMessageOracle is Oracle {
     /// @param r Signature parameter
     /// @param s Signature parameter
     constructor(bytes32 _descriptionHash, uint8 v, bytes32 r, bytes32 s)
-        public
     {
         signer = ecrecover(_descriptionHash, v, r, s);
         descriptionHash = _descriptionHash;
@@ -84,6 +83,7 @@ contract SignedMessageOracle is Oracle {
     /// @return Is outcome set?
     function isOutcomeSet()
         public
+        override
         view
         returns (bool)
     {
@@ -94,6 +94,7 @@ contract SignedMessageOracle is Oracle {
     /// @return Outcome
     function getOutcome()
         public
+        override
         view
         returns (int)
     {

@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimiser component that turns complex expressions into multiple variable
  * declarations.
@@ -23,39 +24,33 @@
 
 #include <libyul/optimiser/ASTWalker.h>
 #include <libyul/optimiser/OptimiserStep.h>
+#include <libyul/optimiser/TypeInfo.h>
 
 #include <libyul/AsmData.h>
 #include <libyul/Dialect.h>
 
-#include <libdevcore/CommonData.h>
-
-#include <boost/range/adaptor/reversed.hpp>
+#include <libsolutil/CommonData.h>
+#include <libsolutil/Visitor.h>
 
 using namespace std;
-using namespace dev;
-using namespace langutil;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
+using namespace solidity::util;
+using namespace solidity::langutil;
 
 void ExpressionSplitter::run(OptimiserStepContext& _context, Block& _ast)
 {
-	ExpressionSplitter{_context.dialect, _context.dispenser}(_ast);
-}
-
-void ExpressionSplitter::operator()(FunctionalInstruction& _instruction)
-{
-	for (auto& arg: _instruction.arguments | boost::adaptors::reversed)
-		outlineExpression(arg);
+	TypeInfo typeInfo(_context.dialect, _ast);
+	ExpressionSplitter{_context.dialect, _context.dispenser, typeInfo}(_ast);
 }
 
 void ExpressionSplitter::operator()(FunctionCall& _funCall)
 {
-	if (BuiltinFunction const* builtin = m_dialect.builtin(_funCall.functionName.name))
-		if (builtin->literalArguments)
-			// We cannot outline function arguments that have to be literals
-			return;
+	BuiltinFunction const* builtin = m_dialect.builtin(_funCall.functionName.name);
 
-	for (auto& arg: _funCall.arguments | boost::adaptors::reversed)
-		outlineExpression(arg);
+	for (size_t i = _funCall.arguments.size(); i > 0; i--)
+		if (!builtin || !builtin->literalArgument(i - 1))
+			outlineExpression(_funCall.arguments[i - 1]);
 }
 
 void ExpressionSplitter::operator()(If& _if)
@@ -108,10 +103,13 @@ void ExpressionSplitter::outlineExpression(Expression& _expr)
 
 	SourceLocation location = locationOf(_expr);
 	YulString var = m_nameDispenser.newName({});
+	YulString type = m_typeInfo.typeOf(_expr);
 	m_statementsToPrefix.emplace_back(VariableDeclaration{
 		location,
-		{{TypedName{location, var, {}}}},
+		{{TypedName{location, var, type}}},
 		make_unique<Expression>(std::move(_expr))
 	});
 	_expr = Identifier{location, var};
+	m_typeInfo.setVariableType(var, type);
 }
+

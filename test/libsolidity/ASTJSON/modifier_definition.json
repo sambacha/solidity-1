@@ -12,10 +12,10 @@
   "nodes":
   [
     {
+      "abstract": false,
       "baseContracts": [],
       "contractDependencies": [],
       "contractKind": "contract",
-      "documentation": null,
       "fullyImplemented": true,
       "id": 14,
       "linearizedBaseContracts":
@@ -41,7 +41,6 @@
               }
             ]
           },
-          "documentation": null,
           "id": 6,
           "name": "M",
           "nodeType": "ModifierDefinition",
@@ -54,6 +53,7 @@
               {
                 "constant": false,
                 "id": 2,
+                "mutability": "mutable",
                 "name": "i",
                 "nodeType": "VariableDeclaration",
                 "scope": 6,
@@ -77,13 +77,13 @@
                     "typeString": "uint256"
                   }
                 },
-                "value": null,
                 "visibility": "internal"
               }
             ],
             "src": "23:8:1"
           },
           "src": "13:25:1",
+          "virtual": false,
           "visibility": "internal"
         },
         {
@@ -94,7 +94,7 @@
             "src": "64:2:1",
             "statements": []
           },
-          "documentation": null,
+          "functionSelector": "28811f59",
           "id": 13,
           "implemented": true,
           "kind": "function",
@@ -104,7 +104,6 @@
               "arguments":
               [
                 {
-                  "argumentTypes": null,
                   "hexValue": "31",
                   "id": 9,
                   "isConstant": false,
@@ -114,7 +113,6 @@
                   "lValueRequested": false,
                   "nodeType": "Literal",
                   "src": "54:1:1",
-                  "subdenomination": null,
                   "typeDescriptions":
                   {
                     "typeIdentifier": "t_rational_1_by_1",
@@ -126,7 +124,6 @@
               "id": 10,
               "modifierName":
               {
-                "argumentTypes": null,
                 "id": 8,
                 "name": "M",
                 "nodeType": "Identifier",
@@ -162,7 +159,7 @@
           "scope": 14,
           "src": "39:27:1",
           "stateMutability": "nonpayable",
-          "superFunction": null,
+          "virtual": false,
           "visibility": "public"
         }
       ],

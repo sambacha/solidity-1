@@ -18,19 +18,18 @@
  * Unit tests for the compilability checker.
  */
 
-#include <test/Options.h>
+#include <test/Common.h>
 
 #include <test/libyul/Common.h>
 #include <libyul/backends/evm/EVMDialect.h>
 
 #include <libyul/CompilabilityChecker.h>
 
+#include <boost/test/unit_test.hpp>
 
 using namespace std;
 
-namespace yul
-{
-namespace test
+namespace solidity::yul::test
 {
 
 namespace
@@ -40,7 +39,7 @@ string check(string const& _input)
 	Object obj;
 	std::tie(obj.code, obj.analysisInfo) = yul::test::parse(_input, false);
 	BOOST_REQUIRE(obj.code);
-	map<YulString, int> functions = CompilabilityChecker::run(EVMDialect::strictAssemblyForEVM(dev::test::Options::get().evmVersion()), obj, true);
+	map<YulString, int> functions = CompilabilityChecker::run(EVMDialect::strictAssemblyForEVM(solidity::test::CommonOptions::get().evmVersion()), obj, true);
 	string out;
 	for (auto const& function: functions)
 		out += function.first.str() + ": " + to_string(function.second) + " ";
@@ -188,7 +187,7 @@ BOOST_AUTO_TEST_CASE(nested)
 			x := add(add(add(add(add(add(add(add(add(add(add(add(x, r12), r11), r10), r9), r8), r7), r6), r5), r4), r3), r2), r1)
 		}
 	})");
-	BOOST_CHECK_EQUAL(out, "h: 9 ");
+	BOOST_CHECK_EQUAL(out, "h: 9 g: 5 f: 5 ");
 }
 
 BOOST_AUTO_TEST_CASE(also_in_outer_block)
@@ -217,10 +216,9 @@ BOOST_AUTO_TEST_CASE(also_in_outer_block)
 			function g(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19) -> w, v {
 			}
 	})");
-	BOOST_CHECK_EQUAL(out, ": 9 ");
+	BOOST_CHECK_EQUAL(out, "g: 5 : 9 ");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
 }

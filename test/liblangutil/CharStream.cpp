@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Rocky Bernstein <rocky.bernstein@consensys.net>
  * @date 2019
@@ -23,14 +24,14 @@
 #include <liblangutil/CharStream.h>
 #include <liblangutil/Exceptions.h>
 
-#include <test/Options.h>
+#include <test/Common.h>
 
-namespace langutil
-{
-namespace test
+#include <boost/test/unit_test.hpp>
+
+namespace solidity::langutil::test
 {
 
-BOOST_AUTO_TEST_SUITE(CharStreamtest)
+BOOST_AUTO_TEST_SUITE(CharStreamTest)
 
 BOOST_AUTO_TEST_CASE(test_fail)
 {
@@ -43,11 +44,10 @@ BOOST_AUTO_TEST_CASE(test_fail)
 	BOOST_CHECK('w' == source->setPosition(2));
 	BOOST_REQUIRE_THROW(
 		source->setPosition(200),
-		::langutil::InternalCompilerError
+		::solidity::langutil::InternalCompilerError
 	);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
 } // end namespaces

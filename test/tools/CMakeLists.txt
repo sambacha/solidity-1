@@ -13,12 +13,13 @@ target_link_libraries(yulopti PRIVATE solidity Boost::boost Boost::program_optio
 add_executable(isoltest
 	isoltest.cpp
 	IsolTestOptions.cpp
-	../Options.cpp
 	../Common.cpp
+	../CommonSyntaxTest.cpp
 	../EVMHost.cpp
 	../TestCase.cpp
-        ../libsolidity/util/BytesUtils.cpp
-        ../libsolidity/util/ContractABIUtils.cpp
+	../TestCaseReader.cpp
+	../libsolidity/util/BytesUtils.cpp
+	../libsolidity/util/ContractABIUtils.cpp
 	../libsolidity/util/TestFileParser.cpp
 	../libsolidity/util/TestFunctionCall.cpp
 	../libsolidity/GasTest.cpp
@@ -29,11 +30,13 @@ add_executable(isoltest
 	../ExecutionFramework.cpp
 	../libsolidity/ABIJsonTest.cpp
 	../libsolidity/ASTJSONTest.cpp
+	../libsolidity/SMTCheckerTest.cpp
 	../libsolidity/SMTCheckerJSONTest.cpp
 	../libyul/Common.cpp
-	../libyul/EWasmTranslationTest.cpp
+	../libyul/EwasmTranslationTest.cpp
 	../libyul/FunctionSideEffects.cpp
 	../libyul/ObjectCompilerTest.cpp
+	../libyul/SyntaxTest.cpp
 	../libyul/YulOptimizerTest.cpp
 	../libyul/YulInterpreterTest.cpp
 )

@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2015
@@ -24,9 +25,7 @@
 
 #include <memory>
 
-namespace dev
-{
-namespace solidity
+namespace solidity::frontend
 {
 
 class CompilerContext;
@@ -119,5 +118,4 @@ private:
 	CompilerContext& m_context;
 };
 
-}
 }

@@ -14,10 +14,11 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #pragma once
 
-#include <libdevcore/AnsiColorized.h>
+#include <libsolutil/AnsiColorized.h>
 #include <test/TestCase.h>
 
 #include <iosfwd>
@@ -25,12 +26,10 @@
 #include <vector>
 #include <utility>
 
-namespace yul
-{
-namespace test
+namespace solidity::yul::test
 {
 
-class FunctionSideEffects: public dev::solidity::test::TestCase
+class FunctionSideEffects: public solidity::frontend::test::TestCase
 {
 public:
 	static std::unique_ptr<TestCase> create(Config const& _config)
@@ -38,17 +37,6 @@ public:
 	explicit FunctionSideEffects(std::string const& _filename);
 
 	TestResult run(std::ostream& _stream, std::string const& _linePrefix = "", bool const _formatted = false) override;
-
-	void printSource(std::ostream& _stream, std::string const& _linePrefix = "", bool const _formatted = false) const override;
-	void printUpdatedExpectations(std::ostream& _stream, std::string const& _linePrefix) const override;
-
-private:
-	void printIndented(std::ostream& _stream, std::string const& _output, std::string const& _linePrefix = "") const;
-
-	std::string m_source;
-	std::string m_expectation;
-	std::string m_obtainedResult;
 };
 
-}
 }

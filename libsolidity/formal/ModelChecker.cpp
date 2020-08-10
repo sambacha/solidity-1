@@ -14,22 +14,25 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #include <libsolidity/formal/ModelChecker.h>
 
 using namespace std;
-using namespace dev;
-using namespace langutil;
-using namespace dev::solidity;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::langutil;
+using namespace solidity::frontend;
 
 ModelChecker::ModelChecker(
 	ErrorReporter& _errorReporter,
 	map<h256, string> const& _smtlib2Responses,
-	smt::SMTSolverChoice _enabledSolvers
+	ReadCallback::Callback const& _smtCallback,
+	smtutil::SMTSolverChoice _enabledSolvers
 ):
-	m_bmc(m_context, _errorReporter, _smtlib2Responses, _enabledSolvers),
-	m_chc(m_context, _errorReporter, _smtlib2Responses, _enabledSolvers),
-	m_context()
+	m_context(),
+	m_bmc(m_context, _errorReporter, _smtlib2Responses, _smtCallback, _enabledSolvers),
+	m_chc(m_context, _errorReporter, _smtlib2Responses, _smtCallback, _enabledSolvers)
 {
 }
 
@@ -39,10 +42,27 @@ void ModelChecker::analyze(SourceUnit const& _source)
 		return;
 
 	m_chc.analyze(_source);
-	m_bmc.analyze(_source, m_chc.safeAssertions());
+
+	auto solvedTargets = m_chc.safeTargets();
+	for (auto const& target: m_chc.unsafeTargets())
+		solvedTargets[target.first] += target.second;
+
+	m_bmc.analyze(_source, solvedTargets);
 }
 
 vector<string> ModelChecker::unhandledQueries()
 {
 	return m_bmc.unhandledQueries() + m_chc.unhandledQueries();
+}
+
+solidity::smtutil::SMTSolverChoice ModelChecker::availableSolvers()
+{
+	smtutil::SMTSolverChoice available = smtutil::SMTSolverChoice::None();
+#ifdef HAVE_Z3
+	available.z3 = true;
+#endif
+#ifdef HAVE_CVC4
+	available.cvc4 = true;
+#endif
+	return available;
 }

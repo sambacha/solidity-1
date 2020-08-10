@@ -14,30 +14,32 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Yul interpreter.
  */
 
 #pragma once
 
-#include <libyul/AsmDataForward.h>
+#include <libyul/AsmData.h>
 #include <libyul/optimiser/ASTWalker.h>
 
-#include <libdevcore/FixedHash.h>
-#include <libdevcore/CommonData.h>
+#include <libsolutil/FixedHash.h>
+#include <libsolutil/CommonData.h>
 
-#include <libdevcore/Exceptions.h>
+#include <libsolutil/Exceptions.h>
 
 #include <map>
 
-namespace yul
+namespace solidity::yul
 {
 struct Dialect;
+}
 
-namespace test
+namespace solidity::yul::test
 {
 
-class InterpreterTerminatedGeneric: public dev::Exception
+class InterpreterTerminatedGeneric: public util::Exception
 {
 };
 
@@ -53,45 +55,57 @@ class TraceLimitReached: public InterpreterTerminatedGeneric
 {
 };
 
-enum class LoopState
+enum class ControlFlowState
 {
 	Default,
 	Continue,
 	Break,
+	Leave
 };
 
 struct InterpreterState
 {
-	dev::bytes calldata;
-	dev::bytes returndata;
-	std::map<dev::u256, uint8_t> memory;
+	bytes calldata;
+	bytes returndata;
+	std::map<u256, uint8_t> memory;
 	/// This is different than memory.size() because we ignore gas.
-	dev::u256 msize;
-	std::map<dev::h256, dev::h256> storage;
-	dev::u160 address = 0x11111111;
-	dev::u256 balance = 0x22222222;
-	dev::u256 selfbalance = 0x22223333;
-	dev::u160 origin = 0x33333333;
-	dev::u160 caller = 0x44444444;
-	dev::u256 callvalue = 0x55555555;
+	u256 msize;
+	std::map<util::h256, util::h256> storage;
+	u160 address = 0x11111111;
+	u256 balance = 0x22222222;
+	u256 selfbalance = 0x22223333;
+	u160 origin = 0x33333333;
+	u160 caller = 0x44444444;
+	u256 callvalue = 0x55555555;
 	/// Deployed code
-	dev::bytes code = dev::asBytes("codecodecodecodecode");
-	dev::u256 gasprice = 0x66666666;
-	dev::u160 coinbase = 0x77777777;
-	dev::u256 timestamp = 0x88888888;
-	dev::u256 blockNumber = 1024;
-	dev::u256 difficulty = 0x9999999;
-	dev::u256 gaslimit = 4000000;
-	dev::u256 chainid = 0x01;
+	bytes code = util::asBytes("codecodecodecodecode");
+	u256 gasprice = 0x66666666;
+	u160 coinbase = 0x77777777;
+	u256 timestamp = 0x88888888;
+	u256 blockNumber = 1024;
+	u256 difficulty = 0x9999999;
+	u256 gaslimit = 4000000;
+	u256 chainid = 0x01;
 	/// Log of changes / effects. Sholud be structured data in the future.
 	std::vector<std::string> trace;
 	/// This is actually an input parameter that more or less limits the runtime.
 	size_t maxTraceSize = 0;
 	size_t maxSteps = 0;
 	size_t numSteps = 0;
-	LoopState loopState = LoopState::Default;
+	ControlFlowState controlFlowState = ControlFlowState::Default;
 
 	void dumpTraceAndState(std::ostream& _out) const;
+};
+
+/**
+ * Scope structure built and maintained during execution.
+ */
+struct Scope
+{
+	/// Used for variables and functions. Value is nullptr for variables.
+	std::map<YulString, FunctionDefinition const*> names;
+	std::map<Block const*, std::unique_ptr<Scope>> subScopes;
+	Scope* parent = nullptr;
 };
 
 /**
@@ -100,17 +114,20 @@ struct InterpreterState
 class Interpreter: public ASTWalker
 {
 public:
+	static void run(InterpreterState& _state, Dialect const& _dialect, Block const& _ast);
+
 	Interpreter(
 		InterpreterState& _state,
 		Dialect const& _dialect,
-		std::map<YulString, dev::u256> _variables = {},
-		std::vector<std::map<YulString, FunctionDefinition const*>> _scopes = {}
+		Scope& _scope,
+		std::map<YulString, u256> _variables = {}
 	):
 		m_dialect(_dialect),
 		m_state(_state),
 		m_variables(std::move(_variables)),
-		m_scopes(std::move(_scopes))
-	{}
+		m_scope(&_scope)
+	{
+	}
 
 	void operator()(ExpressionStatement const& _statement) override;
 	void operator()(Assignment const& _assignment) override;
@@ -121,30 +138,31 @@ public:
 	void operator()(ForLoop const&) override;
 	void operator()(Break const&) override;
 	void operator()(Continue const&) override;
+	void operator()(Leave const&) override;
 	void operator()(Block const& _block) override;
 
 	std::vector<std::string> const& trace() const { return m_state.trace; }
 
-	dev::u256 valueOfVariable(YulString _name) const { return m_variables.at(_name); }
+	u256 valueOfVariable(YulString _name) const { return m_variables.at(_name); }
 
 private:
 	/// Asserts that the expression evaluates to exactly one value and returns it.
-	dev::u256 evaluate(Expression const& _expression);
+	u256 evaluate(Expression const& _expression);
 	/// Evaluates the expression and returns its value.
-	std::vector<dev::u256> evaluateMulti(Expression const& _expression);
+	std::vector<u256> evaluateMulti(Expression const& _expression);
 
-	void openScope() { m_scopes.push_back({}); }
-	/// Unregisters variables and functions.
-	void closeScope();
+	void enterScope(Block const& _block);
+	void leaveScope();
+
+	/// Increment interpreter step count, throwing exception if step limit
+	/// is reached.
+	void incrementStep();
 
 	Dialect const& m_dialect;
 	InterpreterState& m_state;
 	/// Values of variables.
-	std::map<YulString, dev::u256> m_variables;
-	/// Scopes of variables and functions. Used for lookup, clearing at end of blocks
-	/// and passing over the visible functions across function calls.
-	/// The pointer is nullptr if and only if the key is a variable.
-	std::vector<std::map<YulString, FunctionDefinition const*>> m_scopes;
+	std::map<YulString, u256> m_variables;
+	Scope* m_scope;
 };
 
 /**
@@ -156,49 +174,42 @@ public:
 	ExpressionEvaluator(
 		InterpreterState& _state,
 		Dialect const& _dialect,
-		std::map<YulString, dev::u256> const& _variables,
-		std::vector<std::map<YulString, FunctionDefinition const*>> const& _scopes
+		Scope& _scope,
+		std::map<YulString, u256> const& _variables
 	):
 		m_state(_state),
 		m_dialect(_dialect),
 		m_variables(_variables),
-		m_scopes(_scopes)
+		m_scope(_scope)
 	{}
 
 	void operator()(Literal const&) override;
 	void operator()(Identifier const&) override;
-	void operator()(FunctionalInstruction const& _instr) override;
 	void operator()(FunctionCall const& _funCall) override;
 
 	/// Asserts that the expression has exactly one value and returns it.
-	dev::u256 value() const;
+	u256 value() const;
 	/// Returns the list of values of the expression.
-	std::vector<dev::u256> values() const { return m_values; }
+	std::vector<u256> values() const { return m_values; }
 
 private:
-	void setValue(dev::u256 _value);
+	void setValue(u256 _value);
 
 	/// Evaluates the given expression from right to left and
 	/// stores it in m_value.
-	void evaluateArgs(std::vector<Expression> const& _expr);
-
-	/// Finds the function called @a _functionName in the current scope stack and returns
-	/// the function's scope stack (with variables removed) and definition.
-	std::pair<
-		std::vector<std::map<YulString, FunctionDefinition const*>>,
-		FunctionDefinition const*
-	> findFunctionAndScope(YulString _functionName) const;
+	void evaluateArgs(
+		std::vector<Expression> const& _expr,
+		std::vector<std::optional<LiteralKind>> const* _literalArguments
+	);
 
 	InterpreterState& m_state;
 	Dialect const& m_dialect;
 	/// Values of variables.
-	std::map<YulString, dev::u256> const& m_variables;
-	/// Stack of scopes in the current context.
-	std::vector<std::map<YulString, FunctionDefinition const*>> const& m_scopes;
+	std::map<YulString, u256> const& m_variables;
+	Scope& m_scope;
 	/// Current value of the expression
-	std::vector<dev::u256> m_values;
+	std::vector<u256> m_values;
 };
 
-}
 }
 

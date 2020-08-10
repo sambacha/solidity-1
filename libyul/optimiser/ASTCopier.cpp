@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Creates an independent copy of an AST, renaming identifiers to be unique.
  */
@@ -24,17 +25,12 @@
 
 #include <libyul/AsmData.h>
 
-#include <libdevcore/Common.h>
+#include <libsolutil/Common.h>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
-
-Statement ASTCopier::operator()(Instruction const&)
-{
-	assertThrow(false, OptimizerException, "Invalid operation.");
-	return {};
-}
+using namespace solidity;
+using namespace solidity::yul;
+using namespace solidity::util;
 
 Statement ASTCopier::operator()(ExpressionStatement const& _statement)
 {
@@ -59,33 +55,12 @@ Statement ASTCopier::operator()(Assignment const& _assignment)
 	};
 }
 
-Statement ASTCopier::operator()(StackAssignment const&)
-{
-	assertThrow(false, OptimizerException, "Invalid operation.");
-	return {};
-}
-
-Statement ASTCopier::operator()(Label const&)
-{
-	assertThrow(false, OptimizerException, "Invalid operation.");
-	return {};
-}
-
 Expression ASTCopier::operator()(FunctionCall const& _call)
 {
 	return FunctionCall{
 		_call.location,
 		translate(_call.functionName),
 		translateVector(_call.arguments)
-	};
-}
-
-Expression ASTCopier::operator()(FunctionalInstruction const& _instruction)
-{
-	return FunctionalInstruction{
-		_instruction.location,
-		_instruction.instruction,
-		translateVector(_instruction.arguments)
 	};
 }
 
@@ -146,6 +121,11 @@ Statement ASTCopier::operator()(Break const& _break)
 Statement ASTCopier::operator()(Continue const& _continue)
 {
 	return Continue{ _continue };
+}
+
+Statement ASTCopier::operator()(Leave const& _leaveStatement)
+{
+	return Leave{_leaveStatement};
 }
 
 Statement ASTCopier::operator ()(Block const& _block)

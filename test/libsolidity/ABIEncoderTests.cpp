@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Unit tests for Solidity's ABI encoder.
  */
@@ -33,13 +34,10 @@
 
 using namespace std;
 using namespace std::placeholders;
-using namespace dev::test;
+using namespace solidity::util;
+using namespace solidity::test;
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+namespace solidity::frontend::test
 {
 
 #define REQUIRE_LOG_DATA(DATA) do { \
@@ -168,7 +166,7 @@ BOOST_AUTO_TEST_CASE(memory_array_one_dim)
 		}
 	)";
 
-	if (!dev::test::Options::get().useABIEncoderV2)
+	if (!solidity::test::CommonOptions::get().useABIEncoderV2)
 	{
 		compileAndRun(sourceCode);
 		callContractFunction("f()");
@@ -343,7 +341,7 @@ BOOST_AUTO_TEST_CASE(external_function)
 	BOTH_ENCODERS(
 		compileAndRun(sourceCode);
 		callContractFunction("f(uint256)", u256(0));
-		string functionIdF = asString(m_contractAddress.ref()) + asString(FixedHash<4>(dev::keccak256("f(uint256)")).ref());
+		string functionIdF = asString(m_contractAddress.ref()) + asString(FixedHash<4>(keccak256("f(uint256)")).ref());
 		REQUIRE_LOG_DATA(encodeArgs(functionIdF, functionIdF));
 	)
 }
@@ -429,7 +427,9 @@ BOOST_AUTO_TEST_CASE(structs)
 				s.a = 8;
 				s.b = 9;
 				s.c = 10;
-				s.sub.length = 3;
+				s.sub.push();
+				s.sub.push();
+				s.sub.push();
 				s.sub[0].x[0] = 11;
 				s.sub[1].x[0] = 12;
 				s.sub[2].x[1] = 13;
@@ -451,7 +451,7 @@ BOOST_AUTO_TEST_CASE(structs)
 		);
 		BOOST_CHECK(callContractFunction("f()") == encoded);
 		REQUIRE_LOG_DATA(encoded);
-		BOOST_CHECK_EQUAL(logTopic(0, 0), dev::keccak256(string("e(uint16,(uint16,uint16,(uint64[2])[],uint16))")));
+		BOOST_CHECK_EQUAL(logTopic(0, 0), keccak256(string("e(uint16,(uint16,uint16,(uint64[2])[],uint16))")));
 	)
 }
 
@@ -522,11 +522,10 @@ BOOST_AUTO_TEST_CASE(bool_arrays)
 			bool[4] y;
 			event E(bool[], bool[4]);
 			function f() public returns (bool[] memory, bool[4] memory) {
-				x.length = 4;
-				x[0] = true;
-				x[1] = false;
-				x[2] = true;
-				x[3] = false;
+				x.push(true);
+				x.push(false);
+				x.push(true);
+				x.push(false);
 				y[0] = true;
 				y[1] = false;
 				y[2] = true;
@@ -556,11 +555,10 @@ BOOST_AUTO_TEST_CASE(bool_arrays_split)
 			bool[4] y;
 			event E(bool[], bool[4]);
 			function store() public {
-				x.length = 4;
-				x[0] = true;
-				x[1] = false;
-				x[2] = true;
-				x[3] = false;
+				x.push(true);
+				x.push(false);
+				x.push(true);
+				x.push(false);
 				y[0] = true;
 				y[1] = false;
 				y[2] = true;
@@ -594,9 +592,8 @@ BOOST_AUTO_TEST_CASE(bytesNN_arrays)
 			bytesWIDTH[SIZE] y;
 			event E(bytes8[], bytesWIDTH[SIZE]);
 			function store() public {
-				x.length = 2;
-				x[0] = "abc";
-				x[1] = "def";
+				x.push("abc");
+				x.push("def");
 				for (uint i = 0; i < y.length; i ++)
 					y[i] = bytesWIDTH(uintUINTWIDTH(i + 1));
 			}
@@ -610,7 +607,7 @@ BOOST_AUTO_TEST_CASE(bytesNN_arrays)
 	BOTH_ENCODERS(
 		for (size_t size = 1; size < 15; size++)
 		{
-			for (size_t width: {1, 2, 4, 5, 7, 15, 16, 17, 31, 32})
+			for (size_t width: {1u, 2u, 4u, 5u, 7u, 15u, 16u, 17u, 31u, 32u})
 			{
 				string source = boost::algorithm::replace_all_copy(sourceCode, "SIZE", to_string(size));
 				source = boost::algorithm::replace_all_copy(source, "UINTWIDTH", to_string(width * 8));
@@ -640,9 +637,8 @@ BOOST_AUTO_TEST_CASE(bytesNN_arrays_dyn)
 			bytesWIDTH[] y;
 			event E(bytesWIDTH[], bytes8[]);
 			function store() public {
-				x.length = 2;
-				x[0] = "abc";
-				x[1] = "def";
+				x.push("abc");
+				x.push("def");
 				for (uint i = 0; i < SIZE; i ++)
 					y.push(bytesWIDTH(uintUINTWIDTH(i + 1)));
 			}
@@ -656,7 +652,7 @@ BOOST_AUTO_TEST_CASE(bytesNN_arrays_dyn)
 	BOTH_ENCODERS(
 		for (size_t size = 0; size < 15; size++)
 		{
-			for (size_t width: {1, 2, 4, 5, 7, 15, 16, 17, 31, 32})
+			for (size_t width: {1u, 2u, 4u, 5u, 7u, 15u, 16u, 17u, 31u, 32u})
 			{
 				string source = boost::algorithm::replace_all_copy(sourceCode, "SIZE", to_string(size));
 				source = boost::algorithm::replace_all_copy(source, "UINTWIDTH", to_string(width * 8));
@@ -723,7 +719,7 @@ BOOST_AUTO_TEST_CASE(struct_in_constructor)
 				string c;
 			}
 			S public x;
-			constructor(S memory s) public { x = s; }
+			constructor(S memory s) { x = s; }
 		}
 	)";
 
@@ -743,7 +739,7 @@ BOOST_AUTO_TEST_CASE(struct_in_constructor_indirect)
 				string c;
 			}
 			S public x;
-			constructor(S memory s) public { x = s; }
+			constructor(S memory s) { x = s; }
 		}
 
 		contract D {
@@ -757,7 +753,7 @@ BOOST_AUTO_TEST_CASE(struct_in_constructor_indirect)
 			}
 		}
 	)";
-	if (dev::test::Options::get().evmVersion().supportsReturndata())
+	if (solidity::test::CommonOptions::get().evmVersion().supportsReturndata())
 	{
 		NEW_ENCODER(
 			compileAndRun(sourceCode, 0, "D");
@@ -776,19 +772,17 @@ BOOST_AUTO_TEST_CASE(struct_in_constructor_data_short)
 				string c;
 			}
 			S public x;
-			constructor(S memory s) public { x = s; }
+			constructor(S memory s) { x = s; }
 		}
 	)";
 
 	NEW_ENCODER(
 		BOOST_CHECK(
-			compileAndRunWithoutCheck(sourceCode, 0, "C", encodeArgs(0x20, 0x60, 0x03, 0x80, 0x00)).empty()
+			compileAndRunWithoutCheck({{"", sourceCode}}, 0, "C", encodeArgs(0x20, 0x60, 0x03, 0x80, 0x00)).empty()
 		);
 	)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
-}
 } // end namespaces

@@ -14,13 +14,14 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #include <test/tools/ossfuzz/protoToYul.h>
 #include <test/tools/ossfuzz/yulOptimizerFuzzDictionary.h>
 
 #include <libyul/Exceptions.h>
 
-#include <libdevcore/StringUtils.h>
+#include <libsolutil/StringUtils.h>
 
 #include <boost/algorithm/cxx11/all_of.hpp>
 #include <boost/algorithm/string/classification.hpp>
@@ -28,14 +29,26 @@
 #include <boost/range/algorithm_ext/erase.hpp>
 
 using namespace std;
-using namespace yul::test::yul_fuzzer;
-using namespace dev;
+using namespace solidity::yul::test::yul_fuzzer;
+using namespace solidity::yul::test;
+using namespace solidity::langutil;
+using namespace solidity::util;
+using namespace solidity;
 
 string ProtoConverter::dictionaryToken(HexPrefix _p)
 {
-	unsigned indexVar = m_inputSize * m_inputSize + counter();
-	std::string token = hexDictionary[indexVar % hexDictionary.size()];
-	yulAssert(token.size() <= 64, "Proto Fuzzer: Dictionary token too large");
+	std::string token;
+	// If dictionary constant is requested while converting
+	// for loop condition, then return zero so that we don't
+	// generate infinite for loops.
+	if (m_inForCond)
+		token = "0";
+	else
+	{
+		unsigned indexVar = m_inputSize * m_inputSize + counter();
+		token = hexDictionary[indexVar % hexDictionary.size()];
+		yulAssert(token.size() <= 64, "Proto Fuzzer: Dictionary token too large");
+	}
 
 	return _p == HexPrefix::Add ? "0x" + token : token;
 }
@@ -75,6 +88,29 @@ string ProtoConverter::createAlphaNum(string const& _strBytes)
 	return tmp;
 }
 
+EVMVersion ProtoConverter::evmVersionMapping(Program_Version const& _ver)
+{
+	switch (_ver)
+	{
+	case Program::HOMESTEAD:
+		return EVMVersion::homestead();
+	case Program::TANGERINE:
+		return EVMVersion::tangerineWhistle();
+	case Program::SPURIOUS:
+		return EVMVersion::spuriousDragon();
+	case Program::BYZANTIUM:
+		return EVMVersion::byzantium();
+	case Program::CONSTANTINOPLE:
+		return EVMVersion::constantinople();
+	case Program::PETERSBURG:
+		return EVMVersion::petersburg();
+	case Program::ISTANBUL:
+		return EVMVersion::istanbul();
+	case Program::BERLIN:
+		return EVMVersion::berlin();
+	}
+}
+
 string ProtoConverter::visit(Literal const& _x)
 {
 	switch (_x.literal_oneof_case())
@@ -85,6 +121,8 @@ string ProtoConverter::visit(Literal const& _x)
 		return "0x" + createHex(_x.hexval());
 	case Literal::kStrval:
 		return "\"" + createAlphaNum(_x.strval()) + "\"";
+	case Literal::kBoolval:
+		return _x.boolval() ? "true" : "false";
 	case Literal::LITERAL_ONEOF_NOT_SET:
 		return dictionaryToken();
 	}
@@ -93,8 +131,15 @@ string ProtoConverter::visit(Literal const& _x)
 void ProtoConverter::consolidateVarDeclsInFunctionDef()
 {
 	m_currentFuncVars.clear();
+	yulAssert(!m_funcVars.empty(), "Proto fuzzer: Invalid operation");
+
 	auto const& scopes = m_funcVars.back();
 	for (auto const& s: scopes)
+		for (auto const& var: s)
+			m_currentFuncVars.push_back(&var);
+	yulAssert(!m_funcForLoopInitVars.empty(), "Proto fuzzer: Invalid operation");
+	auto const& forinitscopes = m_funcForLoopInitVars.back();
+	for (auto const& s: forinitscopes)
 		for (auto const& var: s)
 			m_currentFuncVars.push_back(&var);
 }
@@ -102,8 +147,15 @@ void ProtoConverter::consolidateVarDeclsInFunctionDef()
 void ProtoConverter::consolidateGlobalVarDecls()
 {
 	m_currentGlobalVars.clear();
+	// Place pointers to all global variables that are in scope
+	// into a single vector
 	for (auto const& scope: m_globalVars)
 		for (auto const& var: scope)
+			m_currentGlobalVars.push_back(&var);
+	// Place pointers to all variables declared in for-init blocks
+	// that are still live into the same vector
+	for (auto const& init: m_globalForLoopInitVars)
+		for (auto const& var: init)
 			m_currentGlobalVars.push_back(&var);
 }
 
@@ -127,19 +179,27 @@ bool ProtoConverter::functionCallNotPossible(FunctionCall_Returns _type)
 		(_type == FunctionCall::MULTIASSIGN && !varDeclAvailable());
 }
 
+unsigned ProtoConverter::numVarsInScope()
+{
+	if (m_inFunctionDef)
+		return m_currentFuncVars.size();
+	else
+		return m_currentGlobalVars.size();
+}
+
 void ProtoConverter::visit(VarRef const& _x)
 {
 	if (m_inFunctionDef)
 	{
 		// Ensure that there is at least one variable declaration to reference in function scope.
 		yulAssert(m_currentFuncVars.size() > 0, "Proto fuzzer: No variables to reference.");
-		m_output << *m_currentFuncVars[_x.varnum() % m_currentFuncVars.size()];
+		m_output << *m_currentFuncVars[static_cast<size_t>(_x.varnum()) % m_currentFuncVars.size()];
 	}
 	else
 	{
 		// Ensure that there is at least one variable declaration to reference in nested scopes.
 		yulAssert(m_currentGlobalVars.size() > 0, "Proto fuzzer: No global variables to reference.");
-		m_output << *m_currentGlobalVars[_x.varnum() % m_currentGlobalVars.size()];
+		m_output << *m_currentGlobalVars[static_cast<size_t>(_x.varnum()) % m_currentGlobalVars.size()];
 	}
 }
 
@@ -157,7 +217,13 @@ void ProtoConverter::visit(Expression const& _x)
 			visit(_x.varref());
 		break;
 	case Expression::kCons:
-		m_output << visit(_x.cons());
+		// If literal expression describes for-loop condition
+		// then force it to zero, so we don't generate infinite
+		// for loops
+		if (m_inForCond)
+			m_output << "0";
+		else
+			m_output << visit(_x.cons());
 		break;
 	case Expression::kBinop:
 		visit(_x.binop());
@@ -199,7 +265,16 @@ void ProtoConverter::visit(Expression const& _x)
 
 void ProtoConverter::visit(BinaryOp const& _x)
 {
-	switch (_x.op())
+	BinaryOp_BOp op = _x.op();
+
+	if ((op == BinaryOp::SHL || op == BinaryOp::SHR || op == BinaryOp::SAR) &&
+		!m_evmVersion.hasBitwiseShifting())
+	{
+		m_output << dictionaryToken();
+		return;
+	}
+
+	switch (op)
 	{
 	case BinaryOp::ADD:
 		m_output << "add";
@@ -235,12 +310,15 @@ void ProtoConverter::visit(BinaryOp const& _x)
 		m_output << "gt";
 		break;
 	case BinaryOp::SHR:
+		yulAssert(m_evmVersion.hasBitwiseShifting(), "Proto fuzzer: Invalid evm version");
 		m_output << "shr";
 		break;
 	case BinaryOp::SHL:
+		yulAssert(m_evmVersion.hasBitwiseShifting(), "Proto fuzzer: Invalid evm version");
 		m_output << "shl";
 		break;
 	case BinaryOp::SAR:
+		yulAssert(m_evmVersion.hasBitwiseShifting(), "Proto fuzzer: Invalid evm version");
 		m_output << "sar";
 		break;
 	case BinaryOp::SDIV:
@@ -275,16 +353,100 @@ void ProtoConverter::visit(BinaryOp const& _x)
 	m_output << ")";
 }
 
+void ProtoConverter::scopeVariables(vector<string> const& _varNames)
+{
+	// If we are inside a for-init block, there are two places
+	// where the visited vardecl may have been defined:
+	// - directly inside the for-init block
+	// - inside a block within the for-init block
+	// In the latter case, we don't scope extend. The flag
+	// m_forInitScopeExtEnabled (= true) indicates whether we are directly
+	// inside a for-init block e.g., for { let x } or (= false) inside a
+	// nested for-init block e.g., for { { let x } }
+	bool forInitScopeExtendVariable = m_inForInitScope && m_forInitScopeExtEnabled;
+
+	// There are four cases that are tackled here
+	// Case 1. We are inside a function definition and the variable declaration's
+	// scope needs to be extended.
+	// Case 2. We are inside a function definition but scope extension is disabled
+	// Case 3. We are inside global scope and scope extension is required
+	// Case 4. We are inside global scope but scope extension is disabled
+	if (m_inFunctionDef)
+	{
+		// Variables declared directly in for-init block
+		// are tracked separately because their scope
+		// extends beyond the block they are defined in
+		// to the rest of the for-loop statement.
+		// Case 1
+		if (forInitScopeExtendVariable)
+		{
+			yulAssert(
+				!m_funcForLoopInitVars.empty() && !m_funcForLoopInitVars.back().empty(),
+				"Proto fuzzer: Invalid operation"
+			);
+			for (auto const& varName: _varNames)
+				m_funcForLoopInitVars.back().back().push_back(varName);
+		}
+		// Case 2
+		else
+		{
+			yulAssert(
+				!m_funcVars.empty() && !m_funcVars.back().empty(),
+				"Proto fuzzer: Invalid operation"
+			);
+			for (auto const& varName: _varNames)
+				m_funcVars.back().back().push_back(varName);
+		}
+	}
+	// If m_inFunctionDef is false, we are in global scope
+	else
+	{
+		// Case 3
+		if (forInitScopeExtendVariable)
+		{
+			yulAssert(!m_globalForLoopInitVars.empty(), "Proto fuzzer: Invalid operation");
+
+			for (auto const& varName: _varNames)
+				m_globalForLoopInitVars.back().push_back(varName);
+		}
+		// Case 4
+		else
+		{
+			yulAssert(!m_globalVars.empty(), "Proto fuzzer: Invalid operation");
+
+			for (auto const& varName: _varNames)
+				m_globalVars.back().push_back(varName);
+		}
+	}
+}
+
 void ProtoConverter::visit(VarDecl const& _x)
 {
 	string varName = newVarName();
 	m_output << "let " << varName << " := ";
 	visit(_x.expr());
 	m_output << "\n";
-	if (m_inFunctionDef)
-		m_funcVars.back().back().push_back(varName);
-	else
-		m_globalVars.back().push_back(varName);
+	scopeVariables({varName});
+}
+
+void ProtoConverter::visit(MultiVarDecl const& _x)
+{
+	m_output << "let ";
+	vector<string> varNames;
+	// We support up to 4 variables in a single
+	// declaration statement.
+	unsigned numVars = _x.num_vars() % 3 + 2;
+	string delimiter = "";
+	for (unsigned i = 0; i < numVars; i++)
+	{
+		string varName = newVarName();
+		varNames.push_back(varName);
+		m_output << delimiter << varName;
+		if (i == 0)
+			delimiter = ", ";
+	}
+	m_output << "\n";
+	scopeVariables(varNames);
 }
 
 void ProtoConverter::visit(TypedVarDecl const& _x)
@@ -349,15 +511,68 @@ void ProtoConverter::visit(TypedVarDecl const& _x)
 		m_output << " : u256\n";
 		break;
 	}
+	// If we are inside a for-init block, there are two places
+	// where the visited vardecl may have been defined:
+	// - directly inside the for-init block
+	// - inside a block within the for-init block
+	// In the latter case, we don't scope extend.
 	if (m_inFunctionDef)
-		m_funcVars.back().back().push_back(varName);
+	{
+		// Variables declared directly in for-init block
+		// are tracked separately because their scope
+		// extends beyond the block they are defined in
+		// to the rest of the for-loop statement.
+		if (m_inForInitScope && m_forInitScopeExtEnabled)
+		{
+			yulAssert(
+				!m_funcForLoopInitVars.empty() && !m_funcForLoopInitVars.back().empty(),
+				"Proto fuzzer: Invalid operation"
+			);
+			m_funcForLoopInitVars.back().back().push_back(varName);
+		}
+		else
+		{
+			yulAssert(
+				!m_funcVars.empty() && !m_funcVars.back().empty(),
+				"Proto fuzzer: Invalid operation"
+			);
+			m_funcVars.back().back().push_back(varName);
+		}
+	}
 	else
-		m_globalVars.back().push_back(varName);
+	{
+		if (m_inForInitScope && m_forInitScopeExtEnabled)
+		{
+			yulAssert(
+				!m_globalForLoopInitVars.empty(),
+				"Proto fuzzer: Invalid operation"
+			);
+			m_globalForLoopInitVars.back().push_back(varName);
+		}
+		else
+		{
+			yulAssert(
+				!m_globalVars.empty(),
+				"Proto fuzzer: Invalid operation"
+			);
+			m_globalVars.back().push_back(varName);
+		}
+	}
 }
 
 void ProtoConverter::visit(UnaryOp const& _x)
 {
-	switch (_x.op())
+	UnaryOp_UOp op = _x.op();
+
+	// Replace calls to extcodehash on unsupported EVMs with a dictionary
+	// token.
+	if (op == UnaryOp::EXTCODEHASH && !m_evmVersion.hasExtCodeHash())
+	{
+		m_output << dictionaryToken();
+		return;
+	}
+
+	switch (op)
 	{
 	case UnaryOp::NOT:
 		m_output << "not";
@@ -416,9 +631,6 @@ void ProtoConverter::visit(NullaryOp const& _x)
 {
 	switch (_x.op())
 	{
-	case NullaryOp::PC:
-		m_output << "pc()";
-		break;
 	case NullaryOp::MSIZE:
 		m_output << "msize()";
 		break;
@@ -432,7 +644,12 @@ void ProtoConverter::visit(NullaryOp const& _x)
 		m_output << "codesize()";
 		break;
 	case NullaryOp::RETURNDATASIZE:
-		m_output << "returndatasize()";
+		// If evm supports returndatasize, we generate it. Otherwise,
+		// we output a dictionary token.
+		if (m_evmVersion.supportsReturndata())
+			m_output << "returndatasize()";
+		else
+			m_output << dictionaryToken();
 		break;
 	case NullaryOp::ADDRESS:
 		m_output << "address()";
@@ -465,10 +682,20 @@ void ProtoConverter::visit(NullaryOp const& _x)
 		m_output << "gaslimit()";
 		break;
 	case NullaryOp::SELFBALANCE:
-		m_output << "selfbalance()";
+		// Replace calls to selfbalance() on unsupported EVMs with a dictionary
+		// token.
+		if (m_evmVersion.hasSelfBalance())
+			m_output << "selfbalance()";
+		else
+			m_output << dictionaryToken();
 		break;
 	case NullaryOp::CHAINID:
-		m_output << "chainid()";
+		// Replace calls to chainid() on unsupported EVMs with a dictionary
+		// token.
+		if (m_evmVersion.hasChainID())
+			m_output << "chainid()";
+		else
+			m_output << dictionaryToken();
 		break;
 	}
 }
@@ -478,8 +705,13 @@ void ProtoConverter::visit(CopyFunc const& _x)
 	CopyFunc_CopyType type = _x.ct();
 
 	// datacopy() is valid only if we are inside
-	// a yul object.
+	// a Yul object.
 	if (type == CopyFunc::DATA && !m_isObject)
+		return;
+
+	// We don't generate code if the copy function is returndatacopy
+	// and the underlying evm does not support it.
+	if (type == CopyFunc::RETURNDATA && !m_evmVersion.supportsReturndata())
 		return;
 
 	switch (type)
@@ -491,6 +723,7 @@ void ProtoConverter::visit(CopyFunc const& _x)
 		m_output << "codecopy";
 		break;
 	case CopyFunc::RETURNDATA:
+		yulAssert(m_evmVersion.supportsReturndata(), "Proto fuzzer: Invalid evm version");
 		m_output << "returndatacopy";
 		break;
 	case CopyFunc::DATA:
@@ -603,18 +836,18 @@ void ProtoConverter::visitFunctionInputParams(FunctionCall const& _x, unsigned _
 	case 4:
 		visit(_x.in_param4());
 		m_output << ", ";
-		BOOST_FALLTHROUGH;
+		[[fallthrough]];
 	case 3:
 		visit(_x.in_param3());
 		m_output << ", ";
-		BOOST_FALLTHROUGH;
+		[[fallthrough]];
 	case 2:
 		visit(_x.in_param2());
 		m_output << ", ";
-		BOOST_FALLTHROUGH;
+		[[fallthrough]];
 	case 1:
 		visit(_x.in_param1());
-		BOOST_FALLTHROUGH;
+		[[fallthrough]];
 	case 0:
 		break;
 	default:
@@ -711,30 +944,27 @@ void ProtoConverter::visit(FunctionCall const& _x)
 		convertFunctionCall(_x, funcName, numInParams, /*newLine=*/false);
 		break;
 	case FunctionCall::MULTIDECL:
-		// Hack: Disallow (multi) variable declarations until scope extension
-		// is implemented for "for-init"
-		if (!m_inForInitScope)
-		{
-			// Ensure that the chosen function returns at most 4 values
-			yulAssert(
-				numOutParams <= 4,
-				"Proto fuzzer: Function call with too many output params encountered."
-			);
+	{
+		// Ensure that the chosen function returns at most 4 values
+		yulAssert(
+			numOutParams <= 4,
+			"Proto fuzzer: Function call with too many output params encountered."
+		);
 
-			// Obtain variable name suffix
-			unsigned startIdx = counter();
-			vector<string> varsVec = createVarDecls(
-				startIdx,
-				startIdx + numOutParams,
-				/*isAssignment=*/true
-			);
+		// Obtain variable name suffix
+		unsigned startIdx = counter();
+		vector<string> varsVec = createVarDecls(
+			startIdx,
+			startIdx + numOutParams,
+			/*isAssignment=*/true
+		);
 
-			// Create RHS of multi var decl
-			convertFunctionCall(_x, funcName, numInParams);
-			// Add newly minted vars in the multidecl statement to current scope
-			addVarsToScope(varsVec);
-		}
+		// Create RHS of multi var decl
+		convertFunctionCall(_x, funcName, numInParams);
+		// Add newly minted vars in the multidecl statement to current scope
+		addVarsToScope(varsVec);
 		break;
+	}
 	case FunctionCall::MULTIASSIGN:
 		// Ensure that the chosen function returns at most 4 values
 		yulAssert(
@@ -742,27 +972,47 @@ void ProtoConverter::visit(FunctionCall const& _x)
 			"Proto fuzzer: Function call with too many output params encountered."
 		);
 
+		// Return early if numOutParams > number of available variables
+		if (numOutParams > numVarsInScope())
+			return;
+
+		// Copy variables in scope in order to prevent repeated references
+		vector<string> variables;
+		if (m_inFunctionDef)
+			for (auto var: m_currentFuncVars)
+				variables.push_back(*var);
+		else
+			for (auto var: m_currentGlobalVars)
+				variables.push_back(*var);
+
+		auto refVar = [](vector<string>& _var, unsigned _rand, bool _comma = true) -> string
+			{
+				auto index = _rand % _var.size();
+				string ref = _var[index];
+				_var.erase(_var.begin() + index);
+				if (_comma)
+					ref += ", ";
+				return ref;
+			};
+
 		// Convert LHS of multi assignment
 		// We reverse the order of out param visits since the order does not matter.
 		// This helps reduce the size of this switch statement.
 		switch (numOutParams)
 		{
-			case 4:
-				visit(_x.out_param4());
-				m_output << ", ";
-				BOOST_FALLTHROUGH;
-			case 3:
-				visit(_x.out_param3());
-				m_output << ", ";
-				BOOST_FALLTHROUGH;
-			case 2:
-				visit(_x.out_param2());
-				m_output << ", ";
-				visit(_x.out_param1());
-				break;
-			default:
-				yulAssert(false, "Proto fuzzer: Function call with too many or too few input parameters.");
-				break;
+		case 4:
+			m_output << refVar(variables, _x.out_param4().varnum());
+			[[fallthrough]];
+		case 3:
+			m_output << refVar(variables, _x.out_param3().varnum());
+			[[fallthrough]];
+		case 2:
+			m_output << refVar(variables, _x.out_param2().varnum());
+			m_output << refVar(variables, _x.out_param1().varnum(), false);
+			break;
+		default:
+			yulAssert(false, "Proto fuzzer: Function call with too many or too few input parameters.");
+			break;
 		}
 		m_output << " := ";
 
@@ -775,6 +1025,16 @@ void ProtoConverter::visit(FunctionCall const& _x)
 void ProtoConverter::visit(LowLevelCall const& _x)
 {
 	LowLevelCall_Type type = _x.callty();
+
+	// Generate staticcall if it is supported by the underlying evm
+	if (type == LowLevelCall::STATICCALL && !m_evmVersion.hasStaticCall())
+	{
+		// Since staticcall is supposed to return 0 on success and 1 on
+		// failure, we can use counter value to emulate it
+		m_output << ((counter() % 2) ? "0" : "1");
+		return;
+	}
+
 	switch (type)
 	{
 	case LowLevelCall::CALL:
@@ -787,6 +1047,7 @@ void ProtoConverter::visit(LowLevelCall const& _x)
 		m_output << "delegatecall(";
 		break;
 	case LowLevelCall::STATICCALL:
+		yulAssert(m_evmVersion.hasStaticCall(), "Proto fuzzer: Invalid evm version");
 		m_output << "staticcall(";
 		break;
 	}
@@ -812,6 +1073,15 @@ void ProtoConverter::visit(LowLevelCall const& _x)
 void ProtoConverter::visit(Create const& _x)
 {
 	Create_Type type = _x.createty();
+
+	// Replace a call to create2 on unsupported EVMs with a dictionary
+	// token.
+	if (type == Create::CREATE2 && !m_evmVersion.hasCreate2())
+	{
+		m_output << dictionaryToken();
+		return;
+	}
+
 	switch (type)
 	{
 	case Create::CREATE:
@@ -864,23 +1134,48 @@ void ProtoConverter::visit(StoreFunc const& _x)
 
 void ProtoConverter::visit(ForStmt const& _x)
 {
+	if (++m_numForLoops > s_maxForLoops)
+		return;
 	bool wasInForBody = m_inForBodyScope;
 	bool wasInForInit = m_inForInitScope;
+	bool wasForInitScopeExtEnabled = m_forInitScopeExtEnabled;
 	m_inForBodyScope = false;
 	m_inForInitScope = true;
+	m_forInitScopeExtEnabled = true;
+	m_inForCond = false;
 	m_output << "for ";
 	visit(_x.for_init());
 	m_inForInitScope = false;
+	m_forInitScopeExtEnabled = wasForInitScopeExtEnabled;
+	m_inForCond = true;
 	visit(_x.for_cond());
+	m_inForCond = false;
 	visit(_x.for_post());
 	m_inForBodyScope = true;
 	visit(_x.for_body());
 	m_inForBodyScope = wasInForBody;
 	m_inForInitScope = wasInForInit;
+	if (m_inFunctionDef)
+	{
+		yulAssert(
+			!m_funcForLoopInitVars.empty() && !m_funcForLoopInitVars.back().empty(),
+			"Proto fuzzer: Invalid data structure"
+		);
+		// Remove variables in for-init
+		m_funcForLoopInitVars.back().pop_back();
+	}
+	else
+	{
+		yulAssert(!m_globalForLoopInitVars.empty(), "Proto fuzzer: Invalid data structure");
+		m_globalForLoopInitVars.pop_back();
+	}
 }
 
 void ProtoConverter::visit(BoundedForStmt const& _x)
 {
+	if (++m_numForLoops > s_maxForLoops)
+		return;
+
 	// Boilerplate for loop that limits the number of iterations to a maximum of 4.
 	std::string loopVarName("i_" + std::to_string(m_numNestedForLoops++));
 	m_output << "for { let " << loopVarName << " := 0 } "
@@ -944,6 +1239,8 @@ void ProtoConverter::visit(CaseStmt const& _x)
 		if (noDoubleQuoteStr.empty())
 			yulAssert(literalVal == 0, "Proto fuzzer: Empty string does not evaluate to zero");
 	}
+	else if (_x.case_lit().has_boolval())
+		literalVal = _x.case_lit().boolval() ? u256(1) : u256(0);
 	else
 		literalVal = u256(literal);
 
@@ -1063,9 +1360,7 @@ void ProtoConverter::visit(Statement const& _x)
 	switch (_x.stmt_oneof_case())
 	{
 	case Statement::kDecl:
-		// Hack: Disallow (multi) variable declarations until scope extension is implemented for "for-init"
-		if (!m_inForInitScope)
-			visit(_x.decl());
+		visit(_x.decl());
 		break;
 	case Statement::kAssignment:
 		// Create an assignment statement only if there is at least one variable
@@ -1074,19 +1369,23 @@ void ProtoConverter::visit(Statement const& _x)
 			visit(_x.assignment());
 		break;
 	case Statement::kIfstmt:
-		visit(_x.ifstmt());
+		if (_x.ifstmt().if_body().statements_size() > 0)
+			visit(_x.ifstmt());
 		break;
 	case Statement::kStorageFunc:
 		visit(_x.storage_func());
 		break;
 	case Statement::kBlockstmt:
-		visit(_x.blockstmt());
+		if (_x.blockstmt().statements_size() > 0)
+			visit(_x.blockstmt());
 		break;
 	case Statement::kForstmt:
-		visit(_x.forstmt());
+		if (_x.forstmt().for_body().statements_size() > 0)
+			visit(_x.forstmt());
 		break;
 	case Statement::kBoundedforstmt:
-		visit(_x.boundedforstmt());
+		if (_x.boundedforstmt().for_body().statements_size() > 0)
+			visit(_x.boundedforstmt());
 		break;
 	case Statement::kSwitchstmt:
 		visit(_x.switchstmt());
@@ -1118,11 +1417,19 @@ void ProtoConverter::visit(Statement const& _x)
 		visit(_x.functioncall());
 		break;
 	case Statement::kFuncdef:
-		if (!m_inForInitScope)
-			visit(_x.funcdef());
+		if (_x.funcdef().block().statements_size() > 0)
+			if (!m_inForInitScope)
+				visit(_x.funcdef());
 		break;
 	case Statement::kPop:
 		visit(_x.pop());
+		break;
+	case Statement::kLeave:
+		if (m_inFunctionDef)
+			visit(_x.leave());
+		break;
+	case Statement::kMultidecl:
+		visit(_x.multidecl());
 		break;
 	case Statement::STMT_ONEOF_NOT_SET:
 		break;
@@ -1132,16 +1439,36 @@ void ProtoConverter::visit(Statement const& _x)
 void ProtoConverter::openBlockScope()
 {
 	m_scopeFuncs.push_back({});
+
 	// Create new block scope inside current function scope
 	if (m_inFunctionDef)
+	{
+		yulAssert(
+			!m_funcVars.empty(),
+			"Proto fuzzer: Invalid data structure"
+		);
 		m_funcVars.back().push_back(vector<string>{});
+		if (m_inForInitScope && m_forInitScopeExtEnabled)
+		{
+			yulAssert(
+				!m_funcForLoopInitVars.empty(),
+				"Proto fuzzer: Invalid data structure"
+			);
+			m_funcForLoopInitVars.back().push_back(vector<string>{});
+		}
+	}
 	else
-		m_globalVars.push_back(vector<string>{});
+	{
+		m_globalVars.push_back({});
+		if (m_inForInitScope && m_forInitScopeExtEnabled)
+			m_globalForLoopInitVars.push_back(vector<string>{});
+	}
 }
 
 void ProtoConverter::openFunctionScope(vector<string> const& _funcParams)
 {
 	m_funcVars.push_back(vector<vector<string>>({_funcParams}));
+	m_funcForLoopInitVars.push_back(vector<vector<string>>({}));
 }
 
 void ProtoConverter::updateFunctionMaps(string const& _var)
@@ -1160,6 +1487,8 @@ void ProtoConverter::updateFunctionMaps(string const& _var)
 
 void ProtoConverter::closeBlockScope()
 {
+	// Remove functions declared in the block that is going
+	// out of scope from the global function map.
 	for (auto const& f: m_scopeFuncs.back())
 	{
 		unsigned numFuncsRemoved = m_functions.size();
@@ -1171,35 +1500,95 @@ void ProtoConverter::closeBlockScope()
 		);
 		updateFunctionMaps(f);
 	}
+	// Pop back the vector of scoped functions.
 	if (!m_scopeFuncs.empty())
 		m_scopeFuncs.pop_back();
-	if (!m_inFunctionDef)
+
+	// If block belongs to function body, then remove
+	// local variables in function body that are going out of scope.
+	if (m_inFunctionDef)
 	{
-		if (!m_globalVars.empty())
-			m_globalVars.pop_back();
+		yulAssert(!m_funcVars.empty(), "Proto fuzzer: Invalid data structure");
+		if (!m_funcVars.back().empty())
+			m_funcVars.back().pop_back();
 	}
+	// Remove variables declared in vanilla block from current
+	// global scope.
 	else
 	{
-		// Variables that have been declared in a
-		// function block, go out of scope
-		if (!m_funcVars.empty())
-			if (!m_funcVars.back().empty())
-				m_funcVars.back().pop_back();
+		yulAssert(!m_globalVars.empty(), "Proto fuzzer: Invalid data structure");
+		m_globalVars.pop_back();
 	}
 }
 
 void ProtoConverter::closeFunctionScope()
 {
-	if (!m_funcVars.empty())
-		m_funcVars.pop_back();
+	yulAssert(!m_funcVars.empty(), "Proto fuzzer: Invalid data structure");
+	m_funcVars.pop_back();
+	yulAssert(!m_funcForLoopInitVars.empty(), "Proto fuzzer: Invalid data structure");
+	m_funcForLoopInitVars.pop_back();
 }
 
 void ProtoConverter::addVarsToScope(vector<string> const& _vars)
 {
+	// If we are in function definition, add the new vars to current function scope
 	if (m_inFunctionDef)
-		m_funcVars.back().back().insert(m_funcVars.back().back().end(), _vars.begin(), _vars.end());
+	{
+		// If we are directly in for-init block, add the newly created vars to the
+		// stack of for-init variables.
+		if (m_inForInitScope && m_forInitScopeExtEnabled)
+		{
+			yulAssert(
+				!m_funcForLoopInitVars.empty() && !m_funcForLoopInitVars.back().empty(),
+				"Proto fuzzer: Invalid data structure"
+			);
+			m_funcForLoopInitVars.back().back().insert(
+				m_funcForLoopInitVars.back().back().end(),
+				_vars.begin(),
+				_vars.end()
+			);
+		}
+		else
+		{
+			yulAssert(
+				!m_funcVars.empty() && !m_funcVars.back().empty(),
+				"Proto fuzzer: Invalid data structure"
+			);
+			m_funcVars.back().back().insert(
+				m_funcVars.back().back().end(),
+				_vars.begin(),
+				_vars.end()
+			);
+		}
+	}
+	// If we are in a vanilla block, add the new vars to current global scope
 	else
-		m_globalVars.back().insert(m_globalVars.back().end(), _vars.begin(), _vars.end());
+	{
+		if (m_inForInitScope && m_forInitScopeExtEnabled)
+		{
+			yulAssert(
+				!m_globalForLoopInitVars.empty(),
+				"Proto fuzzer: Invalid data structure"
+			);
+			m_globalForLoopInitVars.back().insert(
+				m_globalForLoopInitVars.back().end(),
+				_vars.begin(),
+				_vars.end()
+			);
+		}
+		else
+		{
+			yulAssert(
+				!m_globalVars.empty(),
+				"Proto fuzzer: Invalid data structure"
+			);
+			m_globalVars.back().insert(
+				m_globalVars.back().end(),
+				_vars.begin(),
+				_vars.end()
+			);
+		}
+	}
 }
 
 void ProtoConverter::visit(Block const& _x)
@@ -1210,14 +1599,26 @@ void ProtoConverter::visit(Block const& _x)
 	// scope belongs to for-init (in which function declarations
 	// are forbidden).
 	for (auto const& statement: _x.statements())
-		if (statement.has_funcdef() && !m_inForInitScope)
+		if (statement.has_funcdef() && statement.funcdef().block().statements_size() > 0 && !m_inForInitScope)
 			registerFunction(&statement.funcdef());
 
 	if (_x.statements_size() > 0)
 	{
 		m_output << "{\n";
+		bool wasForInitScopeExtEnabled = m_forInitScopeExtEnabled;
 		for (auto const& st: _x.statements())
+		{
+			// If statement is block or introduces one and we are in for-init block
+			// then temporarily disable scope extension if it is not already disabled.
+			if (
+				(st.has_blockstmt() || st.has_switchstmt() || st.has_ifstmt()) &&
+				m_inForInitScope &&
+				m_forInitScopeExtEnabled
+			)
+				m_forInitScopeExtEnabled = false;
 			visit(st);
+			m_forInitScopeExtEnabled = wasForInitScopeExtEnabled;
+		}
 		m_output << "}\n";
 	}
 	else
@@ -1228,7 +1629,7 @@ void ProtoConverter::visit(Block const& _x)
 vector<string> ProtoConverter::createVars(unsigned _startIdx, unsigned _endIdx)
 {
 	yulAssert(_endIdx > _startIdx, "Proto fuzzer: Variable indices not in range");
-	string varsStr = dev::suffixedVariableNameList("x_", _startIdx, _endIdx);
+	string varsStr = suffixedVariableNameList("x_", _startIdx, _endIdx);
 	m_output << varsStr;
 	vector<string> varsVec;
 	boost::split(
@@ -1275,7 +1676,7 @@ void ProtoConverter::fillFunctionCallInput(unsigned _numInParams)
 	{
 		// Throw a 4-sided dice to choose whether to populate function input
 		// argument from a pseudo-randomly chosen slot in one of the following
-		// locations: calldata, memory, storage, or yul optimizer dictionary.
+		// locations: calldata, memory, storage, or Yul optimizer dictionary.
 		unsigned diceValue = counter() % 4;
 		// Pseudo-randomly choose one of the first ten 32-byte
 		// aligned slots.
@@ -1416,9 +1817,10 @@ void ProtoConverter::createFunctionDefAndCall(
 
 	yulAssert(
 		!m_inForInitScope,
-		"Proto fuzzer: Trying to create function call inside for-init block"
+		"Proto fuzzer: Trying to create function call inside a for-init block"
 	);
-	createFunctionCall(funcName, _numInParams, _numOutParams);
+	if (_x.force_call())
+		createFunctionCall(funcName, _numInParams, _numOutParams);
 }
 
 void ProtoConverter::visit(FunctionDef const& _x)
@@ -1435,12 +1837,21 @@ void ProtoConverter::visit(PopStmt const& _x)
 	m_output << ")\n";
 }
 
-string ProtoConverter::getObjectIdentifier(ObjectId const& _x)
+void ProtoConverter::visit(LeaveStmt const&)
+{
+	m_output << "leave\n";
+}
+
+string ProtoConverter::getObjectIdentifier(unsigned _x)
 {
 	unsigned currentId = currentObjectId();
-	yulAssert(m_objectScopeTree.size() > currentId, "Proto fuzzer: Error referencing object");
-	std::vector<std::string> objectIdsInScope = m_objectScopeTree[currentId];
-	return objectIdsInScope[_x.id() % objectIdsInScope.size()];
+	string currentObjName = "object" + to_string(currentId);
+	yulAssert(
+		m_objectScope.count(currentObjName) && m_objectScope.at(currentObjName).size() > 0,
+		"Yul proto fuzzer: Error referencing object"
+	);
+	vector<string> objectIdsInScope = m_objectScope.at(currentObjName);
+	return objectIdsInScope[_x % objectIdsInScope.size()];
 }
 
 void ProtoConverter::visit(Code const& _x)
@@ -1465,31 +1876,33 @@ void ProtoConverter::visit(Object const& _x)
 	visit(_x.code());
 	if (_x.has_data())
 		visit(_x.data());
-	if (_x.has_sub_obj())
-		visit(_x.sub_obj());
+	for (auto const& subObj: _x.sub_obj())
+		visit(subObj);
 	m_output << "}\n";
 }
 
 void ProtoConverter::buildObjectScopeTree(Object const& _x)
 {
 	// Identifies object being visited
-	string objectId = newObjectId(false);
-	vector<string> node{objectId};
+	string objectName = newObjectId(false);
+	vector<string> node{objectName};
 	if (_x.has_data())
 		node.push_back(s_dataIdentifier);
-	if (_x.has_sub_obj())
+	for (auto const& subObj: _x.sub_obj())
 	{
 		// Identifies sub object whose numeric suffix is
 		// m_objectId
-		string subObjectId = "object" + to_string(m_objectId);
-		node.push_back(subObjectId);
-		// TODO: Add sub-object to object's ancestors once
-		// nested access is implemented.
-		m_objectScopeTree.push_back(node);
-		buildObjectScopeTree(_x.sub_obj());
+		unsigned subObjectId = m_objectId;
+		string subObjectName = "object" + to_string(subObjectId);
+		node.push_back(subObjectName);
+		buildObjectScopeTree(subObj);
+		// Add sub-object to object's ancestors
+		yulAssert(m_objectScope.count(subObjectName), "Yul proto fuzzer: Invalid object hierarchy");
+		for (string const& item: m_objectScope.at(subObjectName))
+			if (item != subObjectName)
+				node.push_back(subObjectName + "." + item);
 	}
-	else
-		m_objectScopeTree.push_back(node);
+	m_objectScope.emplace(objectName, node);
 }
 
 void ProtoConverter::visit(Program const& _x)
@@ -1497,7 +1910,10 @@ void ProtoConverter::visit(Program const& _x)
 	// Initialize input size
 	m_inputSize = _x.ByteSizeLong();
 
-	// Program is either a yul object or a block of
+	// Record EVM Version
+	m_evmVersion = evmVersionMapping(_x.ver());
+
+	// Program is either a Yul object or a block of
 	// statements.
 	switch (_x.program_oneof_case())
 	{
@@ -1514,7 +1930,7 @@ void ProtoConverter::visit(Program const& _x)
 		visit(_x.obj());
 		break;
 	case Program::PROGRAM_ONEOF_NOT_SET:
-		// {} is a trivial yul program
+		// {} is a trivial Yul program
 		m_output << "{}";
 		break;
 	}

@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2014
@@ -23,13 +24,13 @@
 #pragma once
 
 #include <libsolidity/ast/AST.h>
+
 #include <functional>
 #include <string>
 #include <vector>
+#include <utility>
 
-namespace dev
-{
-namespace solidity
+namespace solidity::frontend
 {
 
 /**
@@ -43,7 +44,16 @@ namespace solidity
 class ASTVisitor
 {
 public:
+	ASTVisitor() = default;
+
+	ASTVisitor(ASTVisitor const&) = delete;
+	ASTVisitor(ASTVisitor&&) = delete;
+
+	ASTVisitor& operator=(ASTVisitor const&) = delete;
+	ASTVisitor& operator=(ASTVisitor&&) = delete;
+
 	virtual ~ASTVisitor() = default;
+
 	virtual bool visit(SourceUnit& _node) { return visitNode(_node); }
 	virtual bool visit(PragmaDirective& _node) { return visitNode(_node); }
 	virtual bool visit(ImportDirective& _node) { return visitNode(_node); }
@@ -54,6 +64,7 @@ public:
 	virtual bool visit(EnumDefinition& _node) { return visitNode(_node); }
 	virtual bool visit(EnumValue& _node) { return visitNode(_node); }
 	virtual bool visit(ParameterList& _node) { return visitNode(_node); }
+	virtual bool visit(OverrideSpecifier& _node) { return visitNode(_node); }
 	virtual bool visit(FunctionDefinition& _node) { return visitNode(_node); }
 	virtual bool visit(VariableDeclaration& _node) { return visitNode(_node); }
 	virtual bool visit(ModifierDefinition& _node) { return visitNode(_node); }
@@ -68,6 +79,8 @@ public:
 	virtual bool visit(Block& _node) { return visitNode(_node); }
 	virtual bool visit(PlaceholderStatement& _node) { return visitNode(_node); }
 	virtual bool visit(IfStatement& _node) { return visitNode(_node); }
+	virtual bool visit(TryCatchClause& _node) { return visitNode(_node); }
+	virtual bool visit(TryStatement& _node) { return visitNode(_node); }
 	virtual bool visit(WhileStatement& _node) { return visitNode(_node); }
 	virtual bool visit(ForStatement& _node) { return visitNode(_node); }
 	virtual bool visit(Continue& _node) { return visitNode(_node); }
@@ -83,12 +96,15 @@ public:
 	virtual bool visit(UnaryOperation& _node) { return visitNode(_node); }
 	virtual bool visit(BinaryOperation& _node) { return visitNode(_node); }
 	virtual bool visit(FunctionCall& _node) { return visitNode(_node); }
+	virtual bool visit(FunctionCallOptions& _node) { return visitNode(_node); }
 	virtual bool visit(NewExpression& _node) { return visitNode(_node); }
 	virtual bool visit(MemberAccess& _node) { return visitNode(_node); }
 	virtual bool visit(IndexAccess& _node) { return visitNode(_node); }
+	virtual bool visit(IndexRangeAccess& _node) { return visitNode(_node); }
 	virtual bool visit(Identifier& _node) { return visitNode(_node); }
 	virtual bool visit(ElementaryTypeNameExpression& _node) { return visitNode(_node); }
 	virtual bool visit(Literal& _node) { return visitNode(_node); }
+	virtual bool visit(StructuredDocumentation& _node) { return visitNode(_node); }
 
 	virtual void endVisit(SourceUnit& _node) { endVisitNode(_node); }
 	virtual void endVisit(PragmaDirective& _node) { endVisitNode(_node); }
@@ -100,6 +116,7 @@ public:
 	virtual void endVisit(EnumDefinition& _node) { endVisitNode(_node); }
 	virtual void endVisit(EnumValue& _node) { endVisitNode(_node); }
 	virtual void endVisit(ParameterList& _node) { endVisitNode(_node); }
+	virtual void endVisit(OverrideSpecifier& _node) { endVisitNode(_node); }
 	virtual void endVisit(FunctionDefinition& _node) { endVisitNode(_node); }
 	virtual void endVisit(VariableDeclaration& _node) { endVisitNode(_node); }
 	virtual void endVisit(ModifierDefinition& _node) { endVisitNode(_node); }
@@ -114,6 +131,8 @@ public:
 	virtual void endVisit(Block& _node) { endVisitNode(_node); }
 	virtual void endVisit(PlaceholderStatement& _node) { endVisitNode(_node); }
 	virtual void endVisit(IfStatement& _node) { endVisitNode(_node); }
+	virtual void endVisit(TryCatchClause& _node) { endVisitNode(_node); }
+	virtual void endVisit(TryStatement& _node) { endVisitNode(_node); }
 	virtual void endVisit(WhileStatement& _node) { endVisitNode(_node); }
 	virtual void endVisit(ForStatement& _node) { endVisitNode(_node); }
 	virtual void endVisit(Continue& _node) { endVisitNode(_node); }
@@ -129,12 +148,15 @@ public:
 	virtual void endVisit(UnaryOperation& _node) { endVisitNode(_node); }
 	virtual void endVisit(BinaryOperation& _node) { endVisitNode(_node); }
 	virtual void endVisit(FunctionCall& _node) { endVisitNode(_node); }
+	virtual void endVisit(FunctionCallOptions& _node) { endVisitNode(_node); }
 	virtual void endVisit(NewExpression& _node) { endVisitNode(_node); }
 	virtual void endVisit(MemberAccess& _node) { endVisitNode(_node); }
 	virtual void endVisit(IndexAccess& _node) { endVisitNode(_node); }
+	virtual void endVisit(IndexRangeAccess& _node) { endVisitNode(_node); }
 	virtual void endVisit(Identifier& _node) { endVisitNode(_node); }
 	virtual void endVisit(ElementaryTypeNameExpression& _node) { endVisitNode(_node); }
 	virtual void endVisit(Literal& _node) { endVisitNode(_node); }
+	virtual void endVisit(StructuredDocumentation& _node) { endVisitNode(_node); }
 
 protected:
 	/// Generic function called by default for each node, to be overridden by derived classes
@@ -148,7 +170,16 @@ protected:
 class ASTConstVisitor
 {
 public:
+	ASTConstVisitor() = default;
+
+	ASTConstVisitor(ASTConstVisitor const&) = delete;
+	ASTConstVisitor(ASTConstVisitor&&) = delete;
+
+	ASTConstVisitor& operator=(ASTConstVisitor const&) = delete;
+	ASTConstVisitor& operator=(ASTConstVisitor&&) = delete;
+
 	virtual ~ASTConstVisitor() = default;
+
 	virtual bool visit(SourceUnit const& _node) { return visitNode(_node); }
 	virtual bool visit(PragmaDirective const& _node) { return visitNode(_node); }
 	virtual bool visit(ImportDirective const& _node) { return visitNode(_node); }
@@ -159,6 +190,7 @@ public:
 	virtual bool visit(EnumDefinition const& _node) { return visitNode(_node); }
 	virtual bool visit(EnumValue const& _node) { return visitNode(_node); }
 	virtual bool visit(ParameterList const& _node) { return visitNode(_node); }
+	virtual bool visit(OverrideSpecifier const& _node) { return visitNode(_node); }
 	virtual bool visit(FunctionDefinition const& _node) { return visitNode(_node); }
 	virtual bool visit(VariableDeclaration const& _node) { return visitNode(_node); }
 	virtual bool visit(ModifierDefinition const& _node) { return visitNode(_node); }
@@ -172,6 +204,8 @@ public:
 	virtual bool visit(Block const& _node) { return visitNode(_node); }
 	virtual bool visit(PlaceholderStatement const& _node) { return visitNode(_node); }
 	virtual bool visit(IfStatement const& _node) { return visitNode(_node); }
+	virtual bool visit(TryCatchClause const& _node) { return visitNode(_node); }
+	virtual bool visit(TryStatement const& _node) { return visitNode(_node); }
 	virtual bool visit(WhileStatement const& _node) { return visitNode(_node); }
 	virtual bool visit(ForStatement const& _node) { return visitNode(_node); }
 	virtual bool visit(Continue const& _node) { return visitNode(_node); }
@@ -188,12 +222,15 @@ public:
 	virtual bool visit(UnaryOperation const& _node) { return visitNode(_node); }
 	virtual bool visit(BinaryOperation const& _node) { return visitNode(_node); }
 	virtual bool visit(FunctionCall const& _node) { return visitNode(_node); }
+	virtual bool visit(FunctionCallOptions const& _node) { return visitNode(_node); }
 	virtual bool visit(NewExpression const& _node) { return visitNode(_node); }
 	virtual bool visit(MemberAccess const& _node) { return visitNode(_node); }
 	virtual bool visit(IndexAccess const& _node) { return visitNode(_node); }
+	virtual bool visit(IndexRangeAccess const& _node) { return visitNode(_node); }
 	virtual bool visit(Identifier const& _node) { return visitNode(_node); }
 	virtual bool visit(ElementaryTypeNameExpression const& _node) { return visitNode(_node); }
 	virtual bool visit(Literal const& _node) { return visitNode(_node); }
+	virtual bool visit(StructuredDocumentation const& _node) { return visitNode(_node); }
 
 	virtual void endVisit(SourceUnit const& _node) { endVisitNode(_node); }
 	virtual void endVisit(PragmaDirective const& _node) { endVisitNode(_node); }
@@ -205,6 +242,7 @@ public:
 	virtual void endVisit(EnumDefinition const& _node) { endVisitNode(_node); }
 	virtual void endVisit(EnumValue const& _node) { endVisitNode(_node); }
 	virtual void endVisit(ParameterList const& _node) { endVisitNode(_node); }
+	virtual void endVisit(OverrideSpecifier const& _node) { endVisitNode(_node); }
 	virtual void endVisit(FunctionDefinition const& _node) { endVisitNode(_node); }
 	virtual void endVisit(VariableDeclaration const& _node) { endVisitNode(_node); }
 	virtual void endVisit(ModifierDefinition const& _node) { endVisitNode(_node); }
@@ -218,6 +256,8 @@ public:
 	virtual void endVisit(Block const& _node) { endVisitNode(_node); }
 	virtual void endVisit(PlaceholderStatement const& _node) { endVisitNode(_node); }
 	virtual void endVisit(IfStatement const& _node) { endVisitNode(_node); }
+	virtual void endVisit(TryCatchClause const& _node) { endVisitNode(_node); }
+	virtual void endVisit(TryStatement const& _node) { endVisitNode(_node); }
 	virtual void endVisit(WhileStatement const& _node) { endVisitNode(_node); }
 	virtual void endVisit(ForStatement const& _node) { endVisitNode(_node); }
 	virtual void endVisit(Continue const& _node) { endVisitNode(_node); }
@@ -234,12 +274,15 @@ public:
 	virtual void endVisit(UnaryOperation const& _node) { endVisitNode(_node); }
 	virtual void endVisit(BinaryOperation const& _node) { endVisitNode(_node); }
 	virtual void endVisit(FunctionCall const& _node) { endVisitNode(_node); }
+	virtual void endVisit(FunctionCallOptions const& _node) { endVisitNode(_node); }
 	virtual void endVisit(NewExpression const& _node) { endVisitNode(_node); }
 	virtual void endVisit(MemberAccess const& _node) { endVisitNode(_node); }
 	virtual void endVisit(IndexAccess const& _node) { endVisitNode(_node); }
+	virtual void endVisit(IndexRangeAccess const& _node) { endVisitNode(_node); }
 	virtual void endVisit(Identifier const& _node) { endVisitNode(_node); }
 	virtual void endVisit(ElementaryTypeNameExpression const& _node) { endVisitNode(_node); }
 	virtual void endVisit(Literal const& _node) { endVisitNode(_node); }
+	virtual void endVisit(StructuredDocumentation const& _node) { endVisitNode(_node); }
 
 protected:
 	/// Generic function called by default for each node, to be overridden by derived classes
@@ -259,7 +302,7 @@ public:
 	SimpleASTVisitor(
 		std::function<bool(ASTNode const&)> _onVisit,
 		std::function<void(ASTNode const&)> _onEndVisit
-	): m_onVisit(_onVisit), m_onEndVisit(_onEndVisit) {}
+	): m_onVisit(std::move(_onVisit)), m_onEndVisit(std::move(_onEndVisit)) {}
 
 protected:
 	bool visitNode(ASTNode const& _n) override { return m_onVisit ? m_onVisit(_n) : true; }
@@ -289,7 +332,7 @@ public:
 	ASTReduce(
 		std::function<bool(ASTNode const&)> _onNode,
 		std::function<void(ASTNode const&, ASTNode const&)> _onEdge
-	): m_onNode(_onNode), m_onEdge(_onEdge)
+	): m_onNode(std::move(_onNode)), m_onEdge(std::move(_onEdge))
 	{
 	}
 
@@ -312,5 +355,4 @@ private:
 	std::function<void(ASTNode const&, ASTNode const&)> m_onEdge;
 };
 
-}
 }

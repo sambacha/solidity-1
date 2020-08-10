@@ -8,16 +8,18 @@
 	}
 	let f_10
 }
-// ====
-// step: varNameCleaner
 // ----
+// step: varNameCleaner
+//
 // {
-//     let f_1
+//     {
+//         let f_1
+//         let f_2
+//     }
 //     function f(x) -> x_1, y
 //     {
 //         let y_1 := x
 //         y := y_1
 //         x_1 := y
 //     }
-//     let f_2
 // }

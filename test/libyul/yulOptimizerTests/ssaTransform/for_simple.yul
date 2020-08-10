@@ -13,9 +13,9 @@
     }
     a := add(a, 8)
 }
-// ====
-// step: ssaTransform
 // ----
+// step: ssaTransform
+//
 // {
 //     let a_1 := mload(0)
 //     let a := a_1
@@ -32,10 +32,9 @@
 //         a := a_4
 //     }
 //     let a_10 := a
-//     for {
-//         let a_5 := add(a_10, 3)
-//         a := a_5
-//     }
+//     let a_5 := add(a_10, 3)
+//     a := a_5
+//     for { }
 //     a
 //     {
 //         let a_12 := a

@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Yul dialect.
  */
@@ -22,24 +23,21 @@
 
 #include <libyul/YulString.h>
 #include <libyul/SideEffects.h>
+#include <libyul/ControlFlowSideEffects.h>
 
 #include <boost/noncopyable.hpp>
 
 #include <vector>
 #include <set>
+#include <optional>
 
-namespace yul
+namespace solidity::yul
 {
 
 class YulString;
 using Type = YulString;
-
-enum class AsmFlavour
-{
-	Loose,  // no types, EVM instructions as function, jumps and direct stack manipulations
-	Strict, // no types, EVM instructions as functions, but no jumps and no direct stack manipulations
-	Yul     // same as Strict mode with types
-};
+enum class LiteralKind;
+struct Literal;
 
 struct BuiltinFunction
 {
@@ -47,32 +45,46 @@ struct BuiltinFunction
 	std::vector<Type> parameters;
 	std::vector<Type> returns;
 	SideEffects sideEffects;
+	ControlFlowSideEffects controlFlowSideEffects;
 	/// If true, this is the msize instruction.
 	bool isMSize = false;
-	/// If true, can only accept literals as arguments and they cannot be moved to variables.
-	bool literalArguments = false;
+	/// Must be empty or the same length as the arguments.
+	/// If set at index i, the i'th argument has to be a literal which means it can't be moved to variables.
+	std::vector<std::optional<LiteralKind>> literalArguments{};
+	std::optional<LiteralKind> literalArgument(size_t i) const
+	{
+		return literalArguments.empty() ? std::nullopt : literalArguments.at(i);
+	}
 };
 
 struct Dialect: boost::noncopyable
 {
-	AsmFlavour const flavour = AsmFlavour::Loose;
+	/// Default type, can be omitted.
+	YulString defaultType;
+	/// Type used for the literals "true" and "false".
+	YulString boolType;
+	std::set<YulString> types = {{}};
+
 	/// @returns the builtin function of the given name or a nullptr if it is not a builtin function.
 	virtual BuiltinFunction const* builtin(YulString /*_name*/) const { return nullptr; }
 
-	virtual BuiltinFunction const* discardFunction() const { return nullptr; }
-	virtual BuiltinFunction const* equalityFunction() const { return nullptr; }
+	virtual BuiltinFunction const* discardFunction(YulString /* _type */) const { return nullptr; }
+	virtual BuiltinFunction const* equalityFunction(YulString /* _type */) const { return nullptr; }
 	virtual BuiltinFunction const* booleanNegationFunction() const { return nullptr; }
+
+	/// Check whether the given type is legal for the given literal value.
+	/// Should only be called if the type exists in the dialect at all.
+	virtual bool validTypeForLiteral(LiteralKind _kind, YulString _value, YulString _type) const;
+
+	virtual Literal zeroLiteralForType(YulString _type) const;
 
 	virtual std::set<YulString> fixedFunctionNames() const { return {}; }
 
-	Dialect(AsmFlavour _flavour): flavour(_flavour) {}
+	Dialect() = default;
 	virtual ~Dialect() = default;
 
-	static Dialect const& yul()
-	{
-		static Dialect yulDialect(AsmFlavour::Yul);
-		return yulDialect;
-	}
+	/// Old "yul" dialect. This is only used for testing.
+	static Dialect const& yulDeprecated();
 };
 
 }

@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Analysis part of inline assembly.
  */
@@ -34,14 +35,15 @@
 #include <list>
 #include <memory>
 #include <optional>
+#include <utility>
 
-namespace langutil
+namespace solidity::langutil
 {
 class ErrorReporter;
 struct SourceLocation;
 }
 
-namespace yul
+namespace solidity::yul
 {
 
 struct AsmAnalysisInfo;
@@ -57,17 +59,15 @@ public:
 	explicit AsmAnalyzer(
 		AsmAnalysisInfo& _analysisInfo,
 		langutil::ErrorReporter& _errorReporter,
-		std::optional<langutil::Error::Type> _errorTypeForLoose,
 		Dialect const& _dialect,
-		ExternalIdentifierAccess::Resolver const& _resolver = ExternalIdentifierAccess::Resolver(),
-		std::set<YulString> const& _dataNames = {}
+		ExternalIdentifierAccess::Resolver _resolver = ExternalIdentifierAccess::Resolver(),
+		std::set<YulString> _dataNames = {}
 	):
-		m_resolver(_resolver),
+		m_resolver(std::move(_resolver)),
 		m_info(_analysisInfo),
 		m_errorReporter(_errorReporter),
 		m_dialect(_dialect),
-		m_errorTypeForLoose(_errorTypeForLoose),
-		m_dataNames(_dataNames)
+		m_dataNames(std::move(_dataNames))
 	{
 		if (EVMDialect const* evmDialect = dynamic_cast<EVMDialect const*>(&m_dialect))
 			m_evmVersion = evmDialect->evmVersion();
@@ -79,43 +79,46 @@ public:
 	/// Asserts on failure.
 	static AsmAnalysisInfo analyzeStrictAssertCorrect(Dialect const& _dialect, Object const& _object);
 
-	bool operator()(Instruction const&);
-	bool operator()(Literal const& _literal);
-	bool operator()(Identifier const&);
-	bool operator()(FunctionalInstruction const& _functionalInstruction);
-	bool operator()(Label const& _label);
-	bool operator()(ExpressionStatement const&);
-	bool operator()(StackAssignment const&);
-	bool operator()(Assignment const& _assignment);
-	bool operator()(VariableDeclaration const& _variableDeclaration);
-	bool operator()(FunctionDefinition const& _functionDefinition);
-	bool operator()(FunctionCall const& _functionCall);
-	bool operator()(If const& _if);
-	bool operator()(Switch const& _switch);
-	bool operator()(ForLoop const& _forLoop);
-	bool operator()(Break const&);
-	bool operator()(Continue const&);
-	bool operator()(Block const& _block);
+	std::vector<YulString> operator()(Literal const& _literal);
+	std::vector<YulString> operator()(Identifier const&);
+	void operator()(ExpressionStatement const&);
+	void operator()(Assignment const& _assignment);
+	void operator()(VariableDeclaration const& _variableDeclaration);
+	void operator()(FunctionDefinition const& _functionDefinition);
+	std::vector<YulString> operator()(FunctionCall const& _functionCall);
+	void operator()(If const& _if);
+	void operator()(Switch const& _switch);
+	void operator()(ForLoop const& _forLoop);
+	void operator()(Break const&) { }
+	void operator()(Continue const&) { }
+	void operator()(Leave const&) { }
+	void operator()(Block const& _block);
 
 private:
-	/// Visits the statement and expects it to deposit one item onto the stack.
-	bool expectExpression(Expression const& _expr);
-	bool expectDeposit(int _deposit, int _oldHeight, langutil::SourceLocation const& _location);
+	/// Visits the expression, expects that it evaluates to exactly one value and
+	/// returns the type. Reports errors on errors and returns the default type.
+	YulString expectExpression(Expression const& _expr);
+	YulString expectUnlimitedStringLiteral(Literal const& _literal);
+	/// Vists the expression and expects it to return a single boolean value.
+	/// Reports an error otherwise.
+	void expectBoolExpression(Expression const& _expr);
 
-	/// Verifies that a variable to be assigned to exists and has the same size
-	/// as the value, @a _valueSize, unless that is equal to -1.
-	bool checkAssignment(Identifier const& _assignment, size_t _valueSize = size_t(-1));
+	/// Verifies that a variable to be assigned to exists, can be assigned to
+	/// and has the same type as the value.
+	void checkAssignment(Identifier const& _variable, YulString _valueType);
 
 	Scope& scope(Block const* _block);
-	void expectValidType(std::string const& type, langutil::SourceLocation const& _location);
-	void warnOnInstructions(dev::eth::Instruction _instr, langutil::SourceLocation const& _location);
+	void expectValidIdentifier(YulString _identifier, langutil::SourceLocation const& _location);
+	void expectValidType(YulString _type, langutil::SourceLocation const& _location);
+	void expectType(YulString _expectedType, YulString _givenType, langutil::SourceLocation const& _location);
 
-	/// Depending on @a m_flavour and @a m_errorTypeForLoose, throws an internal compiler
-	/// exception (if the flavour is not Loose), reports an error/warning
-	/// (if m_errorTypeForLoose is set) or does nothing.
-	void checkLooseFeature(langutil::SourceLocation const& _location, std::string const& _description);
+	bool validateInstructions(evmasm::Instruction _instr, langutil::SourceLocation const& _location);
+	bool validateInstructions(std::string const& _instrIdentifier, langutil::SourceLocation const& _location);
+	bool validateInstructions(FunctionCall const& _functionCall)
+	{
+		return validateInstructions(_functionCall.functionName.name.str(), _functionCall.functionName.location);
+	}
 
-	int m_stackHeight = 0;
 	yul::ExternalIdentifierAccess::Resolver m_resolver;
 	Scope* m_currentScope = nullptr;
 	/// Variables that are active at the current point in assembly (as opposed to
@@ -125,7 +128,6 @@ private:
 	langutil::ErrorReporter& m_errorReporter;
 	langutil::EVMVersion m_evmVersion;
 	Dialect const& m_dialect;
-	std::optional<langutil::Error::Type> m_errorTypeForLoose;
 	/// Names of data objects to be referenced by builtin functions with literal arguments.
 	std::set<YulString> m_dataNames;
 	ForLoop const* m_currentForLoop = nullptr;

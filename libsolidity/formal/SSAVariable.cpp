@@ -14,11 +14,13 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #include <libsolidity/formal/SSAVariable.h>
 
 using namespace std;
-using namespace dev::solidity::smt;
+using namespace solidity::frontend;
+using namespace solidity::frontend::smt;
 
 SSAVariable::SSAVariable()
 {
@@ -28,5 +30,12 @@ SSAVariable::SSAVariable()
 void SSAVariable::resetIndex()
 {
 	m_currentIndex = 0;
-	m_nextFreeIndex = make_unique<unsigned>(1);
+	m_nextFreeIndex = 1;
+}
+
+void SSAVariable::setIndex(unsigned _index)
+{
+	m_currentIndex = _index;
+	if (m_nextFreeIndex <= _index)
+		m_nextFreeIndex = _index + 1;
 }

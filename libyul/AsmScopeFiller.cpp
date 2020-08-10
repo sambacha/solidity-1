@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Module responsible for registering identifiers inside their scopes.
  */
@@ -27,17 +28,16 @@
 
 #include <liblangutil/ErrorReporter.h>
 
-#include <libdevcore/CommonData.h>
-
-#include <boost/range/adaptor/reversed.hpp>
+#include <libsolutil/CommonData.h>
 
 #include <memory>
 #include <functional>
 
 using namespace std;
-using namespace dev;
-using namespace langutil;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
+using namespace solidity::util;
+using namespace solidity::langutil;
 
 ScopeFiller::ScopeFiller(AsmAnalysisInfo& _info, ErrorReporter& _errorReporter):
 	m_info(_info), m_errorReporter(_errorReporter)
@@ -48,20 +48,6 @@ ScopeFiller::ScopeFiller(AsmAnalysisInfo& _info, ErrorReporter& _errorReporter):
 bool ScopeFiller::operator()(ExpressionStatement const& _expr)
 {
 	return std::visit(*this, _expr.expression);
-}
-
-bool ScopeFiller::operator()(Label const& _item)
-{
-	if (!m_currentScope->registerLabel(_item.name))
-	{
-		//@TODO secondary location
-		m_errorReporter.declarationError(
-			_item.location,
-			"Label name " + _item.name.str() + " already taken in this scope."
-		);
-		return false;
-	}
-	return true;
 }
 
 bool ScopeFiller::operator()(VariableDeclaration const& _varDecl)
@@ -154,6 +140,7 @@ bool ScopeFiller::registerVariable(TypedName const& _name, SourceLocation const&
 	{
 		//@TODO secondary location
 		m_errorReporter.declarationError(
+			1395_error,
 			_location,
 			"Variable name " + _name.name.str() + " already taken in this scope."
 		);
@@ -164,16 +151,17 @@ bool ScopeFiller::registerVariable(TypedName const& _name, SourceLocation const&
 
 bool ScopeFiller::registerFunction(FunctionDefinition const& _funDef)
 {
-	vector<Scope::YulType> arguments;
-	for (auto const& _argument: _funDef.parameters)
-		arguments.emplace_back(_argument.type.str());
+	vector<Scope::YulType> parameters;
+	for (auto const& parameter: _funDef.parameters)
+		parameters.emplace_back(parameter.type);
 	vector<Scope::YulType> returns;
-	for (auto const& _return: _funDef.returnVariables)
-		returns.emplace_back(_return.type.str());
-	if (!m_currentScope->registerFunction(_funDef.name, std::move(arguments), std::move(returns)))
+	for (auto const& returnVariable: _funDef.returnVariables)
+		returns.emplace_back(returnVariable.type);
+	if (!m_currentScope->registerFunction(_funDef.name, std::move(parameters), std::move(returns)))
 	{
 		//@TODO secondary location
 		m_errorReporter.declarationError(
+			6052_error,
 			_funDef.location,
 			"Function name " + _funDef.name.str() + " already taken in this scope."
 		);

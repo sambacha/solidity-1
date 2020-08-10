@@ -54,7 +54,8 @@
 #include <liblangutil/Exceptions.h>
 
 using namespace std;
-using namespace langutil;
+using namespace solidity;
+using namespace solidity::langutil;
 
 char CharStream::advanceAndGet(size_t _chars)
 {
@@ -84,7 +85,7 @@ string CharStream::lineAtPosition(int _position) const
 {
 	// if _position points to \n, it returns the line before the \n
 	using size_type = string::size_type;
-	size_type searchStart = min<size_type>(m_source.size(), _position);
+	size_type searchStart = min<size_type>(m_source.size(), size_type(_position));
 	if (searchStart > 0)
 		searchStart--;
 	size_type lineStart = m_source.rfind('\n', searchStart);
@@ -92,17 +93,21 @@ string CharStream::lineAtPosition(int _position) const
 		lineStart = 0;
 	else
 		lineStart++;
-	return m_source.substr(
+	string line = m_source.substr(
 		lineStart,
 		min(m_source.find('\n', lineStart), m_source.size()) - lineStart
 	);
+	if (!line.empty() && line.back() == '\r')
+		line.pop_back();
+	return line;
 }
 
 tuple<int, int> CharStream::translatePositionToLineColumn(int _position) const
 {
 	using size_type = string::size_type;
-	size_type searchPosition = min<size_type>(m_source.size(), _position);
-	int lineNumber = count(m_source.begin(), m_source.begin() + searchPosition, '\n');
+	using diff_type = string::difference_type;
+	size_type searchPosition = min<size_type>(m_source.size(), size_type(_position));
+	int lineNumber = static_cast<int>(count(m_source.begin(), m_source.begin() + diff_type(searchPosition), '\n'));
 	size_type lineStart;
 	if (searchPosition == 0)
 		lineStart = 0;

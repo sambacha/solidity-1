@@ -5,16 +5,16 @@ Mapping Types
 =============
 
 Mapping types use the syntax ``mapping(_KeyType => _ValueType)`` and variables
-are declared as a mapping type using the syntax ``mapping (_KeyType => _ValueType) _VariableModifiers _VariableName``.
-The ``_KeyType`` can be any elementary type. This means it can be any of
-the built-in value types plus ``bytes`` and ``string``. User-defined
-or complex types like contract types, enums, mappings, structs and any array type
-apart from ``bytes`` and ``string`` are not allowed.
-``_ValueType`` can be any type, including mappings.
+of mapping type are declared using the syntax ``mapping(_KeyType => _ValueType) _VariableName``.
+The ``_KeyType`` can be any
+built-in value type, ``bytes``, ``string``, or any contract or enum type. Other user-defined
+or complex types, such as mappings, structs or array types are not allowed.
+``_ValueType`` can be any type, including mappings, arrays and structs.
 
 You can think of mappings as `hash tables <https://en.wikipedia.org/wiki/Hash_table>`_, which are virtually initialised
 such that every possible key exists and is mapped to a value whose
-byte-representation is all zeros, a type's :ref:`default value <default-value>`. The similarity ends there, the key data is not stored in a
+byte-representation is all zeros, a type's :ref:`default value <default-value>`.
+The similarity ends there, the key data is not stored in a
 mapping, only its ``keccak256`` hash is used to look up the value.
 
 Because of this, mappings do not have a length or a concept of a key or
@@ -26,6 +26,7 @@ are allowed for state variables, as storage reference types
 in functions, or as parameters for library functions.
 They cannot be used as parameters or return parameters
 of contract functions that are publicly visible.
+These restrictions are also true for arrays and structs that contain mappings.
 
 You can mark state variables of mapping type as ``public`` and Solidity creates a
 :ref:`getter <visibility-and-getters>` for you. The ``_KeyType`` becomes a parameter for the getter.
@@ -41,7 +42,8 @@ contract that returns the value at the specified address.
 
 ::
 
-    pragma solidity >=0.4.0 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.0 <0.8.0;
 
     contract MappingExample {
         mapping(address => uint) public balances;
@@ -59,13 +61,15 @@ contract that returns the value at the specified address.
         }
     }
 
-The example below is a simplified version of an `ERC20 token <https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol>`_.
+The example below is a simplified version of an
+`ERC20 token <https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol>`_.
 ``_allowances`` is an example of a mapping type inside another mapping type.
 The example below uses ``_allowances`` to record the amount someone else is allowed to withdraw from your account.
 
 ::
 
-    pragma solidity >=0.4.0 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.22 <0.8.0;
 
     contract MappingExample {
 
@@ -111,33 +115,35 @@ The example below uses ``_allowances`` to record the amount someone else is allo
 Iterable Mappings
 -----------------
 
-Mappings are not iterable, but it is possible to implement a data structure on
+You cannot iterate over mappings, i.e. you cannot enumerate their keys.
+It is possible, though, to implement a data structure on
 top of them and iterate over that. For example, the code below implements an
 ``IterableMapping`` library that the ``User`` contract then adds data too, and
 the ``sum`` function iterates over to sum all the values.
 
 ::
 
-    pragma solidity >=0.4.0 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.6.0 <0.8.0;
+
+    struct IndexValue { uint keyIndex; uint value; }
+    struct KeyFlag { uint key; bool deleted; }
+
+    struct itmap {
+        mapping(uint => IndexValue) data;
+        KeyFlag[] keys;
+        uint size;
+    }
 
     library IterableMapping {
-
-        struct itmap {
-            mapping(uint => IndexValue) data;
-            KeyFlag[] keys;
-            uint size;
-        }
-
-        struct IndexValue { uint keyIndex; uint value; }
-        struct KeyFlag { uint key; bool deleted; }
-
         function insert(itmap storage self, uint key, uint value) internal returns (bool replaced) {
             uint keyIndex = self.data[key].keyIndex;
             self.data[key].value = value;
             if (keyIndex > 0)
                 return true;
             else {
-                keyIndex = self.keys.length++;
+                keyIndex = self.keys.length;
+                self.keys.push();
                 self.data[key].keyIndex = keyIndex + 1;
                 self.keys[keyIndex].key = key;
                 self.size++;
@@ -182,22 +188,27 @@ the ``sum`` function iterates over to sum all the values.
     // How to use it
     contract User {
         // Just a struct holding our data.
-        IterableMapping.itmap data;
+        itmap data;
+        // Apply library functions to the data type.
+        using IterableMapping for itmap;
 
         // Insert something
         function insert(uint k, uint v) public returns (uint size) {
-            // Actually calls itmap_impl.insert, auto-supplying the first parameter for us.
-            IterableMapping.insert(data, k, v);
-            // We can still access members of the struct - but we should take care not to mess with them.
+            // This calls IterableMapping.insert(data, k, v)
+            data.insert(k, v);
+            // We can still access members of the struct,
+            // but we should take care not to mess with them.
             return data.size;
         }
 
         // Computes the sum of all stored data.
         function sum() public view returns (uint s) {
-            for (uint i = IterableMapping.iterate_start(data);
-            IterableMapping.iterate_valid(data, i);
-            i = IterableMapping.iterate_next(data, i)) {
-                (, uint value) = IterableMapping.iterate_get(data, i);
+            for (
+                uint i = data.iterate_start();
+                data.iterate_valid(i);
+                i = data.iterate_next(i)
+            ) {
+                (, uint value) = data.iterate_get(i);
                 s += value;
             }
         }

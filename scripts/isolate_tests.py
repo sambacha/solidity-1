@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #
 # This script reads C++ or RST source files and writes all
 # multi-line strings into individual files.
@@ -13,24 +13,24 @@ import hashlib
 from os.path import join, isfile
 
 def extract_test_cases(path):
-    lines = open(path, 'rb').read().splitlines()
+    lines = open(path, encoding="utf8", errors='ignore', mode='r').read().splitlines()
 
     inside = False
     delimiter = ''
     tests = []
 
     for l in lines:
-      if inside:
-        if l.strip().endswith(')' + delimiter + '";'):
-          inside = False
+        if inside:
+            if l.strip().endswith(')' + delimiter + '";'):
+                inside = False
+            else:
+                tests[-1] += l + '\n'
         else:
-          tests[-1] += l + '\n'
-      else:
-        m = re.search(r'R"([^(]*)\($', l.strip())
-        if m:
-          inside = True
-          delimiter = m.group(1)
-          tests += ['']
+            m = re.search(r'R"([^(]*)\($', l.strip())
+            if m:
+                inside = True
+                delimiter = m.group(1)
+                tests += ['']
 
     return tests
 
@@ -43,7 +43,7 @@ def extract_docs_cases(path):
     tests = []
 
     # Collect all snippets of indented blocks
-    for l in open(path, 'rb').read().splitlines():
+    for l in open(path, mode='r', encoding='utf8').read().splitlines():
         if l != '':
             if not inside and l.startswith(' '):
                 # start new test
@@ -52,7 +52,7 @@ def extract_docs_cases(path):
         if inside:
             extractedLines[-1] += l + '\n'
 
-    codeStart = "(pragma solidity|contract.*{|library.*{|interface.*{)"
+    codeStart = "(// SPDX-License-Identifier:|pragma solidity|contract.*{|library.*{|interface.*{)"
 
     # Filter all tests that do not contain Solidity or are intended incorrectly.
     for lines in extractedLines:
@@ -71,23 +71,24 @@ def write_cases(f, tests):
         # When code examples are extracted they indented by 8 spaces, which violates the style guide,
         # so before checking remove 4 spaces from each line.
         remainder = re.sub(r'^ {4}', '', test, 0, re.MULTILINE)
-        open('test_%s_%s.sol' % (hashlib.sha256(test).hexdigest(), cleaned_filename), 'wb').write(remainder)
+        sol_filename = 'test_%s_%s.sol' % (hashlib.sha256(test.encode("utf-8")).hexdigest(), cleaned_filename)
+        open(sol_filename, mode='w', encoding='utf8').write(remainder)
 
 def extract_and_write(f, path):
-        if docs:
-            cases = extract_docs_cases(path)
+    if docs:
+        cases = extract_docs_cases(path)
+    else:
+        if f.endswith('.sol'):
+            cases = [open(path, mode='r', encoding='utf8').read()]
         else:
-            if f.endswith('.sol'):
-                cases = [open(path, 'r').read()]
-            else:
-                cases = extract_test_cases(path)
-        write_cases(f, cases)
+            cases = extract_test_cases(path)
+    write_cases(f, cases)
 
 if __name__ == '__main__':
     path = sys.argv[1]
     docs = False
     if len(sys.argv) > 2 and sys.argv[2] == 'docs':
-      docs = True
+        docs = True
 
     if isfile(path):
         extract_and_write(path, path)

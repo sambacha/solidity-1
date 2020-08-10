@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #include <libyul/optimiser/LoopInvariantCodeMotion.h>
 
@@ -22,13 +23,13 @@
 #include <libyul/optimiser/Semantics.h>
 #include <libyul/optimiser/SSAValueTracker.h>
 #include <libyul/AsmData.h>
-#include <libdevcore/CommonData.h>
+#include <libsolutil/CommonData.h>
 
 #include <utility>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
 
 void LoopInvariantCodeMotion::run(OptimiserStepContext& _context, Block& _ast)
 {
@@ -41,7 +42,7 @@ void LoopInvariantCodeMotion::run(OptimiserStepContext& _context, Block& _ast)
 
 void LoopInvariantCodeMotion::operator()(Block& _block)
 {
-	iterateReplacing(
+	util::iterateReplacing(
 		_block.statements,
 		[&](Statement& _s) -> optional<vector<Statement>>
 		{
@@ -85,7 +86,7 @@ optional<vector<Statement>> LoopInvariantCodeMotion::rewriteLoop(ForLoop& _for)
 	for (Block* block: {&_for.post, &_for.body})
 	{
 		set<YulString> varsDefinedInScope;
-		iterateReplacing(
+		util::iterateReplacing(
 			block->statements,
 			[&](Statement& _s) -> optional<vector<Statement>>
 			{

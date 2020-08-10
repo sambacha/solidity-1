@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Solidity and Yul both share the same Token (and Scanner) API.
  *
@@ -24,13 +25,10 @@
 
 #include <liblangutil/Token.h>
 
-namespace dev
+namespace solidity::frontend
 {
-namespace solidity
-{
-namespace TokenTraits = ::langutil::TokenTraits;
+namespace TokenTraits = langutil::TokenTraits;
 
-using ::langutil::Token;
-using ::langutil::ElementaryTypeNameToken;
-}
+using langutil::Token;
+using langutil::ElementaryTypeNameToken;
 }

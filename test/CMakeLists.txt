@@ -2,6 +2,8 @@ set(sources
     boostTest.cpp
     Common.cpp
     Common.h
+    CommonSyntaxTest.cpp
+    CommonSyntaxTest.h
     EVMHost.cpp
     EVMHost.h
     ExecutionFramework.cpp
@@ -9,10 +11,10 @@ set(sources
     InteractiveTests.h
     Metadata.cpp
     Metadata.h
-    Options.cpp
-    Options.h
     TestCase.cpp
     TestCase.h
+    TestCaseReader.cpp
+    TestCaseReader.h
 )
 detect_stray_source_files("${sources}" ".")
 
@@ -24,20 +26,21 @@ set(contracts_sources
 )
 detect_stray_source_files("${contracts_sources}" "contracts/")
 
-set(libdevcore_sources
-    libdevcore/Checksum.cpp
-    libdevcore/CommonData.cpp
-    libdevcore/IndentedWriter.cpp
-    libdevcore/IpfsHash.cpp
-    libdevcore/IterateReplacing.cpp
-    libdevcore/JSON.cpp
-    libdevcore/Keccak256.cpp
-    libdevcore/StringUtils.cpp
-    libdevcore/SwarmHash.cpp
-    libdevcore/UTF8.cpp
-    libdevcore/Whiskers.cpp
+set(libsolutil_sources
+    libsolutil/Checksum.cpp
+    libsolutil/CommonData.cpp
+    libsolutil/IndentedWriter.cpp
+    libsolutil/IpfsHash.cpp
+    libsolutil/IterateReplacing.cpp
+    libsolutil/JSON.cpp
+    libsolutil/Keccak256.cpp
+    libsolutil/LazyInit.cpp
+    libsolutil/StringUtils.cpp
+    libsolutil/SwarmHash.cpp
+    libsolutil/UTF8.cpp
+    libsolutil/Whiskers.cpp
 )
-detect_stray_source_files("${libdevcore_sources}" "libdevcore/")
+detect_stray_source_files("${libsolutil_sources}" "libsolutil/")
 
 set(libevmasm_sources
     libevmasm/Assembler.cpp
@@ -47,22 +50,10 @@ detect_stray_source_files("${libevmasm_sources}" "libevmasm/")
 
 set(liblangutil_sources
     liblangutil/CharStream.cpp
+    liblangutil/Scanner.cpp
     liblangutil/SourceLocation.cpp
 )
 detect_stray_source_files("${liblangutil_sources}" "liblangutil/")
-
-if(LLL)
-    set (liblll_sources
-        liblll/Compiler.cpp
-        liblll/EndToEndTest.cpp
-        liblll/ExecutionFramework.cpp
-        liblll/ExecutionFramework.h
-        liblll/LLL_ENS.cpp
-        liblll/LLL_ERC20.cpp
-        liblll/Parser.cpp
-    )
-    detect_stray_source_files("${liblll_sources}" "liblll/")
-endif(LLL)
 
 set(libsolidity_sources
     libsolidity/ABIDecoderTests.cpp
@@ -91,6 +82,8 @@ set(libsolidity_sources
     libsolidity/SMTChecker.cpp
     libsolidity/SMTCheckerJSONTest.cpp
     libsolidity/SMTCheckerJSONTest.h
+    libsolidity/SMTCheckerTest.cpp
+    libsolidity/SMTCheckerTest.h
     libsolidity/SolidityCompiler.cpp
     libsolidity/SolidityEndToEndTest.cpp
     libsolidity/SolidityExecutionFramework.cpp
@@ -100,7 +93,6 @@ set(libsolidity_sources
     libsolidity/SolidityNatspecJSON.cpp
     libsolidity/SolidityOptimizer.cpp
     libsolidity/SolidityParser.cpp
-    libsolidity/SolidityScanner.cpp
     libsolidity/SolidityTypes.cpp
     libsolidity/StandardCompiler.cpp
     libsolidity/SyntaxTest.cpp
@@ -129,8 +121,8 @@ set(libyul_sources
     libyul/Common.cpp
     libyul/Common.h
     libyul/CompilabilityChecker.cpp
-    libyul/EWasmTranslationTest.cpp
-    libyul/EWasmTranslationTest.h
+    libyul/EwasmTranslationTest.cpp
+    libyul/EwasmTranslationTest.h
     libyul/FunctionSideEffects.cpp
     libyul/FunctionSideEffects.h
     libyul/Inliner.cpp
@@ -140,6 +132,8 @@ set(libyul_sources
     libyul/ObjectParser.cpp
     libyul/Parser.cpp
     libyul/StackReuseCodegen.cpp
+    libyul/SyntaxTest.h
+    libyul/SyntaxTest.cpp
     libyul/YulInterpreterTest.cpp
     libyul/YulInterpreterTest.h
     libyul/YulOptimizerTest.cpp
@@ -147,17 +141,54 @@ set(libyul_sources
 )
 detect_stray_source_files("${libyul_sources}" "libyul/")
 
+set(yul_phaser_sources
+    yulPhaser/TestHelpers.h
+    yulPhaser/TestHelpers.cpp
+    yulPhaser/TestHelpersTest.cpp
+    yulPhaser/Common.cpp
+    yulPhaser/Chromosome.cpp
+    yulPhaser/FitnessMetrics.cpp
+    yulPhaser/AlgorithmRunner.cpp
+    yulPhaser/GeneticAlgorithms.cpp
+    yulPhaser/Mutations.cpp
+    yulPhaser/PairSelections.cpp
+    yulPhaser/Phaser.cpp
+    yulPhaser/Population.cpp
+    yulPhaser/Program.cpp
+    yulPhaser/ProgramCache.cpp
+    yulPhaser/Selections.cpp
+    yulPhaser/SimulationRNG.cpp
+
+    # FIXME: yul-phaser is not a library so I can't just add it to target_link_libraries().
+    # My current workaround is just to include its source files here but this introduces
+    # unnecessary duplication. Create a library or find a way to reuse the list in both places.
+    ../tools/yulPhaser/AlgorithmRunner.cpp
+    ../tools/yulPhaser/Common.cpp
+    ../tools/yulPhaser/Chromosome.cpp
+    ../tools/yulPhaser/FitnessMetrics.cpp
+    ../tools/yulPhaser/GeneticAlgorithms.cpp
+    ../tools/yulPhaser/Mutations.cpp
+    ../tools/yulPhaser/PairSelections.cpp
+    ../tools/yulPhaser/Phaser.cpp
+    ../tools/yulPhaser/Population.cpp
+    ../tools/yulPhaser/Program.cpp
+    ../tools/yulPhaser/ProgramCache.cpp
+    ../tools/yulPhaser/Selections.cpp
+    ../tools/yulPhaser/SimulationRNG.cpp
+)
+detect_stray_source_files("${yul_phaser_sources}" "yulPhaser/")
+
 add_executable(soltest ${sources}
     ${contracts_sources}
-    ${libdevcore_sources}
+    ${libsolutil_sources}
     ${liblangutil_sources}
     ${libevmasm_sources}
     ${libyul_sources}
-    ${liblll_sources}
     ${libsolidity_sources}
     ${libsolidity_util_sources}
+    ${yul_phaser_sources}
 )
-target_link_libraries(soltest PRIVATE libsolc yul solidity yulInterpreter evmasm devcore Boost::boost Boost::program_options Boost::unit_test_framework evmc)
+target_link_libraries(soltest PRIVATE libsolc yul solidity smtutil solutil Boost::boost yulInterpreter evmasm Boost::filesystem Boost::program_options Boost::unit_test_framework evmc)
 
 
 # Special compilation flag for Visual Studio (version 2019 at least affected)
@@ -166,11 +197,6 @@ target_link_libraries(soltest PRIVATE libsolc yul solidity yulInterpreter evmasm
 # TODO: Remove this option as soon as we have reduced the SLoC's in SolidityEndToEndTest.cpp
 if (MSVC)
     target_compile_options(soltest PUBLIC "/bigobj")
-endif()
-
-if (LLL)
-    target_link_libraries(soltest PRIVATE lll)
-    target_compile_definitions(soltest PRIVATE HAVE_LLL=1)
 endif()
 
 if (NOT Boost_USE_STATIC_LIBS)

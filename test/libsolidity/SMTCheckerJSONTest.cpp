@@ -14,29 +14,36 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #include <test/libsolidity/SMTCheckerJSONTest.h>
-#include <test/Options.h>
+#include <test/Common.h>
+
+#include <libsolidity/formal/ModelChecker.h>
 #include <libsolidity/interface/StandardCompiler.h>
-#include <libdevcore/CommonIO.h>
-#include <libdevcore/JSON.h>
+#include <libsolutil/CommonIO.h>
+#include <libsolutil/JSON.h>
+
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/test/unit_test.hpp>
 #include <boost/throw_exception.hpp>
+
 #include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <sstream>
 
-using namespace dev::solidity::test;
-using namespace dev::solidity;
-using namespace dev::formatting;
-using namespace dev;
 using namespace std;
+using namespace solidity;
+using namespace solidity::frontend;
+using namespace solidity::frontend::test;
+using namespace solidity::util;
+using namespace solidity::util::formatting;
 using namespace boost::unit_test;
 
-SMTCheckerTest::SMTCheckerTest(string const& _filename, langutil::EVMVersion _evmVersion)
+SMTCheckerJSONTest::SMTCheckerJSONTest(string const& _filename, langutil::EVMVersion _evmVersion)
 : SyntaxTest(_filename, _evmVersion)
 {
 	if (!boost::algorithm::ends_with(_filename, ".sol"))
@@ -48,15 +55,18 @@ SMTCheckerTest::SMTCheckerTest(string const& _filename, langutil::EVMVersion _ev
 		!m_smtResponses.isObject()
 	)
 		BOOST_THROW_EXCEPTION(runtime_error("Invalid JSON file."));
+
+	if (ModelChecker::availableSolvers().none())
+		m_shouldRun = false;
 }
 
-TestCase::TestResult SMTCheckerTest::run(ostream& _stream, string const& _linePrefix, bool _formatted)
+TestCase::TestResult SMTCheckerJSONTest::run(ostream& _stream, string const& _linePrefix, bool _formatted)
 {
 	StandardCompiler compiler;
 
 	// Run the compiler and retrieve the smtlib2queries (1st run)
-	string versionPragma = "pragma solidity >=0.0;\n";
-	Json::Value input = buildJson(versionPragma);
+	string preamble = "pragma solidity >=0.0;\n// SPDX-License-Identifier: GPL-3.0\n";
+	Json::Value input = buildJson(preamble);
 	Json::Value result = compiler.compile(input);
 
 	// This is the list of query hashes requested by the 1st run
@@ -107,29 +117,30 @@ TestCase::TestResult SMTCheckerTest::run(ostream& _stream, string const& _linePr
 				!location["end"].isInt()
 			)
 				BOOST_THROW_EXCEPTION(runtime_error("Error must have a SourceLocation with start and end."));
-			int start = location["start"].asInt();
-			int end = location["end"].asInt();
+			size_t start = location["start"].asUInt();
+			size_t end = location["end"].asUInt();
 			std::string sourceName;
 			if (location.isMember("source") && location["source"].isString())
 				sourceName = location["source"].asString();
-			if (start >= static_cast<int>(versionPragma.size()))
-				start -= versionPragma.size();
-			if (end >= static_cast<int>(versionPragma.size()))
-				end -= versionPragma.size();
+			if (start >= preamble.size())
+				start -= preamble.size();
+			if (end >= preamble.size())
+				end -= preamble.size();
 			m_errorList.emplace_back(SyntaxTestError{
 				error["type"].asString(),
+				error["errorId"].isNull() ?  nullopt : optional<langutil::ErrorId>(langutil::ErrorId{error["errorId"].asUInt()}),
 				error["message"].asString(),
 				sourceName,
-				start,
-				end
+				static_cast<int>(start),
+				static_cast<int>(end)
 			});
 		}
 	}
 
-	return printExpectationAndError(_stream, _linePrefix, _formatted) ? TestResult::Success : TestResult::Failure;
+	return conclude(_stream, _linePrefix, _formatted);
 }
 
-vector<string> SMTCheckerTest::hashesFromJson(Json::Value const& _jsonObj, string const& _auxInput, string const& _smtlib)
+vector<string> SMTCheckerJSONTest::hashesFromJson(Json::Value const& _jsonObj, string const& _auxInput, string const& _smtlib)
 {
 	vector<string> hashes;
 	Json::Value const& auxInputs = _jsonObj[_auxInput];
@@ -143,7 +154,7 @@ vector<string> SMTCheckerTest::hashesFromJson(Json::Value const& _jsonObj, strin
 	return hashes;
 }
 
-Json::Value SMTCheckerTest::buildJson(string const& _extra)
+Json::Value SMTCheckerJSONTest::buildJson(string const& _extra)
 {
 	string language = "\"language\": \"Solidity\"";
 	string sources = " \"sources\": { ";

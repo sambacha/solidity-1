@@ -14,17 +14,18 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #pragma once
 
-namespace dev
-{
-namespace solidity
+namespace solidity::frontend
 {
 
-/// Find the topmost referenced variable declaration when the given variable
+class VariableDeclaration;
+
+/// Find the topmost referenced constant variable declaration when the given variable
 /// declaration value is an identifier. Works only for constant variable declarations.
-VariableDeclaration const* rootVariableDeclaration(VariableDeclaration const& _varDecl);
+/// Returns nullptr if an identifier in the chain is not referencing a constant variable declaration.
+VariableDeclaration const* rootConstVariableDeclaration(VariableDeclaration const& _varDecl);
 
-}
 }

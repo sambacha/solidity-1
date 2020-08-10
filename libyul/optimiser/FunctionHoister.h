@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimiser component that changes the code so that all function definitions are at the top
  * level block.
@@ -24,7 +25,7 @@
 #include <libyul/AsmDataForward.h>
 #include <libyul/optimiser/ASTWalker.h>
 
-namespace yul
+namespace solidity::yul
 {
 struct OptimiserStepContext;
 
@@ -42,7 +43,7 @@ public:
 	static void run(OptimiserStepContext&, Block& _ast) { FunctionHoister{}(_ast); }
 
 	using ASTModifier::operator();
-	virtual void operator()(Block& _block);
+	void operator()(Block& _block) override;
 
 private:
 	FunctionHoister() = default;

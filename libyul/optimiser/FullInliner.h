@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimiser component that performs function inlining for arbitrary functions.
  */
@@ -31,8 +32,9 @@
 
 #include <optional>
 #include <set>
+#include <utility>
 
-namespace yul
+namespace solidity::yul
 {
 
 class NameCollector;
@@ -69,7 +71,7 @@ class FullInliner: public ASTModifier
 {
 public:
 	static constexpr char const* name{"FullInliner"};
-	static void run(OptimiserStepContext&, Block& _ast);
+	static void run(OptimiserStepContext& _context, Block& _ast);
 
 	/// Inlining heuristic.
 	/// @param _callSite the name of the function in which the function call is located.
@@ -89,7 +91,7 @@ public:
 	void tentativelyUpdateCodeSize(YulString _function, YulString _callSite);
 
 private:
-	FullInliner(Block& _ast, NameDispenser& _dispenser);
+	FullInliner(Block& _ast, NameDispenser& _dispenser, Dialect const& _dialect);
 	void run();
 
 	void updateCodeSize(FunctionDefinition const& _fun);
@@ -100,12 +102,15 @@ private:
 	/// we store pointers to functions.
 	Block& m_ast;
 	std::map<YulString, FunctionDefinition*> m_functions;
+	/// Functions not to be inlined (because they contain the ``leave`` statement).
+	std::set<YulString> m_noInlineFunctions;
 	/// Names of functions to always inline.
 	std::set<YulString> m_singleUse;
 	/// Variables that are constants (used for inlining heuristic)
 	std::set<YulString> m_constants;
 	std::map<YulString, size_t> m_functionSizes;
 	NameDispenser& m_nameDispenser;
+	Dialect const& m_dialect;
 };
 
 /**
@@ -115,10 +120,11 @@ private:
 class InlineModifier: public ASTModifier
 {
 public:
-	InlineModifier(FullInliner& _driver, NameDispenser& _nameDispenser, YulString _functionName):
+	InlineModifier(FullInliner& _driver, NameDispenser& _nameDispenser, YulString _functionName, Dialect const& _dialect):
 		m_currentFunction(std::move(_functionName)),
 		m_driver(_driver),
-		m_nameDispenser(_nameDispenser)
+		m_nameDispenser(_nameDispenser),
+		m_dialect(_dialect)
 	{ }
 
 	void operator()(Block& _block) override;
@@ -130,6 +136,7 @@ private:
 	YulString m_currentFunction;
 	FullInliner& m_driver;
 	NameDispenser& m_nameDispenser;
+	Dialect const& m_dialect;
 };
 
 /**
@@ -142,10 +149,10 @@ class BodyCopier: public ASTCopier
 public:
 	BodyCopier(
 		NameDispenser& _nameDispenser,
-		std::map<YulString, YulString> const& _variableReplacements
+		std::map<YulString, YulString> _variableReplacements
 	):
 		m_nameDispenser(_nameDispenser),
-		m_variableReplacements(_variableReplacements)
+		m_variableReplacements(std::move(_variableReplacements))
 	{}
 
 	using ASTCopier::operator ();

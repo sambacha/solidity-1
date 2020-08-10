@@ -14,15 +14,16 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #include <libyul/optimiser/ForLoopConditionIntoBody.h>
 #include <libyul/optimiser/OptimiserStep.h>
 #include <libyul/AsmData.h>
-#include <libdevcore/CommonData.h>
+#include <libsolutil/CommonData.h>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
 
 void ForLoopConditionIntoBody::run(OptimiserStepContext& _context, Block& _ast)
 {
@@ -37,27 +38,28 @@ void ForLoopConditionIntoBody::operator()(ForLoop& _forLoop)
 		!holds_alternative<Identifier>(*_forLoop.condition)
 	)
 	{
-		langutil::SourceLocation loc = locationOf(*_forLoop.condition);
-		_forLoop.body.statements.insert(
-			_forLoop.body.statements.begin(),
+		langutil::SourceLocation const loc = locationOf(*_forLoop.condition);
+
+		_forLoop.body.statements.emplace(
+			begin(_forLoop.body.statements),
 			If {
 				loc,
 				make_unique<Expression>(
 					FunctionCall {
 						loc,
 						{loc, m_dialect.booleanNegationFunction()->name},
-						make_vector<Expression>(std::move(*_forLoop.condition))
+						util::make_vector<Expression>(std::move(*_forLoop.condition))
 					}
 				),
-				Block {loc, make_vector<Statement>(Break{{}})}
+				Block {loc, util::make_vector<Statement>(Break{{}})}
 			}
 		);
 		_forLoop.condition = make_unique<Expression>(
 			Literal {
 				loc,
-				LiteralKind::Number,
-				"1"_yulstring,
-				{}
+				LiteralKind::Boolean,
+				"true"_yulstring,
+				m_dialect.boolType
 			}
 		);
 	}

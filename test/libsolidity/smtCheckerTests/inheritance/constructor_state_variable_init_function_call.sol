@@ -2,7 +2,7 @@ pragma experimental SMTChecker;
 
 contract C {
 	uint x = f(2);
-	constructor () public {
+	constructor () {
 		assert(x == 2);
 	}
 
@@ -13,5 +13,3 @@ contract C {
 	}
 }
 // ----
-// Warning: (162-175): Assertion violation happens here
-// Warning: (179-193): Assertion violation happens here

@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimiser component that turns complex expressions into multiple variable
  * declarations.
@@ -27,12 +28,12 @@
 
 #include <vector>
 
-namespace yul
+namespace solidity::yul
 {
 
-class NameCollector;
 struct Dialect;
 struct OptimiserStepContext;
+class TypeInfo;
 
 /**
  * Optimiser component that modifies an AST in place, turning complex
@@ -61,7 +62,6 @@ public:
 	static constexpr char const* name{"ExpressionSplitter"};
 	static void run(OptimiserStepContext&, Block& _ast);
 
-	void operator()(FunctionalInstruction&) override;
 	void operator()(FunctionCall&) override;
 	void operator()(If&) override;
 	void operator()(Switch&) override;
@@ -69,8 +69,14 @@ public:
 	void operator()(Block& _block) override;
 
 private:
-	explicit ExpressionSplitter(Dialect const& _dialect, NameDispenser& _nameDispenser):
-		m_dialect(_dialect), m_nameDispenser(_nameDispenser)
+	explicit ExpressionSplitter(
+		Dialect const& _dialect,
+		NameDispenser& _nameDispenser,
+		TypeInfo& _typeInfo
+	):
+		m_dialect(_dialect),
+		m_nameDispenser(_nameDispenser),
+		m_typeInfo(_typeInfo)
 	{ }
 
 	/// Replaces the expression by a variable if it is a function call or functional
@@ -83,6 +89,7 @@ private:
 	std::vector<Statement> m_statementsToPrefix;
 	Dialect const& m_dialect;
 	NameDispenser& m_nameDispenser;
+	TypeInfo& m_typeInfo;
 };
 
 }

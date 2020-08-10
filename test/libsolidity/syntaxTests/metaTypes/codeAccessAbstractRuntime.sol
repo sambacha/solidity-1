@@ -3,8 +3,8 @@ contract Test {
         return type(Other).runtimeCode;
     }
 }
-contract Other {
+abstract contract Other {
     function f(uint) public returns (uint);
 }
 // ----
-// TypeError: (91-114): Member "runtimeCode" not found or not visible after argument-dependent lookup in type(contract Other).
+// TypeError 9582: (91-114): Member "runtimeCode" not found or not visible after argument-dependent lookup in type(contract Other).

@@ -14,25 +14,19 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #pragma once
+
+#include <test/TestCaseReader.h>
 
 #include <liblangutil/EVMVersion.h>
 
 #include <boost/filesystem.hpp>
 
-#include <functional>
-#include <iosfwd>
-#include <memory>
 #include <string>
-#include <vector>
-#include <map>
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+namespace solidity::frontend::test
 {
 
 /**
@@ -45,6 +39,7 @@ public:
 	{
 		std::string filename;
 		langutil::EVMVersion evmVersion;
+		bool enforceCompileViaYul;
 	};
 
 	enum class TestResult { Success, Failure, FatalError };
@@ -63,30 +58,30 @@ public:
 	/// Each line of output is prefixed with @arg _linePrefix.
 	/// If @arg _formatted is true, color-coding may be used to indicate
 	/// error locations in the contract, if applicable.
-	virtual void printSource(std::ostream &_stream, std::string const &_linePrefix = "", bool const _formatted = false) const = 0;
-	/// Outputs the updated settings.
-	virtual void printUpdatedSettings(std::ostream &_stream, std::string const &_linePrefix = "", bool const _formatted = false);
+	virtual void printSource(std::ostream &_stream, std::string const &_linePrefix = "", bool const _formatted = false) const;
+	/// Outputs settings.
+	virtual void printSettings(std::ostream &_stream, std::string const &_linePrefix = "", bool const _formatted = false);
+	/// Outputs updated settings
+	virtual void printUpdatedSettings(std::ostream& _stream, std::string const& _linePrefix = "");
 	/// Outputs test expectations to @arg _stream that match the actual results of the test.
 	/// Each line of output is prefixed with @arg _linePrefix.
-	virtual void printUpdatedExpectations(std::ostream& _stream, std::string const& _linePrefix) const = 0;
+	virtual void printUpdatedExpectations(std::ostream& _stream, std::string const& _linePrefix) const;
 
 	static bool isTestFilename(boost::filesystem::path const& _filename);
 
-	/// Validates the settings, i.e. moves them from m_settings to m_validatedSettings.
-	/// Throws a runtime exception if any setting is left at this class (i.e. unknown setting).
 	/// Returns true, if the test case is supported in the current environment and false
 	/// otherwise which causes this test to be skipped.
 	/// This might check e.g. for restrictions on the EVM version.
-	virtual bool validateSettings(langutil::EVMVersion /*_evmVersion*/);
+	/// The function throws an exception if there are unread settings.
+	bool shouldRun();
 
 protected:
-	std::pair<std::map<std::string, std::string>, std::size_t> parseSourcesAndSettingsWithLineNumbers(std::istream& _file);
-	std::map<std::string, std::string> parseSourcesAndSettings(std::istream& _file);
-	std::pair<std::string, std::size_t> parseSourceAndSettingsWithLineNumbers(std::istream& _file);
-	std::string parseSourceAndSettings(std::istream& _file);
-	static void expect(std::string::iterator& _it, std::string::iterator _end, std::string::value_type _c);
+	// Used by ASTJSONTest, the only TestCase class with a custom parser of the test files.
+	TestCase() = default;
 
-	static std::string parseSimpleExpectations(std::istream& _file);
+	TestCase(std::string const& _filename): m_reader(_filename) {}
+
+	static void expect(std::string::iterator& _it, std::string::iterator _end, std::string::value_type _c);
 
 	template<typename IteratorType>
 	static void skipWhitespace(IteratorType& _it, IteratorType _end)
@@ -102,18 +97,21 @@ protected:
 			++_it;
 	}
 
-	/// Parsed settings.
-	std::map<std::string, std::string> m_settings;
-	/// Updated settings after validation.
-	std::map<std::string, std::string> m_validatedSettings;
+	void printIndented(std::ostream& _stream, std::string const& _output, std::string const& _linePrefix = "") const;
+	TestCase::TestResult checkResult(std::ostream& _stream, const std::string& _linePrefix, bool const _formatted);
+
+	std::string m_source;
+	std::string m_obtainedResult;
+	std::string m_expectation;
+
+	TestCaseReader m_reader;
+	bool m_shouldRun = true;
 };
 
 class EVMVersionRestrictedTestCase: public TestCase
 {
-public:
-	/// Returns true, if the test case is supported for EVM version @arg _evmVersion, false otherwise.
-	bool validateSettings(langutil::EVMVersion _evmVersion) override;
+protected:
+	EVMVersionRestrictedTestCase(std::string const& _filename);
 };
-}
-}
+
 }

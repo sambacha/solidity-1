@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /** @file PathGasMeter.cpp
  * @author Christian <c@ethdev.com>
  * @date 2015
@@ -29,9 +30,7 @@
 #include <vector>
 #include <memory>
 
-namespace dev
-{
-namespace eth
+namespace solidity::evmasm
 {
 
 class KnownState;
@@ -84,5 +83,4 @@ private:
 	langutil::EVMVersion m_evmVersion;
 };
 
-}
 }

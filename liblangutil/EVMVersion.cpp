@@ -14,14 +14,16 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * EVM versioning.
  */
 
 #include <liblangutil/EVMVersion.h>
 
-using namespace langutil;
-using namespace dev::eth;
+using namespace solidity;
+using namespace solidity::evmasm;
+using namespace solidity::langutil;
 
 bool EVMVersion::hasOpcode(Instruction _opcode) const
 {

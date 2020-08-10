@@ -14,11 +14,13 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 #include <test/tools/ossfuzz/yulFuzzerCommon.h>
 
 using namespace std;
-using namespace yul;
-using namespace yul::test::yul_fuzzer;
+using namespace solidity;
+using namespace solidity::yul;
+using namespace solidity::yul::test::yul_fuzzer;
 
 yulFuzzerUtil::TerminationReason yulFuzzerUtil::interpret(
 	ostream& _os,
@@ -43,12 +45,11 @@ yulFuzzerUtil::TerminationReason yulFuzzerUtil::interpret(
 		0xc7, 0x60, 0x5f, 0x7c, 0xcd, 0xfb, 0x92, 0xcd,
 		0x8e, 0xf3, 0x9b, 0xe4, 0x4f, 0x6c, 0x14, 0xde
 	};
-	Interpreter interpreter(state, _dialect);
 
 	TerminationReason reason = TerminationReason::None;
 	try
 	{
-		interpreter(*_ast);
+		Interpreter::run(state, _dialect, *_ast);
 	}
 	catch (StepLimitReached const&)
 	{

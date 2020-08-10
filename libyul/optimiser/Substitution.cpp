@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Specific AST copier that replaces certain identifiers with expressions.
  */
@@ -23,8 +24,8 @@
 #include <libyul/AsmData.h>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
 
 Expression Substitution::translate(Expression const& _expression)
 {

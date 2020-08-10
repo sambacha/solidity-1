@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #pragma once
 
@@ -21,7 +22,7 @@
 #include <libyul/optimiser/ASTWalker.h>
 #include <libyul/optimiser/OptimiserStep.h>
 
-namespace yul
+namespace solidity::yul
 {
 
 /**
@@ -34,9 +35,14 @@ class VarDeclInitializer: public ASTModifier
 {
 public:
 	static constexpr char const* name{"VarDeclInitializer"};
-	static void run(OptimiserStepContext&, Block& _ast) { VarDeclInitializer{}(_ast); }
+	static void run(OptimiserStepContext& _ctx, Block& _ast) { VarDeclInitializer{_ctx.dialect}(_ast); }
 
 	void operator()(Block& _block) override;
+
+private:
+	explicit VarDeclInitializer(Dialect const& _dialect): m_dialect(_dialect) {}
+
+	Dialect const& m_dialect;
 };
 
 }

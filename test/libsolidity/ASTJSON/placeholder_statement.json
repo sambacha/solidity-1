@@ -12,10 +12,10 @@
   "nodes":
   [
     {
+      "abstract": false,
       "baseContracts": [],
       "contractDependencies": [],
       "contractKind": "contract",
-      "documentation": null,
       "fullyImplemented": true,
       "id": 5,
       "linearizedBaseContracts":
@@ -41,7 +41,6 @@
               }
             ]
           },
-          "documentation": null,
           "id": 4,
           "name": "M",
           "nodeType": "ModifierDefinition",
@@ -53,6 +52,7 @@
             "src": "24:0:1"
           },
           "src": "13:17:1",
+          "virtual": false,
           "visibility": "internal"
         }
       ],

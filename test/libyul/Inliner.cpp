@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @date 2017
  * Unit tests for the Yul function inliner.
@@ -27,6 +28,7 @@
 #include <libyul/optimiser/FunctionHoister.h>
 #include <libyul/optimiser/FunctionGrouper.h>
 #include <libyul/AsmPrinter.h>
+#include <libyul/AsmData.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -34,9 +36,10 @@
 #include <boost/algorithm/string/join.hpp>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
-using namespace yul::test;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::yul;
+using namespace solidity::yul::test;
 
 namespace
 {
@@ -84,7 +87,7 @@ BOOST_AUTO_TEST_CASE(simple_inside_structures)
 	BOOST_CHECK_EQUAL(inlinableFunctions("{"
 		"function g(a:u256) -> b:u256 { b := a }"
 		"for {"
-		"} 1:u256 {"
+		"} true {"
 			"function f() -> x:u256 { x := g(2:u256) }"
 		"}"
 		"{"

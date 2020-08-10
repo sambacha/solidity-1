@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Framework for testing features from the analysis phase of compiler.
  */
@@ -28,17 +29,15 @@
 #include <string>
 #include <memory>
 
-namespace dev
+namespace solidity::frontend
 {
-namespace solidity
-{
-
 class Type;
 class FunctionType;
 using TypePointer = Type const*;
 using FunctionTypePointer = FunctionType const*;
+}
 
-namespace test
+namespace solidity::frontend::test
 {
 
 class AnalysisFramework
@@ -49,7 +48,7 @@ protected:
 	parseAnalyseAndReturnError(
 		std::string const& _source,
 		bool _reportWarnings = false,
-		bool _insertVersionPragma = true,
+		bool _insertLicenseAndVersionPragma = true,
 		bool _allowMultipleErrors = false,
 		bool _allowRecoveryErrors = false
 	);
@@ -74,23 +73,23 @@ protected:
 	std::vector<std::string> m_warningsToFilter = {"This is a pre-release compiler version"};
 
 	/// @returns reference to lazy-instanciated CompilerStack.
-	dev::solidity::CompilerStack& compiler()
+	solidity::frontend::CompilerStack& compiler()
 	{
 		if (!m_compiler)
-			m_compiler = std::make_unique<dev::solidity::CompilerStack>();
+			m_compiler = std::make_unique<solidity::frontend::CompilerStack>();
 		return *m_compiler;
 	}
 
 	/// @returns reference to lazy-instanciated CompilerStack.
-	dev::solidity::CompilerStack const& compiler() const
+	solidity::frontend::CompilerStack const& compiler() const
 	{
 		if (!m_compiler)
-			m_compiler = std::make_unique<dev::solidity::CompilerStack>();
+			m_compiler = std::make_unique<solidity::frontend::CompilerStack>();
 		return *m_compiler;
 	}
 
 private:
-	mutable std::unique_ptr<dev::solidity::CompilerStack> m_compiler;
+	mutable std::unique_ptr<solidity::frontend::CompilerStack> m_compiler;
 };
 
 // Asserts that the compilation down to typechecking
@@ -153,19 +152,4 @@ do \
 } \
 while(0)
 
-#define CHECK_SUCCESS_OR_WARNING(text, substring) \
-do \
-{ \
-	auto sourceAndError = parseAnalyseAndReturnError((text), true); \
-	auto const& errors = sourceAndError.second; \
-	if (!errors.empty()) \
-	{ \
-		auto message = searchErrors(errors, {{(Error::Type::Warning), (substring)}}); \
-		BOOST_CHECK_MESSAGE(message.empty(), message); \
-	} \
-} \
-while(0)
-
-}
-}
 }

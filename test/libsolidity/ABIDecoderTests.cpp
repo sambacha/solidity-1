@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Unit tests for Solidity's ABI decoder.
  */
@@ -29,13 +30,9 @@
 
 using namespace std;
 using namespace std::placeholders;
-using namespace dev::test;
+using namespace solidity::test;
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+namespace solidity::frontend::test
 {
 
 BOOST_FIXTURE_TEST_SUITE(ABIDecoderTest, SolidityExecutionFramework)
@@ -86,7 +83,7 @@ BOOST_AUTO_TEST_CASE(enums)
 			}
 		}
 	)";
-	bool newDecoder = dev::test::Options::get().useABIEncoderV2;
+	bool newDecoder = solidity::test::CommonOptions::get().useABIEncoderV2;
 	BOTH_ENCODERS(
 		compileAndRun(sourceCode);
 		ABI_CHECK(callContractFunction("f(uint8)", 0), encodeArgs(u256(0)));
@@ -108,7 +105,7 @@ BOOST_AUTO_TEST_CASE(cleanup)
 			}
 		}
 	)";
-	bool newDecoder = dev::test::Options::get().useABIEncoderV2;
+	bool newDecoder = solidity::test::CommonOptions::get().useABIEncoderV2;
 	BOTH_ENCODERS(
 		compileAndRun(sourceCode);
 		ABI_CHECK(
@@ -322,7 +319,7 @@ BOOST_AUTO_TEST_CASE(decode_from_memory_simple)
 		contract C {
 			uint public _a;
 			uint[] public _b;
-			constructor(uint a, uint[] memory b) public {
+			constructor(uint a, uint[] memory b) {
 				_a = a;
 				_b = b;
 			}
@@ -347,7 +344,7 @@ BOOST_AUTO_TEST_CASE(decode_function_type)
 	string sourceCode = R"(
 		contract D {
 			function () external returns (uint) public _a;
-			constructor(function () external returns (uint) a) public {
+			constructor(function () external returns (uint) a) {
 				_a = a;
 			}
 		}
@@ -381,13 +378,13 @@ BOOST_AUTO_TEST_CASE(decode_function_type_array)
 	string sourceCode = R"(
 		contract D {
 			function () external returns (uint)[] public _a;
-			constructor(function () external returns (uint)[] memory a) public {
+			constructor(function () external returns (uint)[] memory a) {
 				_a = a;
 			}
 		}
 		contract E {
 			function () external returns (uint)[3] public _a;
-			constructor(function () external returns (uint)[3] memory a) public {
+			constructor(function () external returns (uint)[3] memory a) {
 				_a = a;
 			}
 		}
@@ -449,7 +446,7 @@ BOOST_AUTO_TEST_CASE(decode_from_memory_complex)
 			uint public _a;
 			uint[] public _b;
 			bytes[2] public _c;
-			constructor(uint a, uint[] memory b, bytes[2] memory c) public {
+			constructor(uint a, uint[] memory b, bytes[2] memory c) {
 				_a = a;
 				_b = b;
 				_c = c;
@@ -577,7 +574,7 @@ BOOST_AUTO_TEST_CASE(validation_function_type)
 			function i(function () external[] calldata a) external pure returns (uint r) { a[0]; r = 4; }
 		}
 	)";
-	bool newDecoder = dev::test::Options::get().useABIEncoderV2;
+	bool newDecoder = solidity::test::CommonOptions::get().useABIEncoderV2;
 	string validFun{"01234567890123456789abcd"};
 	string invalidFun{"01234567890123456789abcdX"};
 	BOTH_ENCODERS(
@@ -637,7 +634,7 @@ BOOST_AUTO_TEST_CASE(storage_ptr)
 			L.S s;
 			uint[] r;
 			function f() public returns (uint, uint, uint, uint, uint, uint) {
-				r.length = 6;
+				r = new uint[](6);
 				r[0] = 1;
 				r[1] = 2;
 				r[2] = 3;
@@ -954,7 +951,7 @@ BOOST_AUTO_TEST_CASE(out_of_bounds_bool_value)
 			function f(bool b) public pure returns (bool) { return b; }
 		}
 	)";
-	bool newDecoder = dev::test::Options::get().useABIEncoderV2;
+	bool newDecoder = solidity::test::CommonOptions::get().useABIEncoderV2;
 	BOTH_ENCODERS(
 		compileAndRun(sourceCode);
 		ABI_CHECK(callContractFunction("f(bool)", true), encodeArgs(true));
@@ -967,6 +964,4 @@ BOOST_AUTO_TEST_CASE(out_of_bounds_bool_value)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
-}
 } // end namespaces

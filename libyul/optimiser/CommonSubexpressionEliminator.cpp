@@ -31,8 +31,9 @@
 #include <libyul/Dialect.h>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
+using namespace solidity::util;
 
 void CommonSubexpressionEliminator::run(OptimiserStepContext& _context, Block& _ast)
 {
@@ -57,12 +58,21 @@ void CommonSubexpressionEliminator::visit(Expression& _e)
 	// If this is a function call to a function that requires literal arguments,
 	// do not try to simplify there.
 	if (holds_alternative<FunctionCall>(_e))
-		if (BuiltinFunction const* builtin = m_dialect.builtin(std::get<FunctionCall>(_e).functionName.name))
-			if (builtin->literalArguments)
+	{
+		FunctionCall& funCall = std::get<FunctionCall>(_e);
+
+		if (BuiltinFunction const* builtin = m_dialect.builtin(funCall.functionName.name))
+		{
+			for (size_t i = funCall.arguments.size(); i > 0; i--)
 				// We should not modify function arguments that have to be literals
 				// Note that replacing the function call entirely is fine,
 				// if the function call is movable.
-				descend = false;
+				if (!builtin->literalArgument(i - 1))
+					visit(funCall.arguments[i - 1]);
+
+			descend = false;
+		}
+	}
 
 	// We visit the inner expression first to first simplify inner expressions,
 	// which hopefully allows more matches.
@@ -78,10 +88,10 @@ void CommonSubexpressionEliminator::visit(Expression& _e)
 		YulString name = identifier.name;
 		if (m_value.count(name))
 		{
-			assertThrow(m_value.at(name), OptimizerException, "");
-			if (holds_alternative<Identifier>(*m_value.at(name)))
+			assertThrow(m_value.at(name).value, OptimizerException, "");
+			if (holds_alternative<Identifier>(*m_value.at(name).value))
 			{
-				YulString value = std::get<Identifier>(*m_value.at(name)).name;
+				YulString value = std::get<Identifier>(*m_value.at(name).value).name;
 				assertThrow(inScope(value), OptimizerException, "");
 				_e = Identifier{locationOf(_e), value};
 			}
@@ -90,13 +100,13 @@ void CommonSubexpressionEliminator::visit(Expression& _e)
 	else
 	{
 		// TODO this search is rather inefficient.
-		for (auto const& var: m_value)
+		for (auto const& [variable, value]: m_value)
 		{
-			assertThrow(var.second, OptimizerException, "");
-			assertThrow(inScope(var.first), OptimizerException, "");
-			if (SyntacticallyEqual{}(_e, *var.second))
+			assertThrow(value.value, OptimizerException, "");
+			assertThrow(inScope(variable), OptimizerException, "");
+			if (SyntacticallyEqual{}(_e, *value.value))
 			{
-				_e = Identifier{locationOf(_e), var.first};
+				_e = Identifier{locationOf(_e), variable};
 				break;
 			}
 		}

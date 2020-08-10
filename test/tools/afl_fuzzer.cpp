@@ -14,13 +14,14 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Executable for use with AFL <http://lcamtuf.coredump.cx/afl>.
  */
 
 #include <test/tools/fuzzer_common.h>
 
-#include <libdevcore/CommonIO.h>
+#include <libsolutil/CommonIO.h>
 
 #include <boost/program_options.hpp>
 
@@ -28,7 +29,8 @@
 #include <iostream>
 
 using namespace std;
-using namespace dev;
+using namespace solidity;
+using namespace solidity::util;
 
 namespace po = boost::program_options;
 
@@ -103,7 +105,7 @@ Allowed options)",
 	else if (arguments.count("input-files"))
 		inputs = arguments["input-files"].as<vector<string>>();
 	else
-		inputs.push_back("");
+		inputs.emplace_back("");
 
 	bool optimize = !arguments.count("without-optimizer");
 	int retResult = 0;
@@ -123,7 +125,7 @@ Allowed options)",
 			else if (arguments.count("standard-json"))
 				FuzzerUtil::testStandardCompiler(input, quiet);
 			else
-				FuzzerUtil::testCompiler(input, optimize, quiet);
+				FuzzerUtil::testCompilerJsonInterface(input, optimize, quiet);
 		}
 		catch (...)
 		{

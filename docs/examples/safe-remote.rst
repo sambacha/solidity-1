@@ -25,24 +25,17 @@ you can use state machine-like constructs inside a contract.
 
 ::
 
-    pragma solidity >=0.4.22 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >0.6.99 <0.8.0;
 
     contract Purchase {
         uint public value;
         address payable public seller;
         address payable public buyer;
+
         enum State { Created, Locked, Release, Inactive }
         // The state variable has a default value of the first member, `State.created`
         State public state;
-
-        // Ensure that `msg.value` is an even number.
-        // Division will truncate if it is an odd number.
-        // Check via multiplication that it wasn't an odd number.
-        constructor() public payable {
-            seller = msg.sender;
-            value = msg.value / 2;
-            require((2 * value) == msg.value, "Value has to be even.");
-        }
 
         modifier condition(bool _condition) {
             require(_condition);
@@ -77,6 +70,15 @@ you can use state machine-like constructs inside a contract.
         event PurchaseConfirmed();
         event ItemReceived();
         event SellerRefunded();
+
+        // Ensure that `msg.value` is an even number.
+        // Division will truncate if it is an odd number.
+        // Check via multiplication that it wasn't an odd number.
+        constructor() payable {
+            seller = msg.sender;
+            value = msg.value / 2;
+            require((2 * value) == msg.value, "Value has to be even.");
+        }
 
         /// Abort the purchase and reclaim the ether.
         /// Can only be called by the seller before

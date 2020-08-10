@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimiser component that turns subsequent assignments to variable declarations
  * and assignments.
@@ -25,12 +26,14 @@
 #include <libyul/optimiser/NameDispenser.h>
 #include <libyul/AsmData.h>
 
-#include <libdevcore/CommonData.h>
+#include <libsolutil/CommonData.h>
+
+#include <libyul/optimiser/TypeInfo.h>
 
 using namespace std;
-using namespace dev;
-using namespace langutil;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
+using namespace solidity::langutil;
 
 namespace
 {
@@ -42,8 +45,14 @@ namespace
 class IntroduceSSA: public ASTModifier
 {
 public:
-	explicit IntroduceSSA(NameDispenser& _nameDispenser, set<YulString> const& _variablesToReplace):
-		m_nameDispenser(_nameDispenser), m_variablesToReplace(_variablesToReplace)
+	explicit IntroduceSSA(
+		NameDispenser& _nameDispenser,
+		set<YulString> const& _variablesToReplace,
+		TypeInfo& _typeInfo
+	):
+		m_nameDispenser(_nameDispenser),
+		m_variablesToReplace(_variablesToReplace),
+		m_typeInfo(_typeInfo)
 	{ }
 
 	void operator()(Block& _block) override;
@@ -51,12 +60,13 @@ public:
 private:
 	NameDispenser& m_nameDispenser;
 	set<YulString> const& m_variablesToReplace;
+	TypeInfo const& m_typeInfo;
 };
 
 
 void IntroduceSSA::operator()(Block& _block)
 {
-	iterateReplacing(
+	util::iterateReplacing(
 		_block.statements,
 		[&](Statement& _s) -> std::optional<vector<Statement>>
 		{
@@ -83,10 +93,10 @@ void IntroduceSSA::operator()(Block& _block)
 				{
 					YulString oldName = var.name;
 					YulString newName = m_nameDispenser.newName(oldName);
-					newVariables.emplace_back(TypedName{loc, newName, {}});
+					newVariables.emplace_back(TypedName{loc, newName, var.type});
 					statements.emplace_back(VariableDeclaration{
 						loc,
-						{TypedName{loc, oldName, {}}},
+						{TypedName{loc, oldName, var.type}},
 						make_unique<Expression>(Identifier{loc, newName})
 					});
 				}
@@ -110,7 +120,11 @@ void IntroduceSSA::operator()(Block& _block)
 				{
 					YulString oldName = var.name;
 					YulString newName = m_nameDispenser.newName(oldName);
-					newVariables.emplace_back(TypedName{loc, newName, {}});
+					newVariables.emplace_back(TypedName{
+						loc,
+						newName,
+						m_typeInfo.typeOfVariable(oldName)
+					});
 					statements.emplace_back(Assignment{
 						loc,
 						{Identifier{loc, oldName}},
@@ -136,9 +150,12 @@ class IntroduceControlFlowSSA: public ASTModifier
 public:
 	explicit IntroduceControlFlowSSA(
 		NameDispenser& _nameDispenser,
-		set<YulString> const& _variablesToReplace
+		set<YulString> const& _variablesToReplace,
+		TypeInfo const& _typeInfo
 	):
-		m_nameDispenser(_nameDispenser), m_variablesToReplace(_variablesToReplace)
+		m_nameDispenser(_nameDispenser),
+		m_variablesToReplace(_variablesToReplace),
+		m_typeInfo(_typeInfo)
 	{ }
 
 	void operator()(FunctionDefinition& _function) override;
@@ -153,6 +170,7 @@ private:
 	set<YulString> m_variablesInScope;
 	/// Set of variables that do not have a specific value.
 	set<YulString> m_variablesToReassign;
+	TypeInfo const& m_typeInfo;
 };
 
 void IntroduceControlFlowSSA::operator()(FunctionDefinition& _function)
@@ -177,7 +195,7 @@ void IntroduceControlFlowSSA::operator()(FunctionDefinition& _function)
 
 void IntroduceControlFlowSSA::operator()(ForLoop& _for)
 {
-	(*this)(_for.pre);
+	yulAssert(_for.pre.statements.empty(), "For loop init rewriter not run.");
 
 	Assignments assignments;
 	assignments(_for.body);
@@ -211,7 +229,7 @@ void IntroduceControlFlowSSA::operator()(Block& _block)
 	set<YulString> variablesDeclaredHere;
 	set<YulString> assignedVariables;
 
-	iterateReplacing(
+	util::iterateReplacing(
 		_block.statements,
 		[&](Statement& _s) -> std::optional<vector<Statement>>
 		{
@@ -221,7 +239,7 @@ void IntroduceControlFlowSSA::operator()(Block& _block)
 				YulString newName = m_nameDispenser.newName(toReassign);
 				toPrepend.emplace_back(VariableDeclaration{
 					locationOf(_s),
-					{TypedName{locationOf(_s), newName, {}}},
+					{TypedName{locationOf(_s), newName, m_typeInfo.typeOfVariable(toReassign)}},
 					make_unique<Expression>(Identifier{locationOf(_s), toReassign})
 				});
 				assignedVariables.insert(toReassign);
@@ -340,11 +358,7 @@ void PropagateValues::operator()(Assignment& _assignment)
 
 void PropagateValues::operator()(ForLoop& _for)
 {
-	// This will clear the current value in case of a reassignment inside the
-	// init part, although the new variable would still be in scope inside the whole loop.
-	// This small inefficiency is fine if we move the pre part of all for loops out
-	// of the for loop.
-	(*this)(_for.pre);
+	yulAssert(_for.pre.statements.empty(), "For loop init rewriter not run.");
 
 	Assignments assignments;
 	assignments(_for.body);
@@ -375,10 +389,11 @@ void PropagateValues::operator()(Block& _block)
 
 void SSATransform::run(OptimiserStepContext& _context, Block& _ast)
 {
+	TypeInfo typeInfo(_context.dialect, _ast);
 	Assignments assignments;
 	assignments(_ast);
-	IntroduceSSA{_context.dispenser, assignments.names()}(_ast);
-	IntroduceControlFlowSSA{_context.dispenser, assignments.names()}(_ast);
+	IntroduceSSA{_context.dispenser, assignments.names(), typeInfo}(_ast);
+	IntroduceControlFlowSSA{_context.dispenser, assignments.names(), typeInfo}(_ast);
 	PropagateValues{assignments.names()}(_ast);
 }
 

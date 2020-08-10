@@ -31,11 +31,12 @@ function test_fn { npm run test; }
 function zeppelin_test
 {
     OPTIMIZER_LEVEL=1
-    setup https://github.com/OpenZeppelin/openzeppelin-solidity.git v2.5.0
+    CONFIG="truffle-config.js"
+
+    truffle_setup https://github.com/solidity-external-tests/openzeppelin-contracts.git upgrade-0.7.0
     run_install install_fn
 
-    CONFIG="truffle-config.js"
-    run_test compile_fn test_fn
+    truffle_run_test compile_fn test_fn
 }
 
 external_test Zeppelin zeppelin_test

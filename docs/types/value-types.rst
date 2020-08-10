@@ -40,6 +40,9 @@ Operators:
 * Shift operators: ``<<`` (left shift), ``>>`` (right shift)
 * Arithmetic operators: ``+``, ``-``, unary ``-``, ``*``, ``/``, ``%`` (modulo), ``**`` (exponentiation)
 
+For an integer type ``X``, you can use ``type(X).min`` and ``type(X).max`` to
+access the minimum and maximum value representable by the type.
+
 .. warning::
 
   Integers in Solidity are restricted to a certain range. For example, with ``uint32``, this is ``0`` up to ``2**32 - 1``.
@@ -61,11 +64,11 @@ Shifts
 ^^^^^^
 
 The result of a shift operation has the type of the left operand, truncating the result to match the type.
+Right operand must be unsigned type. Trying to shift by signed type will produce a compilation error.
 
 - For positive and negative ``x`` values, ``x << y`` is equivalent to ``x * 2**y``.
 - For positive ``x`` values,  ``x >> y`` is equivalent to ``x / 2**y``.
 - For negative ``x`` values, ``x >> y`` is equivalent to ``(x + 1) / 2**y - 1`` (which is the same as dividing ``x`` by ``2**y`` while rounding down towards negative infinity).
-- In all cases, shifting by a negative ``y`` throws a runtime exception.
 
 .. warning::
     Before version ``0.5.0`` a right shift ``x >> y`` for negative ``x`` was equivalent to ``x / 2**y``,
@@ -123,8 +126,9 @@ results in the same sign as its left operand (or zero) and ``a % n == -(-a % n)`
 Exponentiation
 ^^^^^^^^^^^^^^
 
-Exponentiation is only available for unsigned types. Please take care that the types
-you are using are large enough to hold the result and prepare for potential wrapping behaviour.
+Exponentiation is only available for unsigned types in the exponent. The resulting type
+of an exponentiation is always equal to the type of the base. Please take care that it is
+large enough to hold the result and prepare for potential wrapping behaviour.
 
 .. note::
   Note that ``0**0`` is defined by the EVM as ``1``.
@@ -153,7 +157,7 @@ Operators:
     defined in the latter. Generally, in floating point almost the entire space is used to represent the number, while only a small number of bits define
     where the decimal point is.
 
-.. index:: address, balance, send, call, callcode, delegatecall, staticcall, transfer
+.. index:: address, balance, send, call, delegatecall, staticcall, transfer
 
 .. _address:
 
@@ -170,17 +174,21 @@ while a plain ``address`` cannot be sent Ether.
 
 Type conversions:
 
-Implicit conversions from ``address payable`` to ``address`` are allowed, whereas conversions from ``address`` to ``address payable`` are
-not possible (the only way to perform such a conversion is by using an intermediate conversion to ``uint160``).
+Implicit conversions from ``address payable`` to ``address`` are allowed, whereas conversions from ``address`` to ``address payable``
+must be explicit via ``payable(<address>)``.
 
 :ref:`Address literals<address_literals>` can be implicitly converted to ``address payable``.
 
 Explicit conversions to and from ``address`` are allowed for integers, integer literals, ``bytes20`` and contract types with the following
 caveat:
-Conversions of the form ``address payable(x)`` are not allowed. Instead the result of a conversion of the form ``address(x)``
-has the type ``address payable``, if ``x`` is of integer or fixed bytes type, a literal or a contract with a payable fallback function.
-If ``x`` is a contract without payable fallback function, then ``address(x)`` will be of type ``address``.
+The result of a conversion of the form ``address(x)``
+has the type ``address payable``, if ``x`` is of integer or fixed bytes type,
+a literal or a contract with a receive or payable fallback function.
+If ``x`` is a contract without a receive or payable fallback function,
+then ``address(x)`` will be of type ``address``.
 In external function signatures ``address`` is used for both the ``address`` and the ``address payable`` type.
+
+Only expressions of type ``address`` can be converted to type ``address payable`` via ``payable(<address>)``.
 
 .. note::
     It might very well be that you do not need to care about the distinction between ``address``
@@ -204,7 +212,7 @@ Operators:
 .. note::
     The distinction between ``address`` and ``address payable`` was introduced with version 0.5.0.
     Also starting from that version, contracts do not derive from the address type, but can still be explicitly converted to
-    ``address`` or to ``address payable``, if they have a payable fallback function.
+    ``address`` or to ``address payable``, if they have a receive or payable fallback function.
 
 .. _members-of-addresses:
 
@@ -229,7 +237,7 @@ or if the Ether transfer is rejected by the receiving account. The ``transfer`` 
 reverts on failure.
 
 .. note::
-    If ``x`` is a contract address, its code (more specifically: its :ref:`fallback-function`, if present) will be executed together with the ``transfer`` call (this is a feature of the EVM and cannot be prevented). If that execution runs out of gas or fails in any way, the Ether transfer will be reverted and the current contract will stop with an exception.
+    If ``x`` is a contract address, its code (more specifically: its :ref:`receive-ether-function`, if present, or otherwise its :ref:`fallback-function`, if present) will be executed together with the ``transfer`` call (this is a feature of the EVM and cannot be prevented). If that execution runs out of gas or fails in any way, the Ether transfer will be reverted and the current contract will stop with an exception.
 
 * ``send``
 
@@ -271,17 +279,17 @@ Example::
     arbitrary arguments and would also handle a first argument of type
     ``bytes4`` differently. These edge cases were removed in version 0.5.0.
 
-It is possible to adjust the supplied gas with the ``.gas()`` modifier::
+It is possible to adjust the supplied gas with the ``gas`` modifier::
 
-    address(nameReg).call.gas(1000000)(abi.encodeWithSignature("register(string)", "MyName"));
+    address(nameReg).call{gas: 1000000}(abi.encodeWithSignature("register(string)", "MyName"));
 
 Similarly, the supplied Ether value can be controlled too::
 
-    address(nameReg).call.value(1 ether)(abi.encodeWithSignature("register(string)", "MyName"));
+    address(nameReg).call{value: 1 ether}(abi.encodeWithSignature("register(string)", "MyName"));
 
 Lastly, these modifiers can be combined. Their order does not matter::
 
-    address(nameReg).call.gas(1000000).value(1 ether)(abi.encodeWithSignature("register(string)", "MyName"));
+    address(nameReg).call{gas: 1000000, value: 1 ether}(abi.encodeWithSignature("register(string)", "MyName"));
 
 In a similar way, the function ``delegatecall`` can be used: the difference is that only the code of the given address is used, all other aspects (storage, balance, ...) are taken from the current contract. The purpose of ``delegatecall`` is to use library code which is stored in another contract. The user has to ensure that the layout of storage in both contracts is suitable for delegatecall to be used.
 
@@ -292,7 +300,13 @@ Since byzantium ``staticcall`` can be used as well. This is basically the same a
 
 All three functions ``call``, ``delegatecall`` and ``staticcall`` are very low-level functions and should only be used as a *last resort* as they break the type-safety of Solidity.
 
-The ``.gas()`` option is available on all three methods, while the ``.value()`` option is not supported for ``delegatecall``.
+The ``gas`` option is available on all three methods, while the ``value`` option is not
+supported for ``delegatecall``.
+
+.. note::
+    It is best to avoid relying on hardcoded gas values in your smart contract code,
+    regardless of whether state is read from or written to, as this can have many pitfalls.
+    Also, access to gas might change in the future.
 
 .. note::
     All contracts can be converted to ``address`` type, so it is possible to query the balance of the
@@ -309,17 +323,19 @@ Every :ref:`contract<contracts>` defines its own type.
 You can implicitly convert contracts to contracts they inherit from.
 Contracts can be explicitly converted to and from the ``address`` type.
 
-Explicit conversion to and from the ``address payable`` type
-is only possible if the contract type has a payable fallback function.
-The conversion is still performed using ``address(x)`` and not
-using ``address payable(x)``. You can find more information in the section about
+Explicit conversion to and from the ``address payable`` type is only possible
+if the contract type has a receive or payable fallback function.  The conversion is still
+performed using ``address(x)``. If the contract type does not have a receive or payable
+fallback function, the conversion to ``address payable`` can be done using
+``payable(address(x))``.
+You can find more information in the section about
 the :ref:`address type<address>`.
 
 .. note::
     Before version 0.5.0, contracts directly derived from the address type
     and there was no distinction between ``address`` and ``address payable``.
 
-If you declare a local variable of contract type (`MyContract c`), you can call
+If you declare a local variable of contract type (``MyContract c``), you can call
 functions on that contract. Take care to assign it from somewhere that is the
 same contract type.
 
@@ -354,9 +370,9 @@ Operators:
 * Shift operators: ``<<`` (left shift), ``>>`` (right shift)
 * Index access: If ``x`` is of type ``bytesI``, then ``x[k]`` for ``0 <= k < I`` returns the ``k`` th byte (read-only).
 
-The shifting operator works with any integer type as right operand (but
+The shifting operator works with unsigned integer type as right operand (but
 returns the type of the left operand), which denotes the number of bits to shift by.
-Shifting by a negative amount causes a runtime exception.
+Shifting by a signed type will produce a compilation error.
 
 Members:
 
@@ -405,7 +421,7 @@ Octal literals do not exist in Solidity and leading zeros are invalid.
 Decimal fraction literals are formed by a ``.`` with at least one number on
 one side.  Examples include ``1.``, ``.1`` and ``1.3``.
 
-Scientific notation is also supported, where the base can have fractions, while the exponent cannot.
+Scientific notation is also supported, where the base can have fractions and the exponent cannot.
 Examples include ``2e10``, ``-2e10``, ``2e-10``, ``2.5e1``.
 
 Underscores can be used to separate the digits of a numeric literal to aid readability.
@@ -427,6 +443,11 @@ Any operator that can be applied to integers can also be applied to number liter
 long as the operands are integers. If any of the two is fractional, bit operations are disallowed
 and exponentiation is disallowed if the exponent is fractional (because that might result in
 a non-rational number).
+
+Shifts and exponentiation with literal numbers as left (or base) operand and integer types
+as the right (exponent) operand are always performed
+in the ``uint256`` (for non-negative literals) or ``int256`` (for a negative literals) type,
+regardless of the type of the right (exponent) operand.
 
 .. warning::
     Division on integer literals used to truncate in Solidity prior to version 0.4.0, but it now converts into a rational number, i.e. ``5 / 2`` is not equal to ``2``, but to ``2.5``.
@@ -463,7 +484,9 @@ String literals are written with either double or single-quotes (``"foo"`` or ``
 
 For example, with ``bytes32 samevar = "stringliteral"`` the string literal is interpreted in its raw byte form when assigned to a ``bytes32`` type.
 
-String literals support the following escape characters:
+String literals can only contain printable ASCII characters, which means the characters between and including 0x1F .. 0x7E.
+
+Additionally, string literals also support the following escape characters:
 
  - ``\<newline>`` (escapes an actual newline)
  - ``\\`` (backslash)
@@ -490,15 +513,32 @@ character sequence ``abcdef``.
     "\n\"\'\\abc\
     def"
 
-Any unicode line terminator which is not a newline (i.e. LF, VF, FF, CR, NEL, LS, PS) is considered to
+Any Unicode line terminator which is not a newline (i.e. LF, VF, FF, CR, NEL, LS, PS) is considered to
 terminate the string literal. Newline only terminates the string literal if it is not preceded by a ``\``.
+
+Unicode Literals
+----------------
+
+While regular string literals can only contain ASCII, Unicode literals – prefixed with the keyword ``unicode`` – can contain any valid UTF-8 sequence.
+They also support the very same escape sequences as regular string literals.
+
+::
+
+    string memory a = unicode"Hello 😃";
 
 .. index:: literal, bytes
 
 Hexadecimal Literals
 --------------------
 
-Hexadecimal literals are prefixed with the keyword ``hex`` and are enclosed in double or single-quotes (``hex"001122FF"``), and they can also be split into multiple consecutive parts (``hex"00112233" hex"44556677"`` is equivalent to ``hex"0011223344556677"``). Their content must be a hexadecimal string and their value will be the binary representation of those values.
+Hexadecimal literals are prefixed with the keyword ``hex`` and are enclosed in double
+or single-quotes (``hex"001122FF"``, ``hex'0011_22_FF'``). Their content must be
+hexadecimal digits which can optionally use a single underscore as separator between
+byte boundaries. The value of the literal will be the binary representation
+of the hexadecimal sequence.
+
+Multiple hexadecimal literals separated by whitespace are concatenated into a single literal:
+``hex"00112233" hex"44556677"`` is equivalent to ``hex"0011223344556677"``
 
 Hexadecimal literals behave like :ref:`string literals <string_literals>` and have the same convertibility restrictions.
 
@@ -520,7 +560,8 @@ subsequent unsigned integer values starting from ``0``.
 
 ::
 
-    pragma solidity >=0.4.16 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.16 <0.8.0;
 
     contract test {
         enum ActionChoices { GoLeft, GoRight, GoStraight, SitStill }
@@ -544,6 +585,10 @@ subsequent unsigned integer values starting from ``0``.
             return uint(defaultChoice);
         }
     }
+
+.. note::
+    Enums can also be declared on the file level, outside of contract or library definitions.
+
 
 .. index:: ! function type, ! type; function
 
@@ -582,9 +627,6 @@ do not have a default.
 
 Conversions:
 
-A value of external function type can be explicitly converted to ``address``
-resulting in the address of the contract of the function.
-
 A function type ``A`` is implicitly convertible to a function type ``B`` if and only if
 their parameter types are identical, their return types are identical,
 their internal/external property is identical and the state mutability of ``A``
@@ -616,31 +658,39 @@ just use ``f``, if you want to use its external form, use ``this.f``.
 
 Members:
 
-Public (or external) functions have the following members:
+External (or public) functions have the following members:
 
+* ``.address`` returns the address of the contract of the function.
 * ``.selector`` returns the :ref:`ABI function selector <abi_function_selector>`
-* ``.gas(uint)`` returns a callable function object which, when called, will send the specified amount of gas to the target function. See :ref:`External Function Calls <external-function-calls>` for more information.
-* ``.value(uint)`` returns a callable function object which, when called, will send the specified amount of wei to the target function. See :ref:`External Function Calls <external-function-calls>` for more information.
+
+.. note::
+  External (or public) functions used to have the additional members
+  ``.gas(uint)`` and ``.value(uint)``. These were deprecated in Solidity 0.6.2
+  and removed in Solidity 0.7.0. Instead use ``{gas: ...}`` and ``{value: ...}``
+  to specify the amount of gas or the amount of wei sent to a function,
+  respectively. See :ref:`External Function Calls <external-function-calls>` for
+  more information.
 
 Example that shows how to use the members::
 
-    pragma solidity >=0.4.16 <0.7.0;
-
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.6.4 <0.8.0;
 
     contract Example {
         function f() public payable returns (bytes4) {
+            assert(this.f.address == address(this));
             return this.f.selector;
         }
 
         function g() public {
-            this.f.gas(10).value(800)();
+            this.f{gas: 10, value: 800}();
         }
     }
 
 Example that shows how to use internal function types::
 
-    pragma solidity >=0.4.16 <0.7.0;
-
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.16 <0.8.0;
 
     library ArrayUtils {
         // internal functions can be used in internal library functions because
@@ -697,7 +747,8 @@ Example that shows how to use internal function types::
 
 Another example that uses external function types::
 
-    pragma solidity >=0.4.22 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.22 <0.8.0;
 
 
     contract Oracle {

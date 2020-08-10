@@ -14,33 +14,40 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #include <libsolidity/formal/EncodingContext.h>
 
 #include <libsolidity/formal/SymbolicTypes.h>
 
 using namespace std;
-using namespace dev;
-using namespace dev::solidity::smt;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::frontend::smt;
 
 EncodingContext::EncodingContext():
-	m_thisAddress(make_unique<SymbolicAddressVariable>("this", *this))
+	m_state(*this)
 {
-	auto sort = make_shared<ArraySort>(
-		make_shared<Sort>(Kind::Int),
-		make_shared<Sort>(Kind::Int)
-	);
-	m_balances = make_unique<SymbolicVariable>(sort, "balances", *this);
 }
 
 void EncodingContext::reset()
 {
 	resetAllVariables();
+	resetUniqueId();
 	m_expressions.clear();
 	m_globalContext.clear();
-	m_thisAddress->resetIndex();
-	m_balances->resetIndex();
+	m_state.reset();
 	m_assertions.clear();
+}
+
+void EncodingContext::resetUniqueId()
+{
+	m_nextUniqueId = 0;
+}
+
+unsigned EncodingContext::newUniqueId()
+{
+	return m_nextUniqueId++;
 }
 
 void EncodingContext::clear()
@@ -51,13 +58,13 @@ void EncodingContext::clear()
 
 /// Variables.
 
-shared_ptr<SymbolicVariable> EncodingContext::variable(solidity::VariableDeclaration const& _varDecl)
+shared_ptr<SymbolicVariable> EncodingContext::variable(frontend::VariableDeclaration const& _varDecl)
 {
 	solAssert(knownVariable(_varDecl), "");
 	return m_variables[&_varDecl];
 }
 
-bool EncodingContext::createVariable(solidity::VariableDeclaration const& _varDecl)
+bool EncodingContext::createVariable(frontend::VariableDeclaration const& _varDecl)
 {
 	solAssert(!knownVariable(_varDecl), "");
 	auto const& type = _varDecl.type();
@@ -66,24 +73,24 @@ bool EncodingContext::createVariable(solidity::VariableDeclaration const& _varDe
 	return result.first;
 }
 
-bool EncodingContext::knownVariable(solidity::VariableDeclaration const& _varDecl)
+bool EncodingContext::knownVariable(frontend::VariableDeclaration const& _varDecl)
 {
 	return m_variables.count(&_varDecl);
 }
 
-void EncodingContext::resetVariable(solidity::VariableDeclaration const& _variable)
+void EncodingContext::resetVariable(frontend::VariableDeclaration const& _variable)
 {
 	newValue(_variable);
 	setUnknownValue(_variable);
 }
 
-void EncodingContext::resetVariables(set<solidity::VariableDeclaration const*> const& _variables)
+void EncodingContext::resetVariables(set<frontend::VariableDeclaration const*> const& _variables)
 {
 	for (auto const* decl: _variables)
 		resetVariable(*decl);
 }
 
-void EncodingContext::resetVariables(function<bool(solidity::VariableDeclaration const&)> const& _filter)
+void EncodingContext::resetVariables(function<bool(frontend::VariableDeclaration const&)> const& _filter)
 {
 	for_each(begin(m_variables), end(m_variables), [&](auto _variable)
 	{
@@ -94,16 +101,16 @@ void EncodingContext::resetVariables(function<bool(solidity::VariableDeclaration
 
 void EncodingContext::resetAllVariables()
 {
-	resetVariables([&](solidity::VariableDeclaration const&) { return true; });
+	resetVariables([&](frontend::VariableDeclaration const&) { return true; });
 }
 
-Expression EncodingContext::newValue(solidity::VariableDeclaration const& _decl)
+smtutil::Expression EncodingContext::newValue(frontend::VariableDeclaration const& _decl)
 {
 	solAssert(knownVariable(_decl), "");
 	return m_variables.at(&_decl)->increaseIndex();
 }
 
-void EncodingContext::setZeroValue(solidity::VariableDeclaration const& _decl)
+void EncodingContext::setZeroValue(frontend::VariableDeclaration const& _decl)
 {
 	solAssert(knownVariable(_decl), "");
 	setZeroValue(*m_variables.at(&_decl));
@@ -114,7 +121,7 @@ void EncodingContext::setZeroValue(SymbolicVariable& _variable)
 	setSymbolicZeroValue(_variable, *this);
 }
 
-void EncodingContext::setUnknownValue(solidity::VariableDeclaration const& _decl)
+void EncodingContext::setUnknownValue(frontend::VariableDeclaration const& _decl)
 {
 	solAssert(knownVariable(_decl), "");
 	setUnknownValue(*m_variables.at(&_decl));
@@ -127,14 +134,14 @@ void EncodingContext::setUnknownValue(SymbolicVariable& _variable)
 
 /// Expressions
 
-shared_ptr<SymbolicVariable> EncodingContext::expression(solidity::Expression const& _e)
+shared_ptr<SymbolicVariable> EncodingContext::expression(frontend::Expression const& _e)
 {
 	if (!knownExpression(_e))
 		createExpression(_e);
 	return m_expressions.at(&_e);
 }
 
-bool EncodingContext::createExpression(solidity::Expression const& _e, shared_ptr<SymbolicVariable> _symbVar)
+bool EncodingContext::createExpression(frontend::Expression const& _e, shared_ptr<SymbolicVariable> _symbVar)
 {
 	solAssert(_e.annotation().type, "");
 	if (knownExpression(_e))
@@ -155,7 +162,7 @@ bool EncodingContext::createExpression(solidity::Expression const& _e, shared_pt
 	}
 }
 
-bool EncodingContext::knownExpression(solidity::Expression const& _e) const
+bool EncodingContext::knownExpression(frontend::Expression const& _e) const
 {
 	return m_expressions.count(&_e);
 }
@@ -168,7 +175,7 @@ shared_ptr<SymbolicVariable> EncodingContext::globalSymbol(string const& _name)
 	return m_globalContext.at(_name);
 }
 
-bool EncodingContext::createGlobalSymbol(string const& _name, solidity::Expression const& _expr)
+bool EncodingContext::createGlobalSymbol(string const& _name, frontend::Expression const& _expr)
 {
 	solAssert(!knownGlobalSymbol(_name), "");
 	auto result = newSymbolicVariable(*_expr.annotation().type, _name, *this);
@@ -182,46 +189,12 @@ bool EncodingContext::knownGlobalSymbol(string const& _var) const
 	return m_globalContext.count(_var);
 }
 
-// Blockchain
-
-Expression EncodingContext::thisAddress()
-{
-	return m_thisAddress->currentValue();
-}
-
-Expression EncodingContext::balance()
-{
-	return balance(m_thisAddress->currentValue());
-}
-
-Expression EncodingContext::balance(Expression _address)
-{
-	return Expression::select(m_balances->currentValue(), move(_address));
-}
-
-void EncodingContext::transfer(Expression _from, Expression _to, Expression _value)
-{
-	unsigned indexBefore = m_balances->index();
-	addBalance(_from, 0 - _value);
-	addBalance(_to, move(_value));
-	unsigned indexAfter = m_balances->index();
-	solAssert(indexAfter > indexBefore, "");
-	m_balances->increaseIndex();
-	/// Do not apply the transfer operation if _from == _to.
-	auto newBalances = Expression::ite(
-		move(_from) == move(_to),
-		m_balances->valueAtIndex(indexBefore),
-		m_balances->valueAtIndex(indexAfter)
-	);
-	addAssertion(m_balances->currentValue() == newBalances);
-}
-
 /// Solver.
 
-Expression EncodingContext::assertions()
+smtutil::Expression EncodingContext::assertions()
 {
 	if (m_assertions.empty())
-		return Expression(true);
+		return smtutil::Expression(true);
 
 	return m_assertions.back();
 }
@@ -231,7 +204,7 @@ void EncodingContext::pushSolver()
 	if (m_accumulateAssertions)
 		m_assertions.push_back(assertions());
 	else
-		m_assertions.push_back(smt::Expression(true));
+		m_assertions.emplace_back(true);
 }
 
 void EncodingContext::popSolver()
@@ -240,23 +213,10 @@ void EncodingContext::popSolver()
 	m_assertions.pop_back();
 }
 
-void EncodingContext::addAssertion(Expression const& _expr)
+void EncodingContext::addAssertion(smtutil::Expression const& _expr)
 {
 	if (m_assertions.empty())
 		m_assertions.push_back(_expr);
 	else
 		m_assertions.back() = _expr && move(m_assertions.back());
-}
-
-/// Private helpers.
-
-void EncodingContext::addBalance(Expression _address, Expression _value)
-{
-	auto newBalances = Expression::store(
-		m_balances->currentValue(),
-		_address,
-		balance(_address) + move(_value)
-	);
-	m_balances->increaseIndex();
-	addAssertion(newBalances == m_balances->currentValue());
 }

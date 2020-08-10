@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Adaptor between the abstract assembly and eth assembly.
  */
@@ -25,50 +26,53 @@
 #include <liblangutil/SourceLocation.h>
 #include <functional>
 
-namespace dev
-{
-namespace eth
+namespace solidity::evmasm
 {
 class Assembly;
 class AssemblyItem;
 }
-}
 
-namespace yul
+namespace solidity::yul
 {
 struct Block;
 
 class EthAssemblyAdapter: public AbstractAssembly
 {
 public:
-	explicit EthAssemblyAdapter(dev::eth::Assembly& _assembly);
+	explicit EthAssemblyAdapter(evmasm::Assembly& _assembly);
 	void setSourceLocation(langutil::SourceLocation const& _location) override;
 	int stackHeight() const override;
 	void setStackHeight(int height) override;
-	void appendInstruction(dev::eth::Instruction _instruction) override;
-	void appendConstant(dev::u256 const& _constant) override;
+	void appendInstruction(evmasm::Instruction _instruction) override;
+	void appendConstant(u256 const& _constant) override;
 	void appendLabel(LabelID _labelId) override;
 	void appendLabelReference(LabelID _labelId) override;
 	size_t newLabelId() override;
 	size_t namedLabel(std::string const& _name) override;
 	void appendLinkerSymbol(std::string const& _linkerSymbol) override;
-	void appendJump(int _stackDiffAfter) override;
-	void appendJumpTo(LabelID _labelId, int _stackDiffAfter) override;
-	void appendJumpToIf(LabelID _labelId) override;
+	void appendJump(int _stackDiffAfter, JumpType _jumpType) override;
+	void appendJumpTo(LabelID _labelId, int _stackDiffAfter, JumpType _jumpType) override;
+	void appendJumpToIf(LabelID _labelId, JumpType _jumpType) override;
 	void appendBeginsub(LabelID, int) override;
 	void appendJumpsub(LabelID, int, int) override;
 	void appendReturnsub(int, int) override;
 	void appendAssemblySize() override;
 	std::pair<std::shared_ptr<AbstractAssembly>, SubID> createSubAssembly() override;
-	void appendDataOffset(SubID _sub) override;
-	void appendDataSize(SubID _sub) override;
-	SubID appendData(dev::bytes const& _data) override;
+	void appendDataOffset(std::vector<SubID> const& _subPath) override;
+	void appendDataSize(std::vector<SubID> const& _subPath) override;
+	SubID appendData(bytes const& _data) override;
+
+	void appendImmutable(std::string const& _identifier) override;
+	void appendImmutableAssignment(std::string const& _identifier) override;
+
+	void markAsInvalid() override;
 
 private:
-	static LabelID assemblyTagToIdentifier(dev::eth::AssemblyItem const& _tag);
+	static LabelID assemblyTagToIdentifier(evmasm::AssemblyItem const& _tag);
+	void appendJumpInstruction(evmasm::Instruction _instruction, JumpType _jumpType);
 
-	dev::eth::Assembly& m_assembly;
-	std::map<SubID, dev::u256> m_dataHashBySubId;
+	evmasm::Assembly& m_assembly;
+	std::map<SubID, u256> m_dataHashBySubId;
 	size_t m_nextDataCounter = std::numeric_limits<size_t>::max() / 2;
 };
 
@@ -79,7 +83,7 @@ public:
 	static void assemble(
 		Block const& _parsedData,
 		AsmAnalysisInfo& _analysisInfo,
-		dev::eth::Assembly& _assembly,
+		evmasm::Assembly& _assembly,
 		langutil::EVMVersion _evmVersion,
 		ExternalIdentifierAccess const& _identifierAccess = ExternalIdentifierAccess(),
 		bool _useNamedLabelsForFunctions = false,

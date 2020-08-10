@@ -23,6 +23,5 @@ a;
 	}
 }
 // ----
-// Warning: (72-90): Statement has no effect.
-// Warning: (96-107): Statement has no effect.
-// Warning: (304-307): Assertion checker does not support recursive function calls.
+// Warning 6133: (72-90): Statement has no effect.
+// Warning 6133: (96-107): Statement has no effect.

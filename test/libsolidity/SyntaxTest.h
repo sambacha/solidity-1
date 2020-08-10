@@ -14,45 +14,27 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #pragma once
 
 #include <test/libsolidity/AnalysisFramework.h>
 #include <test/TestCase.h>
+#include <test/CommonSyntaxTest.h>
 #include <liblangutil/Exceptions.h>
-#include <libdevcore/AnsiColorized.h>
+#include <libsolutil/AnsiColorized.h>
 
 #include <iosfwd>
 #include <string>
 #include <vector>
 #include <utility>
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+namespace solidity::frontend::test
 {
 
-struct SyntaxTestError
-{
-	std::string type;
-	std::string message;
-	std::string sourceName;
-	int locationStart;
-	int locationEnd;
-	bool operator==(SyntaxTestError const& _rhs) const
-	{
-		return type == _rhs.type &&
-			message == _rhs.message &&
-			sourceName == _rhs.sourceName &&
-			locationStart == _rhs.locationStart &&
-			locationEnd == _rhs.locationEnd;
-	}
-};
+using solidity::test::SyntaxTestError;
 
-
-class SyntaxTest: AnalysisFramework, public EVMVersionRestrictedTestCase
+class SyntaxTest: public AnalysisFramework, public solidity::test::CommonSyntaxTest
 {
 public:
 	static std::unique_ptr<TestCase> create(Config const& _config)
@@ -67,34 +49,13 @@ public:
 
 	TestResult run(std::ostream& _stream, std::string const& _linePrefix = "", bool _formatted = false) override;
 
-	void printSource(std::ostream &_stream, std::string const &_linePrefix = "", bool _formatted = false) const override;
-	void printUpdatedExpectations(std::ostream& _stream, std::string const& _linePrefix) const override
-	{
-		if (!m_errorList.empty())
-			printErrorList(_stream, m_errorList, _linePrefix, false);
-	}
-
-	static std::string errorMessage(Exception const& _e);
 protected:
-	static void printErrorList(
-		std::ostream& _stream,
-		std::vector<SyntaxTestError> const& _errors,
-		std::string const& _linePrefix,
-		bool _formatted = false
-	);
+	void setupCompiler();
+	void parseAndAnalyze() override;
+	void filterObtainedErrors();
 
-	virtual bool printExpectationAndError(std::ostream& _stream, std::string const& _linePrefix = "", bool _formatted = false);
-
-	static std::vector<SyntaxTestError> parseExpectations(std::istream& _stream);
-
-	std::map<std::string, std::string> m_sources;
-	std::vector<SyntaxTestError> m_expectations;
-	std::vector<SyntaxTestError> m_errorList;
-	bool m_optimiseYul = false;
-	langutil::EVMVersion const m_evmVersion;
+	bool m_optimiseYul = true;
 	bool m_parserErrorRecovery = false;
 };
 
-}
-}
 }

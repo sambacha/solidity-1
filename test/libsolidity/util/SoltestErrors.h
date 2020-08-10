@@ -14,15 +14,11 @@
 
 #pragma once
 
-#include <libdevcore/AnsiColorized.h>
-#include <libdevcore/CommonData.h>
-#include <libdevcore/Exceptions.h>
+#include <libsolutil/AnsiColorized.h>
+#include <libsolutil/CommonData.h>
+#include <libsolutil/Exceptions.h>
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+namespace solidity::frontend::test
 {
 
 #define soltestAssert(CONDITION, DESCRIPTION) \
@@ -33,6 +29,15 @@ namespace test
 	} \
 	while (false)
 
+
+class TestParserError: virtual public util::Exception
+{
+public:
+	explicit TestParserError(std::string const& _description)
+	{
+		*this << util::errinfo_comment(_description);
+	}
+};
 
 /**
  * Representation of a notice, warning or error that can occur while
@@ -101,17 +106,17 @@ public:
 
 				break;
 			case FormatError::Warning:
-				AnsiColorized(
+				util::AnsiColorized(
 					os,
 					_formatted,
-					{formatting::YELLOW}
+					{util::formatting::YELLOW}
 				) << _linePrefix << "Warning: " << error.message << std::endl;
 				break;
 			case FormatError::Error:
-				AnsiColorized(
+				util::AnsiColorized(
 					os,
 					_formatted,
-					{formatting::RED}
+					{util::formatting::RED}
 				) << _linePrefix << "Error: " << error.message << std::endl;
 				break;
 			}
@@ -123,6 +128,4 @@ private:
 	FormatErrors m_errors;
 };
 
-}
-}
 }

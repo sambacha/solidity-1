@@ -5,3 +5,5 @@ contract C {
     }
   }
 }
+// ----
+// DeclarationError 2025: (72-73): Access to functions is not allowed in inline assembly.

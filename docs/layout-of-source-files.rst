@@ -3,8 +3,41 @@ Layout of a Solidity Source File
 ********************************
 
 Source files can contain an arbitrary number of
-:ref:`contract definitions<contract_structure>`, import_ directives
-and :ref:`pragma directives<pragma>`.
+:ref:`contract definitions<contract_structure>`, import_ directives,
+:ref:`pragma directives<pragma>` and
+:ref:`struct<structs>` and :ref:`enum<enums>` definitions.
+
+.. index:: ! license, spdx
+
+SPDX License Identifier
+=======================
+
+Trust in smart contract can be better established if their source code
+is available. Since making source code available always touches on legal problems
+with regards to copyright, the Solidity compiler encourages the use
+of machine-readable `SPDX license identifiers <https://spdx.org>`_.
+Every source file should start with a comment indicating its license:
+
+``// SPDX-License-Identifier: MIT``
+
+The compiler does not validate that the license is part of the
+`list allowed by SPDX <https://spdx.org/licenses/>`_, but
+it does include the supplied string in the `bytecode metadata <metadata>`_.
+
+If you do not want to specify a license or if the source code is
+not open-source, please use the special value ``UNLICENSED``.
+
+Supplying this comment of course does not free you from other
+obligations related to licensing like having to mention
+a specific license header in each source file or the
+original copyright holder.
+
+The comment is recognized by the compiler anywhere in the file at the
+file level, but it is recommended to put it at the top of the file.
+
+More information about how to use SPDX license identifiers
+can be found at the `SPDX website <https://spdx.org/ids-how>`_.
+
 
 .. index:: ! pragma
 
@@ -16,8 +49,8 @@ Pragmas
 The ``pragma`` keyword is used to enable certain compiler features
 or checks. A pragma directive is always local to a source file, so
 you have to add the pragma to all your files if you want enable it
-in all of your project. If you :ref:`import<import>` another file, the pragma
-from that file does not automatically apply to the importing file.
+in your whole project. If you :ref:`import<import>` another file, the pragma
+from that file does *not* automatically apply to the importing file.
 
 .. index:: ! pragma, version
 
@@ -35,14 +68,12 @@ a good idea to read through the changelog at least for releases that contain
 breaking changes. These releases always have versions of the form
 ``0.x.0`` or ``x.0.0``.
 
-The version pragma is used as follows::
-
-    pragma solidity ^0.5.2;
+The version pragma is used as follows: ``pragma solidity ^0.5.2;``
 
 A source file with the line above does not compile with a compiler earlier than version 0.5.2,
 and it also does not work on a compiler starting from version 0.6.0 (this
-second condition is added by using ``^``). This is because
-there will be no breaking changes until version ``0.6.0``, so you can always
+second condition is added by using ``^``). Because
+there will be no breaking changes until version ``0.6.0``, you can
 be sure that your code compiles the way you intended. The exact version of the
 compiler is not fixed, so that bugfix releases are still possible.
 
@@ -72,10 +103,12 @@ ABIEncoderV2
 ~~~~~~~~~~~~
 
 The new ABI encoder is able to encode and decode arbitrarily nested
-arrays and structs. It produces less optimal code (the optimizer
-for this part of the code is still under development) and has not
-received as much testing as the old encoder. You can activate it
-using ``pragma experimental ABIEncoderV2;``.
+arrays and structs. It might produce less optimal code and has not
+received as much testing as the old encoder, but is considered
+non-experimental as of Solidity 0.6.0. You still have to explicitly
+activate it using ``pragma experimental ABIEncoderV2;`` - we kept
+the same pragma, even though it is not considered experimental
+anymore.
 
 .. _smt_checker:
 
@@ -86,8 +119,10 @@ This component has to be enabled when the Solidity compiler is built
 and therefore it is not available in all Solidity binaries.
 The :ref:`build instructions<smt_solvers_build>` explain how to activate this option.
 It is activated for the Ubuntu PPA releases in most versions,
-but not for solc-js, the Docker images, Windows binaries or the
-statically-built Linux binaries.
+but not for the Docker images, Windows binaries or the
+statically-built Linux binaries. It can be activated for solc-js via the
+`smtCallback <https://github.com/ethereum/solc-js#example-usage-with-smtsolver-callback>`_ if you have an SMT solver
+installed locally and run solc-js via node (not via the browser).
 
 If you use ``pragma experimental SMTChecker;``, then you get additional
 :ref:`safety warnings<formal_verification>` which are obtained by querying an
@@ -106,8 +141,10 @@ Importing other Source Files
 Syntax and Semantics
 --------------------
 
-Solidity supports import statements to help modularise your code that are similar to those available in JavaScript
-(from ES6 on). However, Solidity does not support the concept of a `default export <https://developer.mozilla.org/en-US/docs/web/javascript/reference/statements/export#Description>`_.
+Solidity supports import statements to help modularise your code that
+are similar to those available in JavaScript
+(from ES6 on). However, Solidity does not support the concept of
+a `default export <https://developer.mozilla.org/en-US/docs/web/javascript/reference/statements/export#Description>`_.
 
 At a global level, you can use import statements of the following form:
 
@@ -279,16 +316,16 @@ for the two function parameters and two return variables.
 
 ::
 
-    pragma solidity >=0.4.0 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.21 <0.8.0;
 
     /** @title Shape calculator. */
     contract ShapeCalculator {
-        /** @dev Calculates a rectangle's surface and perimeter.
-          * @param w Width of the rectangle.
-          * @param h Height of the rectangle.
-          * @return s The calculated surface.
-          * @return p The calculated perimeter.
-          */
+        /// @dev Calculates a rectangle's surface and perimeter.
+        /// @param w Width of the rectangle.
+        /// @param h Height of the rectangle.
+        /// @return s The calculated surface.
+        /// @return p The calculated perimeter.
         function rectangle(uint w, uint h) public pure returns (uint s, uint p) {
             s = w * h;
             p = 2 * (w + h);

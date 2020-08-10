@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Common code generator for translating Yul / inline assembly to EVM and EVM1.5.
  */
@@ -30,12 +31,12 @@
 #include <optional>
 #include <stack>
 
-namespace langutil
+namespace solidity::langutil
 {
 class ErrorReporter;
 }
 
-namespace yul
+namespace solidity::yul
 {
 struct AsmAnalysisInfo;
 class EVMAssembly;
@@ -53,9 +54,8 @@ struct StackTooDeepError: virtual YulException
 
 struct CodeTransformContext
 {
-	std::map<Scope::Label const*, AbstractAssembly::LabelID> labelIDs;
 	std::map<Scope::Function const*, AbstractAssembly::LabelID> functionEntryIDs;
-	std::map<Scope::Variable const*, int> variableStackHeights;
+	std::map<Scope::Variable const*, size_t> variableStackHeights;
 	std::map<Scope::Variable const*, unsigned> variableReferences;
 
 	struct JumpInfo
@@ -71,6 +71,7 @@ struct CodeTransformContext
 	};
 
 	std::stack<ForLoopLabels> forLoopStack;
+	std::stack<JumpInfo> functionExitPoints;
 };
 
 /**
@@ -92,10 +93,10 @@ public:
 	{}
 
 public:
-	void operator()(Identifier const& _identifier);
-	void operator()(FunctionDefinition const&);
-	void operator()(ForLoop const&);
-	void operator()(Block const& _block);
+	void operator()(Identifier const& _identifier) override;
+	void operator()(FunctionDefinition const&) override;
+	void operator()(ForLoop const&) override;
+	void operator()(Block const& _block) override;
 
 private:
 	void increaseRefIfFound(YulString _variableName);
@@ -134,7 +135,6 @@ public:
 		_evm15,
 		_identifierAccess,
 		_useNamedLabelsForFunctions,
-		_assembly.stackHeight(),
 		nullptr
 	)
 	{
@@ -153,9 +153,8 @@ protected:
 		EVMDialect const& _dialect,
 		BuiltinContext& _builtinContext,
 		bool _evm15,
-		ExternalIdentifierAccess const& _identifierAccess,
+		ExternalIdentifierAccess _identifierAccess,
 		bool _useNamedLabelsForFunctions,
-		int _stackAdjustment,
 		std::shared_ptr<Context> _context
 	);
 
@@ -163,20 +162,17 @@ protected:
 	bool unreferenced(Scope::Variable const& _var) const;
 	/// Marks slots of variables that are not used anymore
 	/// and were defined in the current scope for reuse.
-	/// Also POPs unused topmost stack slots.
-	void freeUnusedVariables();
+	/// Also POPs unused topmost stack slots,
+	/// unless @a _popUnusedSlotsAtStackTop is set to false.
+	void freeUnusedVariables(bool _popUnusedSlotsAtStackTop = true);
 	/// Marks the stack slot of @a _var to be reused.
 	void deleteVariable(Scope::Variable const& _var);
 
 public:
-	void operator()(Instruction const& _instruction);
 	void operator()(Literal const& _literal);
 	void operator()(Identifier const& _identifier);
-	void operator()(FunctionalInstruction const& _instr);
 	void operator()(FunctionCall const&);
 	void operator()(ExpressionStatement const& _statement);
-	void operator()(Label const& _label);
-	void operator()(StackAssignment const& _assignment);
 	void operator()(Assignment const& _assignment);
 	void operator()(VariableDeclaration const& _varDecl);
 	void operator()(If const& _if);
@@ -185,13 +181,11 @@ public:
 	void operator()(ForLoop const&);
 	void operator()(Break const&);
 	void operator()(Continue const&);
+	void operator()(Leave const&);
 	void operator()(Block const& _block);
 
 private:
 	AbstractAssembly::LabelID labelFromIdentifier(Identifier const& _identifier);
-	/// @returns the label ID corresponding to the given label, allocating a new one if
-	/// necessary.
-	AbstractAssembly::LabelID labelID(Scope::Label const& _label);
 	AbstractAssembly::LabelID functionEntryID(YulString _name, Scope::Function const& _function);
 	/// Generates code for an expression that is supposed to return a single value.
 	void visitExpression(Expression const& _expression);
@@ -208,11 +202,11 @@ private:
 	/// Determines the stack height difference to the given variables. Throws
 	/// if it is not yet in scope or the height difference is too large. Returns
 	/// the (positive) stack height difference otherwise.
-	int variableHeightDiff(Scope::Variable const& _var, YulString _name, bool _forSwap);
+	/// @param _forSwap if true, produces stack error if the difference is invalid for a swap
+	///                 opcode, otherwise checks for validity for a dup opcode.
+	size_t variableHeightDiff(Scope::Variable const& _var, YulString _name, bool _forSwap);
 
 	void expectDeposit(int _deposit, int _oldHeight) const;
-
-	void checkStackHeight(void const* _astElement) const;
 
 	/// Stores the stack error in the list of errors, appends an invalid opcode
 	/// and corrects the stack height to the target stack height.
@@ -231,11 +225,6 @@ private:
 	bool const m_evm15 = false;
 	bool const m_useNamedLabelsForFunctions = false;
 	ExternalIdentifierAccess m_identifierAccess;
-	/// Adjustment between the stack height as determined during the analysis phase
-	/// and the stack height in the assembly. This is caused by an initial stack being present
-	/// for inline assembly and different stack heights depending on the EVM backend used
-	/// (EVM 1.0 or 1.5).
-	int m_stackAdjustment = 0;
 	std::shared_ptr<Context> m_context;
 
 	/// Set of variables whose reference counter has reached zero,

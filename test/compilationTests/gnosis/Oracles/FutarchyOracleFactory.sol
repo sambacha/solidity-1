@@ -34,7 +34,6 @@ contract FutarchyOracleFactory {
     /// @dev Constructor sets event factory contract
     /// @param _eventFactory Event factory contract
     constructor(EventFactory _eventFactory)
-        public
     {
         require(address(_eventFactory) != address(0));
         eventFactory = _eventFactory;
@@ -50,7 +49,7 @@ contract FutarchyOracleFactory {
     /// @param marketMaker Market maker contract
     /// @param fee Market fee
     /// @param deadline Decision deadline
-    /// @return Oracle contract
+    /// @return futarchyOracle Oracle contract
     function createFutarchyOracle(
         Token collateralToken,
         Oracle oracle,

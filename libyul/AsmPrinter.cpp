@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2017
@@ -23,8 +24,9 @@
 #include <libyul/AsmPrinter.h>
 #include <libyul/AsmData.h>
 #include <libyul/Exceptions.h>
+#include <libyul/Dialect.h>
 
-#include <libdevcore/CommonData.h>
+#include <libsolutil/CommonData.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -34,17 +36,11 @@
 #include <functional>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::yul;
 
 //@TODO source locations
-
-string AsmPrinter::operator()(yul::Instruction const& _instruction) const
-{
-	yulAssert(!m_yul, "");
-	yulAssert(isValidInstruction(_instruction.instruction), "Invalid instruction");
-	return boost::to_lower_copy(instructionInfo(_instruction.instruction).name);
-}
 
 string AsmPrinter::operator()(Literal const& _literal) const
 {
@@ -55,38 +51,12 @@ string AsmPrinter::operator()(Literal const& _literal) const
 		return _literal.value.str() + appendTypeName(_literal.type);
 	case LiteralKind::Boolean:
 		yulAssert(_literal.value == "true"_yulstring || _literal.value == "false"_yulstring, "Invalid bool literal.");
-		return ((_literal.value == "true"_yulstring) ? "true" : "false") + appendTypeName(_literal.type);
+		return ((_literal.value == "true"_yulstring) ? "true" : "false") + appendTypeName(_literal.type, true);
 	case LiteralKind::String:
 		break;
 	}
 
-	string out;
-	for (char c: _literal.value.str())
-		if (c == '\\')
-			out += "\\\\";
-		else if (c == '"')
-			out += "\\\"";
-		else if (c == '\b')
-			out += "\\b";
-		else if (c == '\f')
-			out += "\\f";
-		else if (c == '\n')
-			out += "\\n";
-		else if (c == '\r')
-			out += "\\r";
-		else if (c == '\t')
-			out += "\\t";
-		else if (c == '\v')
-			out += "\\v";
-		else if (!isprint(c, locale::classic()))
-		{
-			ostringstream o;
-			o << std::hex << setfill('0') << setw(2) << (unsigned)(unsigned char)(c);
-			out += "\\x" + o.str();
-		}
-		else
-			out += c;
-	return "\"" + out + "\"" + appendTypeName(_literal.type);
+	return escapeAndQuoteString(_literal.value.str()) + appendTypeName(_literal.type);
 }
 
 string AsmPrinter::operator()(Identifier const& _identifier) const
@@ -95,37 +65,9 @@ string AsmPrinter::operator()(Identifier const& _identifier) const
 	return _identifier.name.str();
 }
 
-string AsmPrinter::operator()(FunctionalInstruction const& _functionalInstruction) const
-{
-	yulAssert(!m_yul, "");
-	yulAssert(isValidInstruction(_functionalInstruction.instruction), "Invalid instruction");
-	return
-		boost::to_lower_copy(instructionInfo(_functionalInstruction.instruction).name) +
-		"(" +
-		boost::algorithm::join(
-			_functionalInstruction.arguments | boost::adaptors::transformed([&](auto&& _node) { return std::visit(*this, _node); }),
-			", "
-		) +
-		")";
-}
-
 string AsmPrinter::operator()(ExpressionStatement const& _statement) const
 {
 	return std::visit(*this, _statement.expression);
-}
-
-string AsmPrinter::operator()(Label const& _label) const
-{
-	yulAssert(!m_yul, "");
-	yulAssert(!_label.name.empty(), "Invalid label.");
-	return _label.name.str() + ":";
-}
-
-string AsmPrinter::operator()(StackAssignment const& _assignment) const
-{
-	yulAssert(!m_yul, "");
-	yulAssert(!_assignment.variableName.name.empty(), "Invalid variable name.");
-	return "=: " + (*this)(_assignment.variableName);
 }
 
 string AsmPrinter::operator()(Assignment const& _assignment) const
@@ -242,6 +184,11 @@ string AsmPrinter::operator()(Continue const&) const
 	return "continue";
 }
 
+string AsmPrinter::operator()(Leave const&) const
+{
+	return "leave";
+}
+
 string AsmPrinter::operator()(Block const& _block) const
 {
 	if (_block.statements.empty())
@@ -265,9 +212,18 @@ string AsmPrinter::formatTypedName(TypedName _variable) const
 	return _variable.name.str() + appendTypeName(_variable.type);
 }
 
-string AsmPrinter::appendTypeName(YulString _type) const
+string AsmPrinter::appendTypeName(YulString _type, bool _isBoolLiteral) const
 {
-	if (m_yul && !_type.empty())
+	if (m_dialect && !_type.empty())
+	{
+		if (!_isBoolLiteral && _type == m_dialect->defaultType)
+			_type = {};
+		else if (_isBoolLiteral && _type == m_dialect->boolType && !m_dialect->defaultType.empty())
+			// Special case: If we have a bool type but empty default type, do not remove the type.
+			_type = {};
+	}
+	if (_type.empty())
+		return {};
+	else
 		return ":" + _type.str();
-	return "";
 }

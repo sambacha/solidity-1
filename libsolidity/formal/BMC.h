@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Class that implements an SMT-based Bounded Model Checker (BMC).
  * Traverses the AST such that:
@@ -30,24 +31,26 @@
 
 #include <libsolidity/formal/EncodingContext.h>
 #include <libsolidity/formal/SMTEncoder.h>
-#include <libsolidity/formal/SolverInterface.h>
 
 #include <libsolidity/interface/ReadFile.h>
+
+#include <libsmtutil/SolverInterface.h>
 #include <liblangutil/ErrorReporter.h>
 
 #include <set>
 #include <string>
 #include <vector>
 
-namespace langutil
+using solidity::util::h256;
+
+namespace solidity::langutil
 {
 class ErrorReporter;
+struct ErrorId;
 struct SourceLocation;
 }
 
-namespace dev
-{
-namespace solidity
+namespace solidity::frontend
 {
 
 class BMC: public SMTEncoder
@@ -57,10 +60,11 @@ public:
 		smt::EncodingContext& _context,
 		langutil::ErrorReporter& _errorReporter,
 		std::map<h256, std::string> const& _smtlib2Responses,
-		smt::SMTSolverChoice _enabledSolvers
+		ReadCallback::Callback const& _smtCallback,
+		smtutil::SMTSolverChoice _enabledSolvers
 	);
 
-	void analyze(SourceUnit const& _sources, std::set<Expression const*> _safeAssertions);
+	void analyze(SourceUnit const& _sources, std::map<ASTNode const*, std::set<VerificationTarget::Type>> _solvedTargets);
 
 	/// This is used if the SMT solver is not directly linked into this binary.
 	/// @returns a list of inputs to the SMT solver that were not part of the argument to
@@ -69,8 +73,6 @@ public:
 
 	/// @returns true if _funCall should be inlined, otherwise false.
 	static bool shouldInlineFunctionCall(FunctionCall const& _funCall);
-
-	std::shared_ptr<smt::SolverInterface> solver() { return m_interface; }
 
 private:
 	/// AST visitors.
@@ -102,10 +104,10 @@ private:
 	void internalOrExternalFunctionCall(FunctionCall const& _funCall);
 
 	/// Creates underflow/overflow verification targets.
-	std::pair<smt::Expression, smt::Expression> arithmeticOperation(
+	std::pair<smtutil::Expression, smtutil::Expression> arithmeticOperation(
 		Token _op,
-		smt::Expression const& _left,
-		smt::Expression const& _right,
+		smtutil::Expression const& _left,
+		smtutil::Expression const& _right,
 		TypePointer const& _commonType,
 		Expression const& _expression
 	) override;
@@ -113,32 +115,29 @@ private:
 	void resetStorageReferences();
 	void reset();
 
-	std::pair<std::vector<smt::Expression>, std::vector<std::string>> modelExpressions();
+	std::pair<std::vector<smtutil::Expression>, std::vector<std::string>> modelExpressions();
 	//@}
 
 	/// Verification targets.
 	//@{
-	struct VerificationTarget
+	struct BMCVerificationTarget: VerificationTarget
 	{
-		enum class Type { ConstantCondition, Underflow, Overflow, UnderOverflow, DivByZero, Balance, Assert } type;
-		smt::Expression value;
-		smt::Expression constraints;
 		Expression const* expression;
 		std::vector<CallStackEntry> callStack;
-		std::pair<std::vector<smt::Expression>, std::vector<std::string>> modelExpressions;
+		std::pair<std::vector<smtutil::Expression>, std::vector<std::string>> modelExpressions;
 	};
 
-	void checkVerificationTargets(smt::Expression const& _constraints);
-	void checkVerificationTarget(VerificationTarget& _target, smt::Expression const& _constraints = smt::Expression(true));
-	void checkConstantCondition(VerificationTarget& _target);
-	void checkUnderflow(VerificationTarget& _target, smt::Expression const& _constraints);
-	void checkOverflow(VerificationTarget& _target, smt::Expression const& _constraints);
-	void checkDivByZero(VerificationTarget& _target);
-	void checkBalance(VerificationTarget& _target);
-	void checkAssert(VerificationTarget& _target);
+	void checkVerificationTargets(smtutil::Expression const& _constraints);
+	void checkVerificationTarget(BMCVerificationTarget& _target, smtutil::Expression const& _constraints = smtutil::Expression(true));
+	void checkConstantCondition(BMCVerificationTarget& _target);
+	void checkUnderflow(BMCVerificationTarget& _target, smtutil::Expression const& _constraints);
+	void checkOverflow(BMCVerificationTarget& _target, smtutil::Expression const& _constraints);
+	void checkDivByZero(BMCVerificationTarget& _target);
+	void checkBalance(BMCVerificationTarget& _target);
+	void checkAssert(BMCVerificationTarget& _target);
 	void addVerificationTarget(
 		VerificationTarget::Type _type,
-		smt::Expression const& _value,
+		smtutil::Expression const& _value,
 		Expression const* _expression
 	);
 	//@}
@@ -147,29 +146,31 @@ private:
 	//@{
 	/// Check that a condition can be satisfied.
 	void checkCondition(
-		smt::Expression _condition,
-		std::vector<CallStackEntry> const& callStack,
-		std::pair<std::vector<smt::Expression>, std::vector<std::string>> const& _modelExpressions,
+		smtutil::Expression _condition,
+		std::vector<CallStackEntry> const& _callStack,
+		std::pair<std::vector<smtutil::Expression>, std::vector<std::string>> const& _modelExpressions,
 		langutil::SourceLocation const& _location,
+		langutil::ErrorId _errorHappens,
+		langutil::ErrorId _errorMightHappen,
 		std::string const& _description,
 		std::string const& _additionalValueName = "",
-		smt::Expression const* _additionalValue = nullptr
+		smtutil::Expression const* _additionalValue = nullptr
 	);
 	/// Checks that a boolean condition is not constant. Do not warn if the expression
 	/// is a literal constant.
-	/// @param _description the warning string, $VALUE will be replaced by the constant value.
 	void checkBooleanNotConstant(
 		Expression const& _condition,
-		smt::Expression const& _constraints,
-		smt::Expression const& _value,
-		std::vector<CallStackEntry> const& _callStack,
-		std::string const& _description
+		smtutil::Expression const& _constraints,
+		smtutil::Expression const& _value,
+		std::vector<CallStackEntry> const& _callStack
 	);
-	std::pair<smt::CheckResult, std::vector<std::string>>
-	checkSatisfiableAndGenerateModel(std::vector<smt::Expression> const& _expressionsToEvaluate);
+	std::pair<smtutil::CheckResult, std::vector<std::string>>
+	checkSatisfiableAndGenerateModel(std::vector<smtutil::Expression> const& _expressionsToEvaluate);
 
-	smt::CheckResult checkSatisfiable();
+	smtutil::CheckResult checkSatisfiable();
 	//@}
+
+	std::unique_ptr<smtutil::SolverInterface> m_interface;
 
 	/// Flags used for better warning messages.
 	bool m_loopExecutionHappened = false;
@@ -178,13 +179,10 @@ private:
 	/// ErrorReporter that comes from CompilerStack.
 	langutil::ErrorReporter& m_outerErrorReporter;
 
-	std::vector<VerificationTarget> m_verificationTargets;
+	std::vector<BMCVerificationTarget> m_verificationTargets;
 
-	/// Assertions that are known to be safe.
-	std::set<Expression const*> m_safeAssertions;
-
-	std::shared_ptr<smt::SolverInterface> m_interface;
+	/// Targets that were already proven.
+	std::map<ASTNode const*, std::set<VerificationTarget::Type>> m_solvedTargets;
 };
 
-}
 }

@@ -35,7 +35,6 @@ contract CentralizedOracle is Oracle {
     /// @dev Constructor sets owner address and IPFS hash
     /// @param _ipfsHash Hash identifying off chain event description
     constructor(address _owner, bytes memory _ipfsHash)
-        public
     {
         // Description hash cannot be null
         require(_ipfsHash.length == 46);
@@ -72,6 +71,7 @@ contract CentralizedOracle is Oracle {
     /// @return Is outcome set?
     function isOutcomeSet()
         public
+        override
         view
         returns (bool)
     {
@@ -82,6 +82,7 @@ contract CentralizedOracle is Oracle {
     /// @return Outcome
     function getOutcome()
         public
+        override
         view
         returns (int)
     {

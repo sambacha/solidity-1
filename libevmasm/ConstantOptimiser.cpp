@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /** @file ConstantOptimiser.cpp
  * @author Christian <c@ethdev.com>
  * @date 2015
@@ -22,9 +23,11 @@
 #include <libevmasm/ConstantOptimiser.h>
 #include <libevmasm/Assembly.h>
 #include <libevmasm/GasMeter.h>
+#include <libsolutil/CommonData.h>
+
 using namespace std;
-using namespace dev;
-using namespace dev::eth;
+using namespace solidity;
+using namespace solidity::evmasm;
 
 unsigned ConstantOptimisationMethod::optimiseConstants(
 	bool _isCreation,
@@ -101,7 +104,7 @@ bigint ConstantOptimisationMethod::dataGas(bytes const& _data) const
 
 size_t ConstantOptimisationMethod::bytesRequired(AssemblyItems const& _items)
 {
-	return eth::bytesRequired(_items, 3); // assume 3 byte addresses
+	return evmasm::bytesRequired(_items, 3); // assume 3 byte addresses
 }
 
 void ConstantOptimisationMethod::replaceConstants(
@@ -131,7 +134,7 @@ bigint LiteralMethod::gasNeeded() const
 	return combineGas(
 		simpleRunGas({Instruction::PUSH1}),
 		// PUSHX plus data
-		(m_params.isCreation ? GasCosts::txDataNonZeroGas(m_params.evmVersion) : GasCosts::createDataGas) + dataGas(toCompactBigEndian(m_value, 1)),
+		(m_params.isCreation ? GasCosts::txDataNonZeroGas(m_params.evmVersion) : GasCosts::createDataGas) + dataGas(util::toCompactBigEndian(m_value, 1)),
 		0
 	);
 }
@@ -144,13 +147,13 @@ bigint CodeCopyMethod::gasNeeded() const
 		// Data gas for copy routines: Some bytes are zero, but we ignore them.
 		bytesRequired(copyRoutine()) * (m_params.isCreation ? GasCosts::txDataNonZeroGas(m_params.evmVersion) : GasCosts::createDataGas),
 		// Data gas for data itself
-		dataGas(toBigEndian(m_value))
+		dataGas(util::toBigEndian(m_value))
 	);
 }
 
 AssemblyItems CodeCopyMethod::execute(Assembly& _assembly) const
 {
-	bytes data = toBigEndian(m_value);
+	bytes data = util::toBigEndian(m_value);
 	assertThrow(data.size() == 32, OptimizerException, "Invalid number encoding.");
 	AssemblyItems actualCopyRoutine = copyRoutine();
 	actualCopyRoutine[4] = _assembly.newData(data);
@@ -190,7 +193,7 @@ AssemblyItems ComputeMethod::findRepresentation(u256 const& _value)
 	if (_value < 0x10000)
 		// Very small value, not worth computing
 		return AssemblyItems{_value};
-	else if (dev::bytesRequired(~_value) < dev::bytesRequired(_value))
+	else if (util::bytesRequired(~_value) < util::bytesRequired(_value))
 		// Negated is shorter to represent
 		return findRepresentation(~_value) + AssemblyItems{Instruction::NOT};
 	else
@@ -260,7 +263,7 @@ bool ComputeMethod::checkRepresentation(u256 const& _value, AssemblyItems const&
 		{
 		case Operation:
 		{
-			if (stack.size() < size_t(item.arguments()))
+			if (stack.size() < item.arguments())
 				return false;
 			u256* sp = &stack.back();
 			switch (item.instruction())
@@ -318,7 +321,7 @@ bool ComputeMethod::checkRepresentation(u256 const& _value, AssemblyItems const&
 
 bigint ComputeMethod::gasNeeded(AssemblyItems const& _routine) const
 {
-	size_t numExps = count(_routine.begin(), _routine.end(), Instruction::EXP);
+	auto numExps = static_cast<size_t>(count(_routine.begin(), _routine.end(), Instruction::EXP));
 	return combineGas(
 		simpleRunGas(_routine) + numExps * (GasCosts::expGas + GasCosts::expByteGas(m_params.evmVersion)),
 		// Data gas for routine: Some bytes are zero, but we ignore them.

@@ -17,7 +17,7 @@
 #include <test/libsolidity/util/BytesUtils.h>
 #include <test/libsolidity/util/ContractABIUtils.h>
 
-#include <libdevcore/AnsiColorized.h>
+#include <libsolutil/AnsiColorized.h>
 
 #include <boost/algorithm/string/replace.hpp>
 
@@ -25,9 +25,9 @@
 #include <stdexcept>
 #include <string>
 
-using namespace dev;
 using namespace solidity;
-using namespace dev::solidity::test;
+using namespace solidity::util;
+using namespace solidity::frontend::test;
 using namespace std;
 
 string TestFunctionCall::format(
@@ -52,6 +52,7 @@ string TestFunctionCall::format(
 		string comma = formatToken(Token::Comma);
 		string comment = formatToken(Token::Comment);
 		string ether = formatToken(Token::Ether);
+		string wei = formatToken(Token::Wei);
 		string newline = formatToken(Token::Newline);
 		string failure = formatToken(Token::Failure);
 
@@ -63,8 +64,15 @@ string TestFunctionCall::format(
 
 		/// Formats the function signature. This is the same independent from the display-mode.
 		stream << _linePrefix << newline << ws << m_call.signature;
-		if (m_call.value > u256(0))
-			stream << comma << ws << m_call.value << ws << ether;
+		if (m_call.value.value > u256(0))
+		{
+			if (m_call.value.unit == FunctionValueUnit::Ether)
+				stream << comma << ws << (m_call.value.value / exp256(10, 18)) << ws << ether;
+			else if (m_call.value.unit == FunctionValueUnit::Wei)
+				stream << comma << ws << m_call.value.value << ws << wei;
+			else
+				soltestAssert(false, "");
+		}
 		if (!m_call.arguments.rawBytes().empty())
 		{
 			string output = formatRawParameters(m_call.arguments.parameters, _linePrefix);
@@ -110,10 +118,13 @@ string TestFunctionCall::format(
 				formatFailure(_errorReporter, m_call, m_rawBytes, _renderResult, highlight) :
 				formatRawParameters(m_call.expectations.result);
 			if (!result.empty())
-				AnsiColorized(stream, highlight, {dev::formatting::RED_BACKGROUND}) << ws << result;
+				AnsiColorized(stream, highlight, {util::formatting::RED_BACKGROUND}) << ws << result;
 		}
 		else
 		{
+			if (m_calledNonExistingFunction)
+				_errorReporter.warning("The function \"" + m_call.signature + "\" is not known to the compiler.");
+
 			bytes output = m_rawBytes;
 			bool const isFailure = m_failure;
 			result = isFailure ?
@@ -159,7 +170,7 @@ string TestFunctionCall::format(
 			}
 
 			if (isFailure)
-				AnsiColorized(stream, highlight, {dev::formatting::RED_BACKGROUND}) << ws << result;
+				AnsiColorized(stream, highlight, {util::formatting::RED_BACKGROUND}) << ws << result;
 			else
 				if (!result.empty())
 					stream << ws << result;
@@ -190,12 +201,12 @@ string TestFunctionCall::formatBytesParameters(
 	ErrorReporter& _errorReporter,
 	bytes const& _bytes,
 	string const& _signature,
-	dev::solidity::test::ParameterList const& _parameters,
+	solidity::frontend::test::ParameterList const& _parameters,
 	bool _highlight,
 	bool _failure
 ) const
 {
-	using ParameterList = dev::solidity::test::ParameterList;
+	using ParameterList = solidity::frontend::test::ParameterList;
 
 	stringstream os;
 
@@ -248,7 +259,7 @@ string TestFunctionCall::formatBytesParameters(
 
 string TestFunctionCall::formatFailure(
 	ErrorReporter& _errorReporter,
-	dev::solidity::test::FunctionCall const& _call,
+	solidity::frontend::test::FunctionCall const& _call,
 	bytes const& _output,
 	bool _renderResult,
 	bool _highlight
@@ -279,7 +290,7 @@ string TestFunctionCall::formatFailure(
 }
 
 string TestFunctionCall::formatRawParameters(
-	dev::solidity::test::ParameterList const& _params,
+	solidity::frontend::test::ParameterList const& _params,
 	std::string const& _linePrefix
 ) const
 {
@@ -300,6 +311,7 @@ void TestFunctionCall::reset()
 {
 	m_rawBytes = bytes{};
 	m_failure = true;
+	m_calledNonExistingFunction = false;
 }
 
 bool TestFunctionCall::matchesExpectation() const

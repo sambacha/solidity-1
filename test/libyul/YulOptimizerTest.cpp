@@ -14,11 +14,13 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #include <test/libyul/YulOptimizerTest.h>
 
 #include <test/libsolidity/util/SoltestErrors.h>
-#include <test/Options.h>
+#include <test/libyul/Common.h>
+#include <test/Common.h>
 
 #include <libyul/optimiser/BlockFlattener.h>
 #include <libyul/optimiser/VarDeclInitializer.h>
@@ -27,6 +29,7 @@
 #include <libyul/optimiser/DeadCodeEliminator.h>
 #include <libyul/optimiser/Disambiguator.h>
 #include <libyul/optimiser/CallGraphGenerator.h>
+#include <libyul/optimiser/CircularReferencesPruner.h>
 #include <libyul/optimiser/ConditionalUnsimplifier.h>
 #include <libyul/optimiser/ConditionalSimplifier.h>
 #include <libyul/optimiser/CommonSubexpressionEliminator.h>
@@ -60,6 +63,7 @@
 #include <libyul/backends/evm/EVMDialect.h>
 #include <libyul/backends/evm/EVMMetrics.h>
 #include <libyul/backends/wasm/WordSizeTransform.h>
+#include <libyul/backends/wasm/WasmDialect.h>
 #include <libyul/AsmPrinter.h>
 #include <libyul/AsmParser.h>
 #include <libyul/AsmAnalysis.h>
@@ -69,7 +73,9 @@
 #include <liblangutil/ErrorReporter.h>
 #include <liblangutil/Scanner.h>
 
-#include <libdevcore/AnsiColorized.h>
+#include <libsolutil/AnsiColorized.h>
+
+#include <libsolidity/interface/OptimiserSettings.h>
 
 #include <boost/test/unit_test.hpp>
 #include <boost/algorithm/string.hpp>
@@ -77,15 +83,17 @@
 #include <fstream>
 #include <variant>
 
-using namespace dev;
-using namespace langutil;
-using namespace yul;
-using namespace yul::test;
-using namespace dev::solidity;
-using namespace dev::solidity::test;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::langutil;
+using namespace solidity::yul;
+using namespace solidity::yul::test;
+using namespace solidity::frontend;
+using namespace solidity::frontend::test;
 using namespace std;
 
-YulOptimizerTest::YulOptimizerTest(string const& _filename)
+YulOptimizerTest::YulOptimizerTest(string const& _filename):
+	EVMVersionRestrictedTestCase(_filename)
 {
 	boost::filesystem::path path(_filename);
 
@@ -93,29 +101,18 @@ YulOptimizerTest::YulOptimizerTest(string const& _filename)
 		BOOST_THROW_EXCEPTION(runtime_error("Filename path has to contain a directory: \"" + _filename + "\"."));
 	m_optimizerStep = std::prev(std::prev(path.end()))->string();
 
-	ifstream file(_filename);
-	soltestAssert(file, "Cannot open test contract: \"" + _filename + "\".");
-	file.exceptions(ios::badbit);
+	m_source = m_reader.source();
 
-	m_source = parseSourceAndSettings(file);
-	if (m_settings.count("yul"))
-	{
-		m_yul = true;
-		m_validatedSettings["yul"] = "true";
-		m_settings.erase("yul");
-	}
-	if (m_settings.count("step"))
-	{
-		m_validatedSettings["step"] = m_settings["step"];
-		m_settings.erase("step");
-	}
+	auto dialectName = m_reader.stringSetting("dialect", "evm");
+	m_dialect = &dialect(dialectName, solidity::test::CommonOptions::get().evmVersion());
 
-	m_expectation = parseSimpleExpectations(file);
+	m_expectation = m_reader.simpleExpectations();
 }
 
 TestCase::TestResult YulOptimizerTest::run(ostream& _stream, string const& _linePrefix, bool const _formatted)
 {
-	if (!parse(_stream, _linePrefix, _formatted))
+	std::tie(m_object, m_analysisInfo) = parse(_stream, _linePrefix, _formatted, m_source);
+	if (!m_object)
 		return TestResult::FatalError;
 
 	soltestAssert(m_dialect, "Dialect not set.");
@@ -130,219 +127,231 @@ TestCase::TestResult YulOptimizerTest::run(ostream& _stream, string const& _line
 		NameDisplacer{
 			*m_nameDispenser,
 			{"illegal1"_yulstring, "illegal2"_yulstring, "illegal3"_yulstring, "illegal4"_yulstring, "illegal5"_yulstring}
-		}(*m_ast);
+		}(*m_object->code);
 	}
 	else if (m_optimizerStep == "blockFlattener")
 	{
 		disambiguate();
-		BlockFlattener::run(*m_context, *m_ast);
+		BlockFlattener::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "constantOptimiser")
 	{
 		GasMeter meter(dynamic_cast<EVMDialect const&>(*m_dialect), false, 200);
-		ConstantOptimiser{dynamic_cast<EVMDialect const&>(*m_dialect), meter}(*m_ast);
+		ConstantOptimiser{dynamic_cast<EVMDialect const&>(*m_dialect), meter}(*m_object->code);
 	}
 	else if (m_optimizerStep == "varDeclInitializer")
-		VarDeclInitializer::run(*m_context, *m_ast);
+		VarDeclInitializer::run(*m_context, *m_object->code);
 	else if (m_optimizerStep == "varNameCleaner")
-		VarNameCleaner::run(*m_context, *m_ast);
+	{
+		disambiguate();
+		FunctionGrouper::run(*m_context, *m_object->code);
+		VarNameCleaner::run(*m_context, *m_object->code);
+	}
 	else if (m_optimizerStep == "forLoopConditionIntoBody")
 	{
 		disambiguate();
-		ForLoopConditionIntoBody::run(*m_context, *m_ast);
+		ForLoopConditionIntoBody::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "forLoopInitRewriter")
 	{
 		disambiguate();
-		ForLoopInitRewriter::run(*m_context, *m_ast);
+		ForLoopInitRewriter::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "commonSubexpressionEliminator")
 	{
 		disambiguate();
-		CommonSubexpressionEliminator::run(*m_context, *m_ast);
+		CommonSubexpressionEliminator::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "conditionalUnsimplifier")
 	{
 		disambiguate();
-		ConditionalUnsimplifier::run(*m_context, *m_ast);
+		ConditionalUnsimplifier::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "conditionalSimplifier")
 	{
 		disambiguate();
-		ConditionalSimplifier::run(*m_context, *m_ast);
+		ConditionalSimplifier::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "expressionSplitter")
-		ExpressionSplitter::run(*m_context, *m_ast);
+		ExpressionSplitter::run(*m_context, *m_object->code);
 	else if (m_optimizerStep == "expressionJoiner")
 	{
 		disambiguate();
-		ExpressionJoiner::run(*m_context, *m_ast);
+		ExpressionJoiner::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "splitJoin")
 	{
 		disambiguate();
-		ExpressionSplitter::run(*m_context, *m_ast);
-		ExpressionJoiner::run(*m_context, *m_ast);
-		ExpressionJoiner::run(*m_context, *m_ast);
+		ExpressionSplitter::run(*m_context, *m_object->code);
+		ExpressionJoiner::run(*m_context, *m_object->code);
+		ExpressionJoiner::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "functionGrouper")
 	{
 		disambiguate();
-		FunctionGrouper::run(*m_context, *m_ast);
+		FunctionGrouper::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "functionHoister")
 	{
 		disambiguate();
-		FunctionHoister::run(*m_context, *m_ast);
+		FunctionHoister::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "expressionInliner")
 	{
 		disambiguate();
-		ExpressionInliner::run(*m_context, *m_ast);
+		ExpressionInliner::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "fullInliner")
 	{
 		disambiguate();
-		FunctionHoister::run(*m_context, *m_ast);
-		FunctionGrouper::run(*m_context, *m_ast);
-		ExpressionSplitter::run(*m_context, *m_ast);
-		FullInliner::run(*m_context, *m_ast);
-		ExpressionJoiner::run(*m_context, *m_ast);
+		FunctionHoister::run(*m_context, *m_object->code);
+		FunctionGrouper::run(*m_context, *m_object->code);
+		ExpressionSplitter::run(*m_context, *m_object->code);
+		FullInliner::run(*m_context, *m_object->code);
+		ExpressionJoiner::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "mainFunction")
 	{
 		disambiguate();
-		FunctionGrouper::run(*m_context, *m_ast);
-		MainFunction::run(*m_context, *m_ast);
+		FunctionGrouper::run(*m_context, *m_object->code);
+		MainFunction::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "rematerialiser")
 	{
 		disambiguate();
-		Rematerialiser::run(*m_context, *m_ast);
+		Rematerialiser::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "expressionSimplifier")
 	{
 		disambiguate();
-		ExpressionSimplifier::run(*m_context, *m_ast);
-		ExpressionSimplifier::run(*m_context, *m_ast);
-		ExpressionSimplifier::run(*m_context, *m_ast);
+		ExpressionSimplifier::run(*m_context, *m_object->code);
+		ExpressionSimplifier::run(*m_context, *m_object->code);
+		ExpressionSimplifier::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "fullSimplify")
 	{
 		disambiguate();
-		ExpressionSplitter::run(*m_context, *m_ast);
-		ForLoopInitRewriter::run(*m_context, *m_ast);
-		CommonSubexpressionEliminator::run(*m_context, *m_ast);
-		ExpressionSimplifier::run(*m_context, *m_ast);
-		UnusedPruner::run(*m_context, *m_ast);
-		DeadCodeEliminator::run(*m_context, *m_ast);
-		ExpressionJoiner::run(*m_context, *m_ast);
-		ExpressionJoiner::run(*m_context, *m_ast);
+		ExpressionSplitter::run(*m_context, *m_object->code);
+		ForLoopInitRewriter::run(*m_context, *m_object->code);
+		CommonSubexpressionEliminator::run(*m_context, *m_object->code);
+		ExpressionSimplifier::run(*m_context, *m_object->code);
+		UnusedPruner::run(*m_context, *m_object->code);
+		CircularReferencesPruner::run(*m_context, *m_object->code);
+		DeadCodeEliminator::run(*m_context, *m_object->code);
+		ExpressionJoiner::run(*m_context, *m_object->code);
+		ExpressionJoiner::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "unusedPruner")
 	{
 		disambiguate();
-		UnusedPruner::run(*m_context, *m_ast);
+		UnusedPruner::run(*m_context, *m_object->code);
+	}
+	else if (m_optimizerStep == "circularReferencesPruner")
+	{
+		disambiguate();
+		FunctionHoister::run(*m_context, *m_object->code);
+		CircularReferencesPruner::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "deadCodeEliminator")
 	{
 		disambiguate();
-		ForLoopInitRewriter::run(*m_context, *m_ast);
-		DeadCodeEliminator::run(*m_context, *m_ast);
+		ForLoopInitRewriter::run(*m_context, *m_object->code);
+		DeadCodeEliminator::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "ssaTransform")
 	{
 		disambiguate();
-		SSATransform::run(*m_context, *m_ast);
+		ForLoopInitRewriter::run(*m_context, *m_object->code);
+		SSATransform::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "redundantAssignEliminator")
 	{
 		disambiguate();
-		RedundantAssignEliminator::run(*m_context, *m_ast);
+		RedundantAssignEliminator::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "ssaPlusCleanup")
 	{
 		disambiguate();
-		SSATransform::run(*m_context, *m_ast);
-		RedundantAssignEliminator::run(*m_context, *m_ast);
+		SSATransform::run(*m_context, *m_object->code);
+		RedundantAssignEliminator::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "loadResolver")
 	{
 		disambiguate();
-		ForLoopInitRewriter::run(*m_context, *m_ast);
-		ExpressionSplitter::run(*m_context, *m_ast);
-		CommonSubexpressionEliminator::run(*m_context, *m_ast);
-		ExpressionSimplifier::run(*m_context, *m_ast);
+		ForLoopInitRewriter::run(*m_context, *m_object->code);
+		ExpressionSplitter::run(*m_context, *m_object->code);
+		CommonSubexpressionEliminator::run(*m_context, *m_object->code);
+		ExpressionSimplifier::run(*m_context, *m_object->code);
 
-		LoadResolver::run(*m_context, *m_ast);
+		LoadResolver::run(*m_context, *m_object->code);
 
-		UnusedPruner::run(*m_context, *m_ast);
-		ExpressionJoiner::run(*m_context, *m_ast);
-		ExpressionJoiner::run(*m_context, *m_ast);
+		UnusedPruner::run(*m_context, *m_object->code);
+		ExpressionJoiner::run(*m_context, *m_object->code);
+		ExpressionJoiner::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "loopInvariantCodeMotion")
 	{
 		disambiguate();
-		ForLoopInitRewriter::run(*m_context, *m_ast);
-		LoopInvariantCodeMotion::run(*m_context, *m_ast);
+		ForLoopInitRewriter::run(*m_context, *m_object->code);
+		LoopInvariantCodeMotion::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "controlFlowSimplifier")
 	{
 		disambiguate();
-		ControlFlowSimplifier::run(*m_context, *m_ast);
+		ControlFlowSimplifier::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "structuralSimplifier")
 	{
 		disambiguate();
-		ForLoopInitRewriter::run(*m_context, *m_ast);
-		LiteralRematerialiser::run(*m_context, *m_ast);
-		StructuralSimplifier::run(*m_context, *m_ast);
+		ForLoopInitRewriter::run(*m_context, *m_object->code);
+		LiteralRematerialiser::run(*m_context, *m_object->code);
+		StructuralSimplifier::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "equivalentFunctionCombiner")
 	{
 		disambiguate();
-		EquivalentFunctionCombiner::run(*m_context, *m_ast);
+		EquivalentFunctionCombiner::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "ssaReverser")
 	{
 		disambiguate();
-		SSAReverser::run(*m_context, *m_ast);
+		SSAReverser::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "ssaAndBack")
 	{
 		disambiguate();
 		// apply SSA
-		SSATransform::run(*m_context, *m_ast);
-		RedundantAssignEliminator::run(*m_context, *m_ast);
+		SSATransform::run(*m_context, *m_object->code);
+		RedundantAssignEliminator::run(*m_context, *m_object->code);
 		// reverse SSA
-		SSAReverser::run(*m_context, *m_ast);
-		CommonSubexpressionEliminator::run(*m_context, *m_ast);
-		UnusedPruner::run(*m_context, *m_ast);
+		SSAReverser::run(*m_context, *m_object->code);
+		CommonSubexpressionEliminator::run(*m_context, *m_object->code);
+		UnusedPruner::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "stackCompressor")
 	{
 		disambiguate();
-		FunctionGrouper::run(*m_context, *m_ast);
+		FunctionGrouper::run(*m_context, *m_object->code);
 		size_t maxIterations = 16;
 		Object obj;
-		obj.code = m_ast;
+		obj.code = m_object->code;
 		StackCompressor::run(*m_dialect, obj, true, maxIterations);
-		m_ast = obj.code;
-		BlockFlattener::run(*m_context, *m_ast);
+		m_object->code = obj.code;
+		BlockFlattener::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "wordSizeTransform")
 	{
 		disambiguate();
-		ExpressionSplitter::run(*m_context, *m_ast);
-		WordSizeTransform::run(*m_dialect, *m_ast, *m_nameDispenser);
+		ExpressionSplitter::run(*m_context, *m_object->code);
+		WordSizeTransform::run(*m_dialect, *m_dialect, *m_object->code, *m_nameDispenser);
 	}
 	else if (m_optimizerStep == "fullSuite")
 	{
 		GasMeter meter(dynamic_cast<EVMDialect const&>(*m_dialect), false, 200);
 		yul::Object obj;
-		obj.code = m_ast;
+		obj.code = m_object->code;
 		obj.analysisInfo = m_analysisInfo;
-		OptimiserSuite::run(*m_dialect, &meter, obj, true);
+		OptimiserSuite::run(*m_dialect, &meter, obj, true, solidity::frontend::OptimiserSettings::DefaultYulOptimiserSteps);
 	}
 	else
 	{
@@ -350,87 +359,54 @@ TestCase::TestResult YulOptimizerTest::run(ostream& _stream, string const& _line
 		return TestResult::FatalError;
 	}
 
-	m_obtainedResult = AsmPrinter{m_yul}(*m_ast) + "\n";
+	auto const printed = (m_object->subObjects.empty() ? AsmPrinter{ *m_dialect }(*m_object->code) : m_object->toString(m_dialect));
 
-	if (m_optimizerStep != m_validatedSettings["step"])
+	// Re-parse new code for compilability
+	// TODO: support for wordSizeTransform which needs different input and output dialects
+	if (m_optimizerStep != "wordSizeTransform" && !std::get<0>(parse(_stream, _linePrefix, _formatted, printed)))
 	{
-		string nextIndentLevel = _linePrefix + "  ";
-		AnsiColorized(_stream, _formatted, {formatting::BOLD, formatting::CYAN}) <<
-			_linePrefix <<
-			"Invalid optimizer step. Given: \"" <<
-			m_validatedSettings["step"] <<
-			"\", should be: \"" <<
-			m_optimizerStep <<
-			"\"." <<
-			endl;
+		util::AnsiColorized(_stream, _formatted, {util::formatting::BOLD, util::formatting::CYAN})
+			<< _linePrefix << "Result after the optimiser:" << endl;
+		printIndented(_stream, printed, _linePrefix + "  ");
 		return TestResult::FatalError;
 	}
-	if (m_expectation != m_obtainedResult)
-	{
-		string nextIndentLevel = _linePrefix + "  ";
-		AnsiColorized(_stream, _formatted, {formatting::BOLD, formatting::CYAN}) << _linePrefix << "Expected result:" << endl;
-		// TODO could compute a simple diff with highlighted lines
-		printIndented(_stream, m_expectation, nextIndentLevel);
-		AnsiColorized(_stream, _formatted, {formatting::BOLD, formatting::CYAN}) << _linePrefix << "Obtained result:" << endl;
-		printIndented(_stream, m_obtainedResult, nextIndentLevel);
-		return TestResult::Failure;
-	}
-	return TestResult::Success;
+
+	m_obtainedResult = "step: " + m_optimizerStep + "\n\n" + printed + "\n";
+
+	return checkResult(_stream, _linePrefix, _formatted);
 }
 
-void YulOptimizerTest::printSource(ostream& _stream, string const& _linePrefix, bool const) const
+std::pair<std::shared_ptr<Object>, std::shared_ptr<AsmAnalysisInfo>> YulOptimizerTest::parse(
+	ostream& _stream,
+	string const& _linePrefix,
+	bool const _formatted,
+	string const& _source
+)
 {
-	printIndented(_stream, m_source, _linePrefix);
-}
-
-void YulOptimizerTest::printUpdatedSettings(ostream& _stream, const string& _linePrefix, const bool _formatted)
-{
-	m_validatedSettings["step"] = m_optimizerStep;
-	EVMVersionRestrictedTestCase::printUpdatedSettings(_stream, _linePrefix, _formatted);
-}
-
-void YulOptimizerTest::printUpdatedExpectations(ostream& _stream, string const& _linePrefix) const
-{
-	printIndented(_stream, m_obtainedResult, _linePrefix);
-}
-
-void YulOptimizerTest::printIndented(ostream& _stream, string const& _output, string const& _linePrefix) const
-{
-	stringstream output(_output);
-	string line;
-	while (getline(output, line))
-		_stream << _linePrefix << line << endl;
-}
-
-bool YulOptimizerTest::parse(ostream& _stream, string const& _linePrefix, bool const _formatted)
-{
-	AssemblyStack stack(
-		dev::test::Options::get().evmVersion(),
-		m_yul ? AssemblyStack::Language::Yul : AssemblyStack::Language::StrictAssembly,
-		dev::solidity::OptimiserSettings::none()
-	);
-	if (!stack.parseAndAnalyze("", m_source) || !stack.errors().empty())
+	ErrorList errors;
+	soltestAssert(m_dialect, "");
+	shared_ptr<Object> object;
+	shared_ptr<AsmAnalysisInfo> analysisInfo;
+	std::tie(object, analysisInfo) = yul::test::parse(_source, *m_dialect, errors);
+	if (!object || !analysisInfo || !Error::containsOnlyWarnings(errors))
 	{
 		AnsiColorized(_stream, _formatted, {formatting::BOLD, formatting::RED}) << _linePrefix << "Error parsing source." << endl;
-		printErrors(_stream, stack.errors());
-		return false;
+		printErrors(_stream, errors);
+		return {};
 	}
-	m_dialect = m_yul ? &Dialect::yul() : &EVMDialect::strictAssemblyForEVMObjects(dev::test::Options::get().evmVersion());
-	m_ast = stack.parserResult()->code;
-	m_analysisInfo = stack.parserResult()->analysisInfo;
-	return true;
+	return {std::move(object), std::move(analysisInfo)};
 }
 
 void YulOptimizerTest::disambiguate()
 {
-	*m_ast = std::get<Block>(Disambiguator(*m_dialect, *m_analysisInfo)(*m_ast));
+	*m_object->code = std::get<Block>(Disambiguator(*m_dialect, *m_analysisInfo)(*m_object->code));
 	m_analysisInfo.reset();
 	updateContext();
 }
 
 void YulOptimizerTest::updateContext()
 {
-	m_nameDispenser = make_unique<NameDispenser>(*m_dialect, *m_ast, m_reservedIdentifiers);
+	m_nameDispenser = make_unique<NameDispenser>(*m_dialect, *m_object->code, m_reservedIdentifiers);
 	m_context = make_unique<OptimiserStepContext>(OptimiserStepContext{
 		*m_dialect,
 		*m_nameDispenser,

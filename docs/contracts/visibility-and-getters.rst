@@ -6,36 +6,37 @@
 Visibility and Getters
 **********************
 
-Since Solidity knows two kinds of function calls (internal
+Solidity knows two kinds of function calls: internal
 ones that do not create an actual EVM call (also called
 a "message call") and external
-ones that do), there are four types of visibilities for
+ones that do. Because of that, there are four types of visibility for
 functions and state variables.
 
 Functions have to be specified as being ``external``,
 ``public``, ``internal`` or ``private``.
 For state variables, ``external`` is not possible.
 
-``external``:
+``external``
     External functions are part of the contract interface,
     which means they can be called from other contracts and
     via transactions. An external function ``f`` cannot be called
     internally (i.e. ``f()`` does not work, but ``this.f()`` works).
     External functions are sometimes more efficient when
-    they receive large arrays of data.
+    they receive large arrays of data, because the data
+    is not copied from calldata to memory.
 
-``public``:
+``public``
     Public functions are part of the contract interface
     and can be either called internally or via
     messages. For public state variables, an automatic getter
     function (see below) is generated.
 
-``internal``:
+``internal``
     Those functions and state variables can only be
     accessed internally (i.e. from within the current contract
     or contracts deriving from it), without using ``this``.
 
-``private``:
+``private``
     Private functions and state variables are only
     visible for the contract they are defined in and not in
     derived contracts.
@@ -53,7 +54,8 @@ return parameter list for functions.
 
 ::
 
-    pragma solidity >=0.4.16 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.16 <0.8.0;
 
     contract C {
         function f(uint a) private pure returns (uint b) { return a + 1; }
@@ -67,7 +69,8 @@ In the following example, ``D``, can call ``c.getData()`` to retrieve the value 
 
 ::
 
-    pragma solidity >=0.4.0 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.16 <0.8.0;
 
     contract C {
         uint private data;
@@ -111,7 +114,8 @@ when they are declared.
 
 ::
 
-    pragma solidity >=0.4.0 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.16 <0.8.0;
 
     contract C {
         uint public data = 42;
@@ -131,7 +135,8 @@ it evaluates to a state variable.  If it is accessed externally
 
 ::
 
-    pragma solidity >=0.4.0 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.0 <0.8.0;
 
     contract C {
         uint public data;
@@ -150,7 +155,8 @@ to write a function, for example:
 
 ::
 
-    pragma solidity >=0.4.0 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.16 <0.8.0;
 
     contract arrayExample {
         // public state variable
@@ -176,7 +182,8 @@ The next example is more complex:
 
 ::
 
-    pragma solidity >=0.4.0 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.4.0 <0.8.0;
 
     contract Complex {
         struct Data {

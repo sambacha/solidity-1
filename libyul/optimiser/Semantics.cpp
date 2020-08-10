@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Specific AST walkers that collect semantical facts.
  */
@@ -27,12 +28,12 @@
 
 #include <libevmasm/SemanticInformation.h>
 
-#include <libdevcore/CommonData.h>
-#include <libdevcore/Algorithms.h>
+#include <libsolutil/CommonData.h>
+#include <libsolutil/Algorithms.h>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
 
 
 SideEffectsCollector::SideEffectsCollector(
@@ -61,13 +62,6 @@ SideEffectsCollector::SideEffectsCollector(
 	operator()(_ast);
 }
 
-void SideEffectsCollector::operator()(FunctionalInstruction const& _instr)
-{
-	ASTWalker::operator()(_instr);
-
-	m_sideEffects += EVMDialect::sideEffectsOfInstruction(_instr.instruction);
-}
-
 void SideEffectsCollector::operator()(FunctionCall const& _functionCall)
 {
 	ASTWalker::operator()(_functionCall);
@@ -88,14 +82,6 @@ bool MSizeFinder::containsMSize(Dialect const& _dialect, Block const& _ast)
 	return finder.m_msizeFound;
 }
 
-void MSizeFinder::operator()(FunctionalInstruction const& _instr)
-{
-	ASTWalker::operator()(_instr);
-
-	if (_instr.instruction == eth::Instruction::MSIZE)
-		m_msizeFound = true;
-}
-
 void MSizeFinder::operator()(FunctionCall const& _functionCall)
 {
 	ASTWalker::operator()(_functionCall);
@@ -104,7 +90,6 @@ void MSizeFinder::operator()(FunctionCall const& _functionCall)
 		if (f->isMSize)
 			m_msizeFound = true;
 }
-
 
 map<YulString, SideEffects> SideEffectsPropagator::sideEffects(
 	Dialect const& _dialect,
@@ -118,38 +103,18 @@ map<YulString, SideEffects> SideEffectsPropagator::sideEffects(
 	// is actually a bit different from "not movable".
 
 	map<YulString, SideEffects> ret;
-	for (auto const& function: _directCallGraph.functionsWithLoops)
+	for (auto const& function: _directCallGraph.functionsWithLoops + _directCallGraph.recursiveFunctions())
 	{
 		ret[function].movable = false;
 		ret[function].sideEffectFree = false;
 		ret[function].sideEffectFreeIfNoMSize = false;
 	}
 
-	// Detect recursive functions.
-	for (auto const& call: _directCallGraph.functionCalls)
-	{
-		// TODO we could shortcut the search as soon as we find a
-		// function that has as bad side-effects as we can
-		// ever achieve via recursion.
-		auto search = [&](YulString const& _functionName, CycleDetector<YulString>& _cycleDetector, size_t) {
-			for (auto const& callee: _directCallGraph.functionCalls.at(_functionName))
-				if (!_dialect.builtin(callee))
-					if (_cycleDetector.run(callee))
-						return;
-		};
-		if (CycleDetector<YulString>(search).run(call.first))
-		{
-			ret[call.first].movable = false;
-			ret[call.first].sideEffectFree = false;
-			ret[call.first].sideEffectFreeIfNoMSize = false;
-		}
-	}
-
 	for (auto const& call: _directCallGraph.functionCalls)
 	{
 		YulString funName = call.first;
 		SideEffects sideEffects;
-		BreadthFirstSearch<YulString>{call.second, {funName}}.run(
+		util::BreadthFirstSearch<YulString>{call.second, {funName}}.run(
 			[&](YulString _function, auto&& _addChild) {
 				if (sideEffects == SideEffects::worst())
 					return;
@@ -196,7 +161,7 @@ pair<TerminationFinder::ControlFlow, size_t> TerminationFinder::firstUncondition
 		if (controlFlow != ControlFlow::FlowOut)
 			return {controlFlow, i};
 	}
-	return {ControlFlow::FlowOut, size_t(-1)};
+	return {ControlFlow::FlowOut, numeric_limits<size_t>::max()};
 }
 
 TerminationFinder::ControlFlow TerminationFinder::controlFlowKind(Statement const& _statement)
@@ -210,20 +175,18 @@ TerminationFinder::ControlFlow TerminationFinder::controlFlowKind(Statement cons
 		return ControlFlow::Break;
 	else if (holds_alternative<Continue>(_statement))
 		return ControlFlow::Continue;
+	else if (holds_alternative<Leave>(_statement))
+		return ControlFlow::Leave;
 	else
 		return ControlFlow::FlowOut;
 }
 
 bool TerminationFinder::isTerminatingBuiltin(ExpressionStatement const& _exprStmnt)
 {
-	if (holds_alternative<FunctionalInstruction>(_exprStmnt.expression))
-		return eth::SemanticInformation::terminatesControlFlow(
-			std::get<FunctionalInstruction>(_exprStmnt.expression).instruction
-		);
-	else if (holds_alternative<FunctionCall>(_exprStmnt.expression))
+	if (holds_alternative<FunctionCall>(_exprStmnt.expression))
 		if (auto const* dialect = dynamic_cast<EVMDialect const*>(&m_dialect))
 			if (auto const* builtin = dialect->builtin(std::get<FunctionCall>(_exprStmnt.expression).functionName.name))
 				if (builtin->instruction)
-					return eth::SemanticInformation::terminatesControlFlow(*builtin->instruction);
+					return evmasm::SemanticInformation::terminatesControlFlow(*builtin->instruction);
 	return false;
 }

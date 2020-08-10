@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Module responsible for registering identifiers inside their scopes.
  */
@@ -25,13 +26,13 @@
 #include <functional>
 #include <memory>
 
-namespace langutil
+namespace solidity::langutil
 {
 class ErrorReporter;
 struct SourceLocation;
 }
 
-namespace yul
+namespace solidity::yul
 {
 
 struct TypedName;
@@ -47,13 +48,9 @@ class ScopeFiller
 public:
 	ScopeFiller(AsmAnalysisInfo& _info, langutil::ErrorReporter& _errorReporter);
 
-	bool operator()(Instruction const&) { return true; }
 	bool operator()(Literal const&) { return true; }
 	bool operator()(Identifier const&) { return true; }
-	bool operator()(FunctionalInstruction const&) { return true; }
 	bool operator()(ExpressionStatement const& _expr);
-	bool operator()(Label const& _label);
-	bool operator()(StackAssignment const&) { return true; }
 	bool operator()(Assignment const&) { return true; }
 	bool operator()(VariableDeclaration const& _variableDeclaration);
 	bool operator()(FunctionDefinition const& _functionDefinition);
@@ -63,6 +60,7 @@ public:
 	bool operator()(ForLoop const& _forLoop);
 	bool operator()(Break const&) { return true; }
 	bool operator()(Continue const&) { return true; }
+	bool operator()(Leave const&) { return true; }
 	bool operator()(Block const& _block);
 
 private:

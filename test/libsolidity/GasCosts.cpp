@@ -14,45 +14,43 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Tests that check that the cost of certain operations stay within range.
  */
 
 #include <test/libsolidity/SolidityExecutionFramework.h>
 #include <liblangutil/EVMVersion.h>
-#include <libdevcore/SwarmHash.h>
+#include <libsolutil/IpfsHash.h>
 #include <libevmasm/GasMeter.h>
 
 #include <cmath>
 
 using namespace std;
-using namespace langutil;
-using namespace dev::eth;
-using namespace dev::solidity;
-using namespace dev::test;
+using namespace solidity::langutil;
+using namespace solidity::langutil;
+using namespace solidity::evmasm;
+using namespace solidity::frontend;
+using namespace solidity::test;
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+namespace solidity::frontend::test
 {
 
 #define CHECK_DEPLOY_GAS(_gasNoOpt, _gasOpt, _evmVersion) \
 	do \
 	{ \
-		u256 bzzr1Cost = GasMeter::dataGas(dev::bzzr1Hash(m_compiler.metadata(m_compiler.lastContractName())).asBytes(), true, _evmVersion); \
+		u256 metaCost = GasMeter::dataGas(m_compiler.cborMetadata(m_compiler.lastContractName()), true, _evmVersion); \
 		u256 gasOpt{_gasOpt}; \
 		u256 gasNoOpt{_gasNoOpt}; \
 		u256 gas = m_optimiserSettings == OptimiserSettings::minimal() ? gasNoOpt : gasOpt; \
 		BOOST_CHECK_MESSAGE( \
-			m_gasUsed >= bzzr1Cost, \
+			m_gasUsed >= metaCost, \
 			"Gas used: " + \
 			m_gasUsed.str() + \
-			" is less than the data cost for the bzzr1 hash: " + \
-			u256(bzzr1Cost).str() \
+			" is less than the data cost for the cbor metadata: " + \
+			u256(metaCost).str() \
 		); \
-		u256 gasUsed = m_gasUsed - bzzr1Cost; \
+		u256 gasUsed = m_gasUsed - metaCost; \
 		BOOST_CHECK_MESSAGE( \
 			gas == gasUsed, \
 			"Gas used: " + \
@@ -96,43 +94,43 @@ BOOST_AUTO_TEST_CASE(string_storage)
 	m_compiler.overwriteReleaseFlag(true);
 	compileAndRun(sourceCode);
 
-	auto evmVersion = dev::test::Options::get().evmVersion();
+	auto evmVersion = solidity::test::CommonOptions::get().evmVersion();
 
 	if (evmVersion <= EVMVersion::byzantium())
-		CHECK_DEPLOY_GAS(134071, 130763, evmVersion);
+		CHECK_DEPLOY_GAS(133045, 129731, evmVersion);
 	// This is only correct on >=Constantinople.
-	else if (Options::get().useABIEncoderV2)
+	else if (CommonOptions::get().useABIEncoderV2)
 	{
-		if (Options::get().optimizeYul)
+		if (CommonOptions::get().optimize)
 		{
 			// Costs with 0 are cases which cannot be triggered in tests.
 			if (evmVersion < EVMVersion::istanbul())
-				CHECK_DEPLOY_GAS(0, 127653, evmVersion);
+				CHECK_DEPLOY_GAS(0, 122869, evmVersion);
 			else
-				CHECK_DEPLOY_GAS(0, 113821, evmVersion);
+				CHECK_DEPLOY_GAS(0, 110701, evmVersion);
 		}
 		else
 		{
 			if (evmVersion < EVMVersion::istanbul())
-				CHECK_DEPLOY_GAS(0, 135371, evmVersion);
+				CHECK_DEPLOY_GAS(146671, 123969, evmVersion);
 			else
-				CHECK_DEPLOY_GAS(0, 120083, evmVersion);
+				CHECK_DEPLOY_GAS(131591, 110969, evmVersion);
 		}
 	}
 	else if (evmVersion < EVMVersion::istanbul())
-		CHECK_DEPLOY_GAS(126861, 119591, evmVersion);
+		CHECK_DEPLOY_GAS(125829, 118559, evmVersion);
 	else
-		CHECK_DEPLOY_GAS(114173, 107163, evmVersion);
+		CHECK_DEPLOY_GAS(114077, 107067, evmVersion);
 
 	if (evmVersion >= EVMVersion::byzantium())
 	{
 		callContractFunction("f()");
 		if (evmVersion == EVMVersion::byzantium())
-			CHECK_GAS(21551, 21526, 20);
+			CHECK_GAS(21545, 21526, 20);
 		// This is only correct on >=Constantinople.
-		else if (Options::get().useABIEncoderV2)
+		else if (CommonOptions::get().useABIEncoderV2)
 		{
-			if (Options::get().optimizeYul)
+			if (CommonOptions::get().optimize)
 			{
 				if (evmVersion < EVMVersion::istanbul())
 					CHECK_GAS(0, 21567, 20);
@@ -142,9 +140,9 @@ BOOST_AUTO_TEST_CASE(string_storage)
 			else
 			{
 				if (evmVersion < EVMVersion::istanbul())
-					CHECK_GAS(0, 21635, 20);
+					CHECK_GAS(21707, 21559, 20);
 				else
-					CHECK_GAS(0, 21431, 20);
+					CHECK_GAS(21499, 21351, 20);
 			}
 		}
 		else if (evmVersion < EVMVersion::istanbul())
@@ -199,6 +197,4 @@ BOOST_AUTO_TEST_CASE(single_callvaluecheck)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
-}
 }

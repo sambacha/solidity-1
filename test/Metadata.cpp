@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @date 2017
  * Metadata processing helpers.
@@ -21,16 +22,14 @@
 
 #include <string>
 #include <iostream>
-#include <libdevcore/Assertions.h>
-#include <libdevcore/CommonData.h>
-#include <libdevcore/JSON.h>
+#include <libsolutil/Assertions.h>
+#include <libsolutil/CommonData.h>
+#include <libsolutil/JSON.h>
 #include <test/Metadata.h>
 
 using namespace std;
 
-namespace dev
-{
-namespace test
+namespace solidity::test
 {
 
 bytes onlyMetadata(bytes const& _bytecode)
@@ -38,14 +37,14 @@ bytes onlyMetadata(bytes const& _bytecode)
 	unsigned size = _bytecode.size();
 	if (size < 5)
 		return bytes{};
-	size_t metadataSize = (_bytecode[size - 2] << 8) + _bytecode[size - 1];
+	size_t metadataSize = (static_cast<size_t>(_bytecode[size - 2]) << 8ul) + static_cast<size_t>(_bytecode[size - 1]);
 	if (size < (metadataSize + 2))
 		return bytes{};
-	// Sanity check: assume the first byte is a fixed-size CBOR array with either 2 or 3 entries
+	// Sanity check: assume the first byte is a fixed-size CBOR array with 1, 2 or 3 entries
 	unsigned char firstByte = _bytecode[size - metadataSize - 2];
-	if (firstByte != 0xa2 && firstByte != 0xa3)
+	if (firstByte != 0xa1 && firstByte != 0xa2 && firstByte != 0xa3)
 		return bytes{};
-	return bytes(_bytecode.end() - metadataSize - 2, _bytecode.end() - 2);
+	return bytes(_bytecode.end() - static_cast<ptrdiff_t>(metadataSize) - 2, _bytecode.end() - 2);
 }
 
 bytes bytecodeSansMetadata(bytes const& _bytecode)
@@ -58,7 +57,7 @@ bytes bytecodeSansMetadata(bytes const& _bytecode)
 
 string bytecodeSansMetadata(string const& _bytecode)
 {
-	return toHex(bytecodeSansMetadata(fromHex(_bytecode, WhenError::Throw)));
+	return util::toHex(bytecodeSansMetadata(fromHex(_bytecode, util::WhenError::Throw)));
 }
 
 DEV_SIMPLE_EXCEPTION(CBORException);
@@ -84,7 +83,7 @@ public:
 		switch(nextType())
 		{
 			case MajorType::ByteString:
-				return toHex(readBytes(readLength()));
+				return util::toHex(readBytes(readLength()));
 			case MajorType::TextString:
 				return readString();
 			case MajorType::SimpleData:
@@ -174,7 +173,7 @@ std::optional<map<string, string>> parseCBORMetadata(bytes const& _metadata)
 bool isValidMetadata(string const& _metadata)
 {
 	Json::Value metadata;
-	if (!jsonParseStrict(_metadata, metadata))
+	if (!util::jsonParseStrict(_metadata, metadata))
 		return false;
 
 	if (
@@ -185,7 +184,9 @@ bool isValidMetadata(string const& _metadata)
 		!metadata.isMember("settings") ||
 		!metadata.isMember("sources") ||
 		!metadata.isMember("output") ||
-		!metadata["settings"].isMember("evmVersion")
+		!metadata["settings"].isMember("evmVersion") ||
+		!metadata["settings"].isMember("metadata") ||
+		!metadata["settings"]["metadata"].isMember("bytecodeHash")
 	)
 		return false;
 
@@ -200,5 +201,4 @@ bool isValidMetadata(string const& _metadata)
 	return true;
 }
 
-}
 } // end namespaces

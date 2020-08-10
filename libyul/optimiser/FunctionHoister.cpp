@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimiser component that changes the code so that it consists of a block starting with
  * a single block followed only by function definitions and with no functions defined
@@ -24,11 +25,11 @@
 #include <libyul/optimiser/OptimizerUtilities.h>
 #include <libyul/AsmData.h>
 
-#include <libdevcore/CommonData.h>
+#include <libsolutil/CommonData.h>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
 
 void FunctionHoister::operator()(Block& _block)
 {

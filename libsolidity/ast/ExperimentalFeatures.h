@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * List of experimental features.
  */
@@ -21,10 +22,9 @@
 #pragma once
 
 #include <map>
+#include <set>
 
-namespace dev
-{
-namespace solidity
+namespace solidity::frontend
 {
 
 enum class ExperimentalFeature
@@ -35,10 +35,11 @@ enum class ExperimentalFeature
 	TestOnlyAnalysis
 };
 
-static std::map<ExperimentalFeature, bool> const ExperimentalFeatureOnlyAnalysis =
+static std::set<ExperimentalFeature> const ExperimentalFeatureWithoutWarning =
 {
-	{ ExperimentalFeature::SMTChecker, true },
-	{ ExperimentalFeature::TestOnlyAnalysis, true },
+	ExperimentalFeature::ABIEncoderV2,
+	ExperimentalFeature::SMTChecker,
+	ExperimentalFeature::TestOnlyAnalysis,
 };
 
 static std::map<std::string, ExperimentalFeature> const ExperimentalFeatureNames =
@@ -49,5 +50,4 @@ static std::map<std::string, ExperimentalFeature> const ExperimentalFeatureNames
 	{ "__testOnlyAnalysis", ExperimentalFeature::TestOnlyAnalysis },
 };
 
-}
 }

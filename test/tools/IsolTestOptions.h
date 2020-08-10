@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /** @file IsolTestOptions.h
  */
 
@@ -23,9 +24,7 @@
 
 #include <test/Common.h>
 
-namespace dev
-{
-namespace test
+namespace solidity::test
 {
 
 struct IsolTestOptions: CommonOptions
@@ -38,5 +37,5 @@ struct IsolTestOptions: CommonOptions
 	bool parse(int _argc, char const* const* _argv) override;
 	void validate() const override;
 };
-}
+
 }

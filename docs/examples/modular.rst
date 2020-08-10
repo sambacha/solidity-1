@@ -19,7 +19,8 @@ and the sum of all balances is an invariant across the lifetime of the contract.
 
 ::
 
-    pragma solidity >=0.4.22 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >=0.5.0 <0.8.0;
 
     library Balances {
         function move(mapping(address => uint256) storage balances, address from, address to, uint amount) internal {
@@ -38,9 +39,6 @@ and the sum of all balances is an invariant across the lifetime of the contract.
         event Transfer(address from, address to, uint amount);
         event Approval(address owner, address spender, uint amount);
 
-        function balanceOf(address tokenOwner) public view returns (uint balance) {
-            return balances[tokenOwner];
-        }
         function transfer(address to, uint amount) public returns (bool success) {
             balances.move(msg.sender, to, amount);
             emit Transfer(msg.sender, to, amount);
@@ -61,5 +59,9 @@ and the sum of all balances is an invariant across the lifetime of the contract.
             allowed[msg.sender][spender] = tokens;
             emit Approval(msg.sender, spender, tokens);
             return true;
+        }
+
+        function balanceOf(address tokenOwner) public view returns (uint balance) {
+            return balances[tokenOwner];
         }
     }

@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2014
@@ -33,14 +34,11 @@
 #include <memory>
 
 using namespace std;
-using namespace dev::eth;
-using namespace dev::test;
+using namespace solidity::util;
+using namespace solidity::evmasm;
+using namespace solidity::test;
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+namespace solidity::frontend::test
 {
 
 class OptimizerTestFramework: public SolidityExecutionFramework
@@ -109,7 +107,7 @@ public:
 		bytes realCode = bytecodeSansMetadata(_bytecode);
 		BOOST_REQUIRE_MESSAGE(!realCode.empty(), "Invalid or missing metadata in bytecode.");
 		size_t instructions = 0;
-		dev::eth::eachInstruction(realCode, [&](Instruction _instr, u256 const&) {
+		evmasm::eachInstruction(realCode, [&](Instruction _instr, u256 const&) {
 			if (!_which || *_which == _instr)
 				instructions++;
 		});
@@ -206,7 +204,8 @@ BOOST_AUTO_TEST_CASE(array_copy)
 			bytes2[] data1;
 			bytes5[] data2;
 			function f(uint x) public returns (uint l, uint y) {
-				data1.length = msg.data.length;
+				for (uint i = 0; i < msg.data.length; i++)
+					data1.push();
 				for (uint i = 0; i < msg.data.length; ++i)
 					data1[i] = msg.data[i];
 				data2 = data1;
@@ -348,9 +347,9 @@ BOOST_AUTO_TEST_CASE(incorrect_storage_access_bug)
 			mapping(uint => uint) data;
 			function f() public returns (uint)
 			{
-				if (data[now] == 0)
+				if (data[block.timestamp] == 0)
 					data[uint(-7)] = 5;
-				return data[now];
+				return data[block.timestamp];
 			}
 		}
 	)";
@@ -380,7 +379,7 @@ BOOST_AUTO_TEST_CASE(computing_constants)
 			uint m_b;
 			uint m_c;
 			uint m_d;
-			constructor() public {
+			constructor() {
 				set();
 			}
 			function set() public returns (uint) {
@@ -493,7 +492,7 @@ BOOST_AUTO_TEST_CASE(constant_optimization_early_exit)
 #endif
 #endif
 #if __SANITIZE_ADDRESS__
-	maxDuration = size_t(-1);
+	maxDuration = numeric_limits<size_t>::max();
 	BOOST_TEST_MESSAGE("Disabled constant optimizer run time check for address sanitizer build.");
 #endif
 	BOOST_CHECK_MESSAGE(duration <= maxDuration, "Compilation of constants took longer than 20 seconds.");
@@ -533,16 +532,15 @@ BOOST_AUTO_TEST_CASE(inconsistency)
 			}
 
 			function trigger() public returns (uint) {
-				containers.length++;
-				Container storage container = containers[0];
+				Container storage container = containers.push();
 
 				container.values.push(Value({
 					badnum: 9000,
 					number: 0
 				}));
 
-				container.valueIndices.length++;
-				valueIndices.length++;
+				container.valueIndices.push();
+				valueIndices.push();
 
 				levelII();
 				return debug;
@@ -565,7 +563,7 @@ BOOST_AUTO_TEST_CASE(dead_code_elimination_across_assemblies)
 	char const* sourceCode = R"(
 		contract DCE {
 			function () internal returns (uint) stored;
-			constructor() public {
+			constructor() {
 				stored = f;
 			}
 			function f() internal returns (uint) { return 7; }
@@ -711,9 +709,20 @@ BOOST_AUTO_TEST_CASE(shift_optimizer_bug)
 	compareVersions("g(uint256)", u256(-1));
 }
 
+BOOST_AUTO_TEST_CASE(avoid_double_cleanup)
+{
+	char const* sourceCode = R"(
+		contract C {
+			receive() external payable {
+				abi.encodePacked(uint200(0));
+			}
+		}
+	)";
+	compileBothVersions(sourceCode, 0, "C", 50);
+	// Check that there is no double AND instruction in the resulting code
+	BOOST_CHECK_EQUAL(numInstructions(m_nonOptimizedBytecode, Instruction::AND), 1);
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
-}
 } // end namespaces

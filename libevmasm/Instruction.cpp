@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /** @file Instruction.cpp
  * @author Gav Wood <i@gavwood.com>
  * @date 2014
@@ -21,16 +22,17 @@
 
 #include <libevmasm/Instruction.h>
 
-#include <libdevcore/Common.h>
-#include <libdevcore/CommonIO.h>
+#include <libsolutil/Common.h>
+#include <libsolutil/CommonIO.h>
 #include <algorithm>
 #include <functional>
 
 using namespace std;
-using namespace dev;
-using namespace dev::eth;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::evmasm;
 
-std::map<std::string, Instruction> const dev::eth::c_instructions =
+std::map<std::string, Instruction> const solidity::evmasm::c_instructions =
 {
 	{ "STOP", Instruction::STOP },
 	{ "ADD", Instruction::ADD },
@@ -322,15 +324,15 @@ static std::map<Instruction, InstructionInfo> const c_instructionInfo =
 	{ Instruction::SELFDESTRUCT,	{ "SELFDESTRUCT",		0, 1, 0, true, Tier::Special } }
 };
 
-void dev::eth::eachInstruction(
+void solidity::evmasm::eachInstruction(
 	bytes const& _mem,
 	function<void(Instruction,u256 const&)> const& _onInstruction
 )
 {
 	for (auto it = _mem.begin(); it < _mem.end(); ++it)
 	{
-		Instruction instr = Instruction(*it);
-		size_t additional = 0;
+		auto instr = Instruction(*it);
+		int additional = 0;
 		if (isValidInstruction(instr))
 			additional = instructionInfo(instr).additional;
 
@@ -351,12 +353,12 @@ void dev::eth::eachInstruction(
 	}
 }
 
-string dev::eth::disassemble(bytes const& _mem)
+string solidity::evmasm::disassemble(bytes const& _mem)
 {
 	stringstream ret;
 	eachInstruction(_mem, [&](Instruction _instr, u256 const& _data) {
 		if (!isValidInstruction(_instr))
-			ret << "0x" << std::uppercase << std::hex << int(_instr) << " ";
+			ret << "0x" << std::uppercase << std::hex << static_cast<int>(_instr) << " ";
 		else
 		{
 			InstructionInfo info = instructionInfo(_instr);
@@ -368,7 +370,7 @@ string dev::eth::disassemble(bytes const& _mem)
 	return ret.str();
 }
 
-InstructionInfo dev::eth::instructionInfo(Instruction _inst)
+InstructionInfo solidity::evmasm::instructionInfo(Instruction _inst)
 {
 	try
 	{
@@ -380,7 +382,7 @@ InstructionInfo dev::eth::instructionInfo(Instruction _inst)
 	}
 }
 
-bool dev::eth::isValidInstruction(Instruction _inst)
+bool solidity::evmasm::isValidInstruction(Instruction _inst)
 {
 	return !!c_instructionInfo.count(_inst);
 }

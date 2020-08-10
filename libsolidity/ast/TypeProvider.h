@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #pragma once
 
@@ -25,9 +26,7 @@
 #include <optional>
 #include <utility>
 
-namespace dev
-{
-namespace solidity
+namespace solidity::frontend
 {
 
 /**
@@ -55,7 +54,7 @@ public:
 
 	/// @name Factory functions
 	/// Factory functions that convert an AST @ref TypeName to a Type.
-	static Type const* fromElementaryTypeName(ElementaryTypeNameToken const& _type);
+	static Type const* fromElementaryTypeName(ElementaryTypeNameToken const& _type, std::optional<StateMutability> _stateMutability = {});
 
 	/// Converts a given elementary type name with optional data location
 	/// suffix " storage", " calldata" or " memory" to a type pointer. If suffix not given, defaults to " storage".
@@ -69,6 +68,7 @@ public:
 
 	static ArrayType const* bytesStorage();
 	static ArrayType const* bytesMemory();
+	static ArrayType const* bytesCalldata();
 	static ArrayType const* stringStorage();
 	static ArrayType const* stringMemory();
 
@@ -80,6 +80,8 @@ public:
 
 	/// Constructor for a fixed-size array type ("type[20]")
 	static ArrayType const* array(DataLocation _location, Type const* _baseType, u256 const& _length);
+
+	static ArraySliceType const* arraySlice(ArrayType const& _arrayType);
 
 	static AddressType const* payableAddress() noexcept { return &m_payableAddress; }
 	static AddressType const* address() noexcept { return &m_address; }
@@ -95,6 +97,7 @@ public:
 	static IntegerType const* uint(unsigned _bits) { return integer(_bits, IntegerType::Modifier::Unsigned); }
 
 	static IntegerType const* uint256() { return uint(256); }
+	static IntegerType const* int256() { return integer(256, IntegerType::Modifier::Signed); }
 
 	static FixedPointType const* fixedPoint(unsigned m, unsigned n, FixedPointType::Modifier _modifier);
 
@@ -111,16 +114,24 @@ public:
 	/// @returns a copy of @a _type having the same location as this (and is not a pointer type)
 	///          if _type is a reference type and an unmodified copy of _type otherwise.
 	///          This function is mostly useful to modify inner types appropriately.
-	static Type const* withLocationIfReference(DataLocation _location, Type const* _type)
+	static Type const* withLocationIfReference(DataLocation _location, Type const* _type, bool _isPointer = false)
 	{
 		if (auto refType = dynamic_cast<ReferenceType const*>(_type))
-			return withLocation(refType, _location, false);
+			return withLocation(refType, _location, _isPointer);
 
 		return _type;
 	}
 
-	/// @returns the internally-facing or externally-facing type of a function.
-	static FunctionType const* function(FunctionDefinition const& _function, bool _isInternal = true);
+	static bool isReferenceWithLocation(Type const* _type, DataLocation _location)
+	{
+		if (auto const* refType = dynamic_cast<ReferenceType const*>(_type))
+			if (refType->location() == _location)
+				return true;
+		return false;
+	}
+
+	/// @returns the internally-facing or externally-facing type of a function or the type of a function declaration.
+	static FunctionType const* function(FunctionDefinition const& _function, FunctionType::Kind _kind = FunctionType::Kind::Declaration);
 
 	/// @returns the accessor function type of a state variable.
 	static FunctionType const* function(VariableDeclaration const& _varDecl);
@@ -152,7 +163,8 @@ public:
 		Declaration const* _declaration = nullptr,
 		bool _gasSet = false,
 		bool _valueSet = false,
-		bool _bound = false
+		bool _bound = false,
+		bool _saltSet = false
 	);
 
 	/// Auto-detect the proper type for a literal. @returns an empty pointer if the literal does
@@ -204,6 +216,7 @@ private:
 	/// These are lazy-initialized because they depend on `byte` being available.
 	static std::unique_ptr<ArrayType> m_bytesStorage;
 	static std::unique_ptr<ArrayType> m_bytesMemory;
+	static std::unique_ptr<ArrayType> m_bytesCalldata;
 	static std::unique_ptr<ArrayType> m_stringStorage;
 	static std::unique_ptr<ArrayType> m_stringMemory;
 
@@ -221,5 +234,4 @@ private:
 	std::vector<std::unique_ptr<Type>> m_generalTypes{};
 };
 
-} // namespace solidity
-} // namespace dev
+}

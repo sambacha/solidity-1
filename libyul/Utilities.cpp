@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Some useful snippets for the optimiser.
  */
@@ -23,8 +24,8 @@
 #include <libyul/AsmData.h>
 #include <libyul/Exceptions.h>
 
-#include <libdevcore/CommonData.h>
-#include <libdevcore/FixedHash.h>
+#include <libsolutil/CommonData.h>
+#include <libsolutil/FixedHash.h>
 
 #include <boost/algorithm/string.hpp>
 
@@ -34,29 +35,34 @@
 #include <vector>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
+using namespace solidity::util;
 
-using boost::split;
-using boost::is_any_of;
-
-string yul::reindent(string const& _code)
+string solidity::yul::reindent(string const& _code)
 {
 	int constexpr indentationWidth = 4;
 
 	auto const static countBraces = [](string const& _s) noexcept -> int
 	{
 		auto const i = _s.find("//");
-		auto const e = i == _s.npos ? end(_s) : next(begin(_s), i);
+		auto const e = i == _s.npos ? end(_s) : next(begin(_s), static_cast<ptrdiff_t>(i));
 		auto const opening = count_if(begin(_s), e, [](auto ch) { return ch == '{' || ch == '('; });
 		auto const closing = count_if(begin(_s), e, [](auto ch) { return ch == '}' || ch == ')'; });
 		return opening - closing;
 	};
 
 	vector<string> lines;
-	split(lines, _code, is_any_of("\n"));
+	boost::split(lines, _code, boost::is_any_of("\n"));
 	for (string& line: lines)
 		boost::trim(line);
+
+	// Reduce multiple consecutive empty lines.
+	lines = fold(lines, vector<string>{}, [](auto&& _lines, auto&& _line) {
+		if (!(_line.empty() && !_lines.empty() && _lines.back().empty()))
+			_lines.emplace_back(std::move(_line));
+		return std::move(_lines);
+	});
 
 	stringstream out;
 	int depth = 0;
@@ -82,7 +88,7 @@ string yul::reindent(string const& _code)
 	return out.str();
 }
 
-u256 yul::valueOfNumberLiteral(Literal const& _literal)
+u256 solidity::yul::valueOfNumberLiteral(Literal const& _literal)
 {
 	yulAssert(_literal.kind == LiteralKind::Number, "Expected number literal!");
 
@@ -91,7 +97,7 @@ u256 yul::valueOfNumberLiteral(Literal const& _literal)
 	return u256(literalString);
 }
 
-u256 yul::valueOfStringLiteral(Literal const& _literal)
+u256 solidity::yul::valueOfStringLiteral(Literal const& _literal)
 {
 	yulAssert(_literal.kind == LiteralKind::String, "Expected string literal!");
 	yulAssert(_literal.value.str().size() <= 32, "Literal string too long!");
@@ -111,7 +117,7 @@ u256 yul::valueOfBoolLiteral(Literal const& _literal)
 	yulAssert(false, "Unexpected bool literal value!");
 }
 
-u256 yul::valueOfLiteral(Literal const& _literal)
+u256 solidity::yul::valueOfLiteral(Literal const& _literal)
 {
 	switch (_literal.kind)
 	{

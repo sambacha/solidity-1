@@ -25,18 +25,16 @@
 #include <liblangutil/Scanner.h>
 #include <libsolidity/parsing/Parser.h>
 #include <liblangutil/ErrorReporter.h>
-#include <test/Options.h>
+#include <test/Common.h>
 #include <test/libsolidity/ErrorCheck.h>
 #include <libsolidity/ast/ASTVisitor.h>
 
-using namespace std;
-using namespace langutil;
+#include <boost/test/unit_test.hpp>
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+using namespace std;
+using namespace solidity::langutil;
+
+namespace solidity::frontend::test
 {
 
 namespace
@@ -46,7 +44,7 @@ ASTPointer<ContractDefinition> parseText(std::string const& _source, ErrorList& 
 	ErrorReporter errorReporter(_errors);
 	ASTPointer<SourceUnit> sourceUnit = Parser(
 		errorReporter,
-		dev::test::Options::get().evmVersion(),
+		solidity::test::CommonOptions::get().evmVersion(),
 		errorRecovery
 	).parse(std::make_shared<Scanner>(CharStream(_source, "")));
 	if (!sourceUnit)
@@ -100,7 +98,7 @@ void checkFunctionNatspec(
 	std::string const& _expectedDoc
 )
 {
-	auto doc = _function->documentation();
+	auto doc = _function->documentation()->text();
 	BOOST_CHECK_MESSAGE(doc != nullptr, "Function does not have Natspec Doc as expected");
 	BOOST_CHECK_EQUAL(*doc, _expectedDoc);
 }
@@ -117,6 +115,14 @@ while(0)
 
 
 BOOST_AUTO_TEST_SUITE(SolidityParser)
+
+BOOST_AUTO_TEST_CASE(reserved_keywords)
+{
+	BOOST_CHECK(!TokenTraits::isReservedKeyword(Token::Identifier));
+	BOOST_CHECK(TokenTraits::isReservedKeyword(Token::After));
+	BOOST_CHECK(TokenTraits::isReservedKeyword(Token::Unchecked));
+	BOOST_CHECK(!TokenTraits::isReservedKeyword(Token::Illegal));
+}
 
 BOOST_AUTO_TEST_CASE(unsatisfied_version)
 {
@@ -247,8 +253,8 @@ BOOST_AUTO_TEST_CASE(natspec_comment_in_function_body)
 		contract test {
 			/// fun1 description
 			function fun1(uint256 a) {
-				var b;
-				/// I should not interfere with actual natspec comments
+				uint b;
+				// I should not interfere with actual natspec comments (natspec comments on local variables not allowed anymore)
 				uint256 c;
 				mapping(address=>bytes32) d;
 				bytes7 name = "Solidity";
@@ -279,8 +285,8 @@ BOOST_AUTO_TEST_CASE(natspec_docstring_between_keyword_and_signature)
 			uint256 stateVar;
 			function ///I am in the wrong place
 			fun1(uint256 a) {
-				var b;
-				/// I should not interfere with actual natspec comments
+				uint b;
+				// I should not interfere with actual natspec comments (natspec comments on local variables not allowed anymore)
 				uint256 c;
 				mapping(address=>bytes32) d;
 				bytes7 name = "Solidity";
@@ -304,9 +310,9 @@ BOOST_AUTO_TEST_CASE(natspec_docstring_after_signature)
 		contract test {
 			uint256 stateVar;
 			function fun1(uint256 a) {
-				/// I should have been above the function signature
-				var b;
-				/// I should not interfere with actual natspec comments
+				// I should have been above the function signature (natspec comments on local variables not allowed anymore)
+				uint b;
+				// I should not interfere with actual natspec comments (natspec comments on local variables not allowed anymore)
 				uint256 c;
 				mapping(address=>bytes32) d;
 				bytes7 name = "Solidity";
@@ -328,7 +334,7 @@ BOOST_AUTO_TEST_CASE(variable_definition)
 	char const* text = R"(
 		contract test {
 			function fun(uint256 a) {
-				var b;
+				uint b;
 				uint256 c;
 				mapping(address=>bytes32) d;
 				customtype varname;
@@ -343,7 +349,7 @@ BOOST_AUTO_TEST_CASE(variable_definition_with_initialization)
 	char const* text = R"(
 		contract test {
 			function fun(uint256 a) {
-				var b = 2;
+				uint b = 2;
 				uint256 c = 0x87;
 				mapping(address=>bytes32) d;
 				bytes7 name = "Solidity";
@@ -397,7 +403,7 @@ BOOST_AUTO_TEST_CASE(type_conversion_to_dynamic_array)
 	char const* text = R"(
 		contract test {
 			function fun() {
-				var x = uint64[](3);
+				uint x = uint64[](3);
 			}
 		}
 	)";
@@ -524,18 +530,15 @@ BOOST_AUTO_TEST_CASE(multiple_visibility_specifiers)
 BOOST_AUTO_TEST_CASE(keyword_is_reserved)
 {
 	auto keywords = {
-		"abstract",
 		"after",
 		"alias",
 		"apply",
 		"auto",
 		"case",
-		"catch",
 		"copyof",
 		"default",
 		"define",
 		"final",
-		"immutable",
 		"implements",
 		"in",
 		"inline",
@@ -545,7 +548,6 @@ BOOST_AUTO_TEST_CASE(keyword_is_reserved)
 		"mutable",
 		"null",
 		"of",
-		"override",
 		"partial",
 		"promise",
 		"reference",
@@ -555,11 +557,12 @@ BOOST_AUTO_TEST_CASE(keyword_is_reserved)
 		"static",
 		"supports",
 		"switch",
-		"try",
 		"typedef",
 		"typeof",
 		"unchecked"
 	};
+
+	BOOST_CHECK_EQUAL(std::size(keywords), static_cast<int>(Token::Unchecked) - static_cast<int>(Token::After) + 1);
 
 	for (auto const& keyword: keywords)
 	{
@@ -667,10 +670,10 @@ BOOST_AUTO_TEST_CASE(inline_asm_end_location)
 	{
 	public:
 		bool visited = false;
-		virtual bool visit(InlineAssembly const& _inlineAsm)
+		bool visit(InlineAssembly const& _inlineAsm) override
 		{
 			auto loc = _inlineAsm.location();
-			auto asmStr = loc.source->source().substr(loc.start, loc.end - loc.start);
+			auto asmStr = loc.source->source().substr(static_cast<size_t>(loc.start), static_cast<size_t>(loc.end - loc.start));
 			BOOST_CHECK_EQUAL(asmStr, "assembly { a := 0x12345678 }");
 			visited = true;
 
@@ -686,6 +689,4 @@ BOOST_AUTO_TEST_CASE(inline_asm_end_location)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
-}
 } // end namespaces

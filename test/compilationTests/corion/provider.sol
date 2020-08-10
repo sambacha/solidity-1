@@ -9,14 +9,14 @@ contract provider is module, safeMath, announcementTypes {
     /*
         module callbacks
     */
-    function connectModule() external returns (bool success) {
+    function connectModule() external override returns (bool success) {
         require( super.isModuleHandler(msg.sender) );
         super._connectModule();
         (bool _success, uint256 currentSchellingRound) = moduleHandler(moduleHandlerAddress).getCurrentSchellingRoundID();
         require( _success );
         return true;
     }
-    function transferEvent(address payable from, address payable to, uint256 value) external returns (bool success) {
+    function transferEvent(address payable from, address payable to, uint256 value) external override returns (bool success) {
         /*
             Transaction completed. This function is only available for the modulehandler.
             It should be checked if the sender or the acceptor does not connect to the provider or it is not a provider itself if so than the change should be recorded.
@@ -31,7 +31,7 @@ contract provider is module, safeMath, announcementTypes {
         transferEvent_(to, value, false);
         return true;
     }
-    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external returns (bool success) {
+    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external override returns (bool success) {
         /*
             New schelling round. This function is only available for the moduleHandler.
             We are recording the new schelling round and we are storing the whole current quantity of the tokens.
@@ -118,7 +118,7 @@ contract provider is module, safeMath, announcementTypes {
 
     uint256 private currentSchellingRound = 1;
 
-    constructor(address payable _moduleHandler) public {
+    constructor(address payable _moduleHandler) {
         /*
             Install function.
 
@@ -256,7 +256,7 @@ contract provider is module, safeMath, announcementTypes {
         providers[msg.sender].data[currHeight].country         = country;
         providers[msg.sender].data[currHeight].info            = info;
         providers[msg.sender].data[currHeight].currentRate     = rate;
-        providers[msg.sender].data[currHeight].create          = now;
+        providers[msg.sender].data[currHeight].create          = block.timestamp;
         providers[msg.sender].data[currHeight].lastPaidRate    = rate;
         providers[msg.sender].data[currHeight].priv            = priv;
         providers[msg.sender].data[currHeight].lastSupplyID    = currentSchellingRound;
@@ -436,7 +436,7 @@ contract provider is module, safeMath, announcementTypes {
         clients[msg.sender].lastSupplyID = currentSchellingRound;
         clients[msg.sender].paidUpTo = currentSchellingRound;
         clients[msg.sender].lastRate = providers[provider].data[currHeight].currentRate;
-        clients[msg.sender].providerConnected = now;
+        clients[msg.sender].providerConnected = block.timestamp;
         emit ENewClient(msg.sender, provider, currHeight, bal);
     }
     function partProvider() isReady external {

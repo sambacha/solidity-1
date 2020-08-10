@@ -46,7 +46,7 @@
 
 using namespace std;
 
-namespace langutil
+namespace solidity::langutil
 {
 
 void ElementaryTypeNameToken::assertDetails(Token _baseType, unsigned const& _first, unsigned const& _second)
@@ -72,6 +72,9 @@ void ElementaryTypeNameToken::assertDetails(Token _baseType, unsigned const& _fi
 			"No elementary type " + string(TokenTraits::toString(_baseType)) + to_string(_first) + "x" + to_string(_second) + "."
 		);
 	}
+	else
+		solAssert(_first == 0 && _second == 0, "Unexpected size arguments");
+
 	m_token = _baseType;
 	m_firstNumber = _first;
 	m_secondNumber = _second;
@@ -79,7 +82,6 @@ void ElementaryTypeNameToken::assertDetails(Token _baseType, unsigned const& _fi
 
 namespace TokenTraits
 {
-
 char const* toString(Token tok)
 {
 	switch (tok)
@@ -128,7 +130,7 @@ int parseSize(string::const_iterator _begin, string::const_iterator _end)
 {
 	try
 	{
-		unsigned int m = boost::lexical_cast<int>(boost::make_iterator_range(_begin, _end));
+		int m = boost::lexical_cast<int>(boost::make_iterator_range(_begin, _end));
 		return m;
 	}
 	catch(boost::bad_lexical_cast const&)

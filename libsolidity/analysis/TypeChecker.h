@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2015
@@ -29,14 +30,12 @@
 #include <libsolidity/ast/ASTVisitor.h>
 #include <libsolidity/ast/Types.h>
 
-namespace langutil
+namespace solidity::langutil
 {
 class ErrorReporter;
 }
 
-namespace dev
-{
-namespace solidity
+namespace solidity::frontend
 {
 
 /**
@@ -54,9 +53,9 @@ public:
 		m_errorReporter(_errorReporter)
 	{}
 
-	/// Performs type checking on the given contract and all of its sub-nodes.
+	/// Performs type checking on the given source and all of its sub-nodes.
 	/// @returns true iff all checks passed. Note even if all checks passed, errors() can still contain warnings
-	bool checkTypeRequirements(ASTNode const& _contract);
+	bool checkTypeRequirements(SourceUnit const& _source);
 
 	/// @returns the type of an expression and asserts that it is present.
 	TypePointer const& type(Expression const& _expression) const;
@@ -97,6 +96,10 @@ private:
 		FunctionTypePointer _functionType
 	);
 
+	void typeCheckFallbackFunction(FunctionDefinition const& _function);
+	void typeCheckReceiveFunction(FunctionDefinition const& _function);
+	void typeCheckConstructor(FunctionDefinition const& _function);
+
 	/// Performs general number and type checks of arguments against function call and struct ctor FunctionCall node parameters.
 	void typeCheckFunctionGeneralChecks(
 		FunctionCall const& _functionCall,
@@ -110,8 +113,7 @@ private:
 	);
 
 	void endVisit(InheritanceSpecifier const& _inheritance) override;
-	void endVisit(UsingForDirective const& _usingFor) override;
-	bool visit(StructDefinition const& _struct) override;
+	void endVisit(ModifierDefinition const& _modifier) override;
 	bool visit(FunctionDefinition const& _function) override;
 	bool visit(VariableDeclaration const& _variable) override;
 	/// We need to do this manually because we want to pass the bases of the current contract in
@@ -121,10 +123,10 @@ private:
 	void endVisit(FunctionTypeName const& _funType) override;
 	bool visit(InlineAssembly const& _inlineAssembly) override;
 	bool visit(IfStatement const& _ifStatement) override;
+	void endVisit(TryStatement const& _tryStatement) override;
 	bool visit(WhileStatement const& _whileStatement) override;
 	bool visit(ForStatement const& _forStatement) override;
 	void endVisit(Return const& _return) override;
-	bool visit(EmitStatement const&) override { m_insideEmitStatement = true; return true; }
 	void endVisit(EmitStatement const& _emit) override;
 	bool visit(VariableDeclarationStatement const& _variable) override;
 	void endVisit(ExpressionStatement const& _statement) override;
@@ -134,9 +136,11 @@ private:
 	void endVisit(BinaryOperation const& _operation) override;
 	bool visit(UnaryOperation const& _operation) override;
 	bool visit(FunctionCall const& _functionCall) override;
+	bool visit(FunctionCallOptions const& _functionCallOptions) override;
 	void endVisit(NewExpression const& _newExpression) override;
 	bool visit(MemberAccess const& _memberAccess) override;
 	bool visit(IndexAccess const& _indexAccess) override;
+	bool visit(IndexRangeAccess const& _indexRangeAccess) override;
 	bool visit(Identifier const& _identifier) override;
 	void endVisit(ElementaryTypeNameExpression const& _expr) override;
 	void endVisit(Literal const& _literal) override;
@@ -151,27 +155,25 @@ private:
 	/// @returns the referenced declaration and throws on error.
 	Declaration const& dereference(UserDefinedTypeName const& _typeName) const;
 
+	std::vector<Declaration const*> cleanOverloadedDeclarations(
+		Identifier const& _reference,
+		std::vector<Declaration const*> const& _candidates
+	);
+
 	/// Runs type checks on @a _expression to infer its type and then checks that it is implicitly
 	/// convertible to @a _expectedType.
 	bool expectType(Expression const& _expression, Type const& _expectedType);
 	/// Runs type checks on @a _expression to infer its type and then checks that it is an LValue.
-	void requireLValue(Expression const& _expression);
+	void requireLValue(Expression const& _expression, bool _ordinaryAssignment);
 
-	ContractDefinition const* m_scope = nullptr;
+	bool experimentalFeatureActive(ExperimentalFeature _feature) const;
+
+	SourceUnit const* m_currentSourceUnit = nullptr;
+	ContractDefinition const* m_currentContract = nullptr;
 
 	langutil::EVMVersion m_evmVersion;
-
-	/// Flag indicating whether we are currently inside an EmitStatement.
-	bool m_insideEmitStatement = false;
-
-	/// Flag indicating whether we are currently inside a StructDefinition.
-	bool m_insideStruct = false;
-
-	/// Flag indicating whether we are currently inside the invocation of a modifier
-	bool m_insideModifierInvocation = false;
 
 	langutil::ErrorReporter& m_errorReporter;
 };
 
-}
 }

@@ -28,20 +28,21 @@
 #include <libyul/AsmData.h>
 #include <libyul/backends/evm/EVMDialect.h>
 
-#include <libdevcore/CommonData.h>
+#include <libsolutil/CommonData.h>
 
 #include <boost/range/adaptor/reversed.hpp>
 #include <boost/range/algorithm_ext/erase.hpp>
 #include <variant>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::yul;
 
 
 void DataFlowAnalyzer::operator()(ExpressionStatement& _statement)
 {
-	if (auto vars = isSimpleStore(dev::eth::Instruction::SSTORE, _statement))
+	if (auto vars = isSimpleStore(evmasm::Instruction::SSTORE, _statement))
 	{
 		ASTModifier::operator()(_statement);
 		set<YulString> keysToErase;
@@ -55,7 +56,7 @@ void DataFlowAnalyzer::operator()(ExpressionStatement& _statement)
 			m_storage.eraseKey(key);
 		m_storage.set(vars->first, vars->second);
 	}
-	else if (auto vars = isSimpleStore(dev::eth::Instruction::MSTORE, _statement))
+	else if (auto vars = isSimpleStore(evmasm::Instruction::MSTORE, _statement))
 	{
 		ASTModifier::operator()(_statement);
 		set<YulString> keysToErase;
@@ -143,11 +144,13 @@ void DataFlowAnalyzer::operator()(FunctionDefinition& _fun)
 {
 	// Save all information. We might rather reinstantiate this class,
 	// but this could be difficult if it is subclassed.
-	map<YulString, Expression const*> value;
+	map<YulString, AssignedValue> value;
+	size_t loopDepth{0};
 	InvertibleRelation<YulString> references;
 	InvertibleMap<YulString, YulString> storage;
 	InvertibleMap<YulString, YulString> memory;
-	m_value.swap(value);
+	swap(m_value, value);
+	swap(m_loopDepth, loopDepth);
 	swap(m_references, references);
 	swap(m_storage, storage);
 	swap(m_memory, memory);
@@ -162,8 +165,13 @@ void DataFlowAnalyzer::operator()(FunctionDefinition& _fun)
 	}
 	ASTModifier::operator()(_fun);
 
+	// Note that the contents of return variables, storage and memory at this point
+	// might be incorrect due to the fact that the DataFlowAnalyzer ignores the ``leave``
+	// statement.
+
 	popScope();
-	m_value.swap(value);
+	swap(m_value, value);
+	swap(m_loopDepth, loopDepth);
 	swap(m_references, references);
 	swap(m_storage, storage);
 	swap(m_memory, memory);
@@ -174,6 +182,8 @@ void DataFlowAnalyzer::operator()(ForLoop& _for)
 	// If the pre block was not empty,
 	// we would have to deal with more complicated scoping rules.
 	assertThrow(_for.pre.statements.empty(), OptimizerException, "");
+
+	++m_loopDepth;
 
 	AssignmentsSinceContinue assignmentsSinceCont;
 	assignmentsSinceCont(_for.body);
@@ -197,6 +207,8 @@ void DataFlowAnalyzer::operator()(ForLoop& _for)
 	clearKnowledgeIfInvalidated(*_for.condition);
 	clearKnowledgeIfInvalidated(_for.post);
 	clearKnowledgeIfInvalidated(_for.body);
+
+	--m_loopDepth;
 }
 
 void DataFlowAnalyzer::operator()(Block& _block)
@@ -217,7 +229,7 @@ void DataFlowAnalyzer::handleAssignment(set<YulString> const& _variables, Expres
 		movableChecker.visit(*_value);
 	else
 		for (auto const& var: _variables)
-			m_value[var] = &m_zero;
+			assignValue(var, &m_zero);
 
 	if (_value && _variables.size() == 1)
 	{
@@ -225,7 +237,7 @@ void DataFlowAnalyzer::handleAssignment(set<YulString> const& _variables, Expres
 		// Expression has to be movable and cannot contain a reference
 		// to the variable that will be assigned to.
 		if (movableChecker.movable() && !movableChecker.referencedVariables().count(name))
-			m_value[name] = _value;
+			assignValue(name, _value);
 	}
 
 	auto const& referencedVariables = movableChecker.referencedVariables();
@@ -240,6 +252,21 @@ void DataFlowAnalyzer::handleAssignment(set<YulString> const& _variables, Expres
 		m_memory.eraseKey(name);
 		// assignment to slot contents denoted by "name"
 		m_memory.eraseValue(name);
+	}
+
+	if (_value && _variables.size() == 1)
+	{
+		YulString variable = *_variables.begin();
+		if (!movableChecker.referencedVariables().count(variable))
+		{
+			// This might erase additional knowledge about the slot.
+			// On the other hand, if we knew the value in the slot
+			// already, then the sload() / mload() would have been replaced by a variable anyway.
+			if (auto key = isSimpleLoad(evmasm::Instruction::MLOAD, *_value))
+				m_memory.set(*key, variable);
+			else if (auto key = isSimpleLoad(evmasm::Instruction::SLOAD, *_value))
+				m_storage.set(*key, variable);
+		}
 	}
 }
 
@@ -294,6 +321,11 @@ void DataFlowAnalyzer::clearValues(set<YulString> _variables)
 		m_value.erase(name);
 	for (auto const& name: _variables)
 		m_references.eraseKey(name);
+}
+
+void DataFlowAnalyzer::assignValue(YulString _variable, Expression const* _value)
+{
+	m_value[_variable] = {_value, m_loopDepth};
 }
 
 void DataFlowAnalyzer::clearKnowledgeIfInvalidated(Block const& _block)
@@ -356,13 +388,13 @@ bool DataFlowAnalyzer::inScope(YulString _variableName) const
 }
 
 std::optional<pair<YulString, YulString>> DataFlowAnalyzer::isSimpleStore(
-	dev::eth::Instruction _store,
+	evmasm::Instruction _store,
 	ExpressionStatement const& _statement
 ) const
 {
 	yulAssert(
-		_store == dev::eth::Instruction::MSTORE ||
-		_store == dev::eth::Instruction::SSTORE,
+		_store == evmasm::Instruction::MSTORE ||
+		_store == evmasm::Instruction::SSTORE,
 		""
 	);
 	if (holds_alternative<FunctionCall>(_statement.expression))
@@ -380,6 +412,28 @@ std::optional<pair<YulString, YulString>> DataFlowAnalyzer::isSimpleStore(
 						YulString value = std::get<Identifier>(funCall.arguments.at(1)).name;
 						return make_pair(key, value);
 					}
+	}
+	return {};
+}
+
+std::optional<YulString> DataFlowAnalyzer::isSimpleLoad(
+	evmasm::Instruction _load,
+	Expression const& _expression
+) const
+{
+	yulAssert(
+		_load == evmasm::Instruction::MLOAD ||
+		_load == evmasm::Instruction::SLOAD,
+		""
+	);
+	if (holds_alternative<FunctionCall>(_expression))
+	{
+		FunctionCall const& funCall = std::get<FunctionCall>(_expression);
+		if (EVMDialect const* dialect = dynamic_cast<EVMDialect const*>(&m_dialect))
+			if (auto const* builtin = dialect->builtin(funCall.functionName.name))
+				if (builtin->instruction == _load)
+					if (holds_alternative<Identifier>(funCall.arguments.at(0)))
+						return std::get<Identifier>(funCall.arguments.at(0)).name;
 	}
 	return {};
 }

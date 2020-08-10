@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #pragma once
 
@@ -25,15 +26,13 @@
 #include <memory>
 #include <optional>
 
-namespace langutil
+namespace solidity::langutil
 {
 class ErrorReporter;
 struct SourceLocation;
 }
 
-namespace dev
-{
-namespace solidity
+namespace solidity::frontend
 {
 
 class ViewPureChecker: private ASTConstVisitor
@@ -59,6 +58,7 @@ private:
 	bool visit(MemberAccess const& _memberAccess) override;
 	void endVisit(MemberAccess const& _memberAccess) override;
 	void endVisit(IndexAccess const& _indexAccess) override;
+	void endVisit(IndexRangeAccess const& _indexAccess) override;
 	void endVisit(ModifierInvocation const& _modifier) override;
 	void endVisit(FunctionCall const& _functionCall) override;
 	void endVisit(InlineAssembly const& _inlineAssembly) override;
@@ -80,5 +80,4 @@ private:
 	std::map<ModifierDefinition const*, MutabilityAndLocation> m_inferredMutability;
 };
 
-}
 }

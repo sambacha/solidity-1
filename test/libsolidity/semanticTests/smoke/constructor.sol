@@ -1,6 +1,6 @@
 contract C {
     uint public state = 0;
-    constructor(uint _state) public payable {
+    constructor(uint _state) payable {
         state = _state;
     }
     function balance() public payable returns (uint256) {
@@ -10,8 +10,10 @@ contract C {
         state = _state;
     }
 }
+// ====
+// compileViaYul: also
 // ----
-// constructor(), 2 ether: 3 ->
+// constructor(), 2 wei: 3 ->
 // state() -> 3
 // balance() -> 2
 // update(uint256): 4

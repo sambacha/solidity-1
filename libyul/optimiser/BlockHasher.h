@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimiser component that calculates hash values for blocks.
  */
@@ -24,7 +25,7 @@
 #include <libyul/YulString.h>
 #include <libyul/AsmData.h>
 
-namespace yul
+namespace solidity::yul
 {
 
 /**
@@ -49,7 +50,6 @@ public:
 
 	void operator()(Literal const&) override;
 	void operator()(Identifier const&) override;
-	void operator()(FunctionalInstruction const& _instr) override;
 	void operator()(FunctionCall const& _funCall) override;
 	void operator()(ExpressionStatement const& _statement) override;
 	void operator()(Assignment const& _assignment) override;
@@ -60,6 +60,7 @@ public:
 	void operator()(ForLoop const&) override;
 	void operator()(Break const&) override;
 	void operator()(Continue const&) override;
+	void operator()(Leave const&) override;
 	void operator()(Block const& _block) override;
 
 	static std::map<Block const*, uint64_t> run(Block const& _block);

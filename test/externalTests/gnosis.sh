@@ -24,21 +24,31 @@ source test/externalTests/common.sh
 verify_input "$1"
 SOLJSON="$1"
 
-function install_fn { npm install; }
+function install_fn { npm install --package-lock; }
 function compile_fn { npx truffle compile; }
 function test_fn { npm test; }
 
 function gnosis_safe_test
 {
     OPTIMIZER_LEVEL=1
+<<<<<<< HEAD
     setup https://github.com/gnosis/safe-contracts.git v1.1.1
     run_install install_fn
+=======
+    CONFIG="truffle.js"
 
-    CONFIG=$(find_truffle_config)
+    truffle_setup https://github.com/solidity-external-tests/safe-contracts.git development_070
+
+    force_truffle_version
+    sed -i 's|github:gnosis/mock-contract#sol_0_5_0|github:solidity-external-tests/mock-contract#master_070|g' package.json
+    rm -f package-lock.json
+    rm -rf node_modules/
+>>>>>>> upstream/develop
+
+    run_install install_fn
     replace_libsolc_call
 
-    run_test compile_fn test_fn
+    truffle_run_test compile_fn test_fn
 }
 
 external_test Gnosis-Safe gnosis_safe_test
-

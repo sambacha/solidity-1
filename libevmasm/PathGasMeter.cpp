@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /** @file PathGasMeter.cpp
  * @author Christian <c@ethdev.com>
  * @date 2015
@@ -24,8 +25,8 @@
 #include <libevmasm/SemanticInformation.h>
 
 using namespace std;
-using namespace dev;
-using namespace dev::eth;
+using namespace solidity;
+using namespace solidity::evmasm;
 
 PathGasMeter::PathGasMeter(AssemblyItems const& _items, langutil::EVMVersion _evmVersion):
 	m_items(_items), m_evmVersion(_evmVersion)

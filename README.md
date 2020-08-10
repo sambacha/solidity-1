@@ -1,5 +1,5 @@
 # The Solidity Contract-Oriented Programming Language
-[![Join the chat at https://gitter.im/ethereum/solidity](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ethereum/solidity?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+You can talk to us on [![solidity at https://gitter.im/ethereum/solidity](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ethereum/solidity?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge). Questions, feedback and suggestions are welcome!
 
 Solidity is a statically typed, contract-oriented, high-level language for implementing smart contracts on the Ethereum platform.
 
@@ -12,6 +12,7 @@ Solidity is a statically typed, contract-oriented, high-level language for imple
 - [Development](#development)
 - [Maintainers](#maintainers)
 - [License](#license)
+- [Security](#security)
 
 ## Background
 
@@ -20,11 +21,15 @@ that run on the Ethereum Virtual Machine. Smart contracts are programs that are 
 network where nobody has special authority over the execution, and thus they allow to implement tokens of value,
 ownership, voting and other kinds of logics.
 
-When deploying contracts, you should use the latest released version of Solidity. This is because breaking changes as well as new features and bug fixes are introduced regularly. We currently use a 0.x version number [to indicate this fast pace of change](https://semver.org/#spec-item-4).
+When deploying contracts, you should use the latest released version of
+Solidity. This is because breaking changes as well as new features and bug fixes are
+introduced regularly. We currently use a 0.x version
+number [to indicate this fast pace of change](https://semver.org/#spec-item-4).
 
 ## Build and Install
 
-Instructions about how to build and install the Solidity compiler can be found in the [Solidity documentation](https://solidity.readthedocs.io/en/latest/installing-solidity.html#building-from-source).
+Instructions about how to build and install the Solidity compiler can be
+found in the [Solidity documentation](https://solidity.readthedocs.io/en/latest/installing-solidity.html#building-from-source).
 
 
 ## Example
@@ -32,7 +37,7 @@ Instructions about how to build and install the Solidity compiler can be found i
 A "Hello World" program in Solidity is of even less use than in other languages, but still:
 
 ```solidity
-pragma solidity ^0.5.0;
+pragma solidity >=0.6.0 <0.8.0;
 
 contract HelloWorld {
   function helloWorld() external pure returns (string memory) {
@@ -60,7 +65,8 @@ Please follow the
 [Developers Guide](https://solidity.readthedocs.io/en/latest/contributing.html)
 if you want to help.
 
-You can find our current feature and bug priorities for forthcoming releases [in the projects section](https://github.com/ethereum/solidity/projects).
+You can find our current feature and bug priorities for forthcoming
+releases [in the projects section](https://github.com/ethereum/solidity/projects).
 
 ## Maintainers
 * [@axic](https://github.com/axic)
@@ -71,6 +77,7 @@ Solidity is licensed under [GNU General Public License v3.0](LICENSE.txt).
 
 Some third-party code has its [own licensing terms](cmake/templates/license.h.in).
 
+<<<<<<< HEAD
 Any contributions are welcome!
 
 # Formal Verification Extension
@@ -78,3 +85,8 @@ Any contributions are welcome!
 This is an extended version of the compiler that is able to perform automated formal verification on Solidity code using annotations and modular program verification. For more information on building, installing and examples, see [SOLC-VERIFY-README.md](SOLC-VERIFY-README.md).
 
 A preliminary [paper](https://arxiv.org/abs/1907.04262) was also presented at [VSTTE'19](https://sri-csl.github.io/VSTTE19/) but the tool had major improvements since then, including [precise modeling of reference types and memory locations](https://arxiv.org/abs/2001.03256). Up-to-date information can be found in [SOLC-VERIFY-README.md](SOLC-VERIFY-README.md).
+=======
+## Security
+
+The security policy may be [found here](SECURITY.md).
+>>>>>>> upstream/develop

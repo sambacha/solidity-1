@@ -35,11 +35,11 @@ or if you require more compilation options.
 npm / Node.js
 =============
 
-Use `npm` for a convenient and portable way to install `solcjs`, a Solidity compiler. The
+Use ``npm`` for a convenient and portable way to install ``solcjs``, a Solidity compiler. The
 `solcjs` program has fewer features than the ways to access the compiler described
 further down this page. The
 :ref:`commandline-compiler` documentation assumes you are using
-the full-featured compiler, `solc`. The usage of `solcjs` is documented inside its own
+the full-featured compiler, ``solc``. The usage of ``solcjs`` is documented inside its own
 `repository <https://github.com/ethereum/solc-js>`_.
 
 Note: The solc-js project is derived from the C++
@@ -53,10 +53,10 @@ Please refer to the solc-js repository for instructions.
 
 .. note::
 
-    The commandline executable is named `solcjs`.
+    The commandline executable is named ``solcjs``.
 
-    The comandline options of `solcjs` are not compatible with `solc` and tools (such as `geth`)
-    expecting the behaviour of `solc` will not work with `solcjs`.
+    The commandline options of ``solcjs`` are not compatible with ``solc`` and tools (such as ``geth``)
+    expecting the behaviour of ``solc`` will not work with ``solcjs``.
 
 Docker
 ======
@@ -116,7 +116,9 @@ The nightly version can be installed using these commands:
     sudo apt-get update
     sudo apt-get install solc
 
-We are also releasing a `snap package <https://snapcraft.io/>`_, which is installable in all the `supported Linux distros <https://snapcraft.io/docs/core/install>`_. To install the latest stable version of solc:
+We are also releasing a `snap package <https://snapcraft.io/>`_, which is
+installable in all the `supported Linux distros <https://snapcraft.io/docs/core/install>`_. To
+install the latest stable version of solc:
 
 .. code-block:: bash
 
@@ -128,6 +130,12 @@ with the most recent changes, please use the following:
 .. code-block:: bash
 
     sudo snap install solc --edge
+
+.. note::
+
+    The ``solc`` snap uses strict confinement. This is the most secure mode for snap packages
+    but it comes with limitations, like accessing only the files in your ``/home`` and ``/media`` directories.
+    For more information, go to `Demystifying Snap Confinement <https://snapcraft.io/blog/demystifying-snap-confinement>`_.
 
 Arch Linux also has packages, albeit limited to the latest development version:
 
@@ -146,7 +154,8 @@ currently not supported.
     brew tap ethereum/ethereum
     brew install solidity
 
-To install the most recent 0.4.x version of Solidity you can also use ``brew install solidity@4``.
+To install the most recent 0.4.x / 0.5.x version of Solidity you can also use ``brew install solidity@4``
+and ``brew install solidity@5``, respectively.
 
 If you need a specific version of Solidity you can install a
 Homebrew formula directly from Github.
@@ -165,7 +174,8 @@ Install it using ``brew``:
     # eg. Install 0.4.8
     brew install https://raw.githubusercontent.com/ethereum/homebrew-ethereum/77cce03da9f289e5a3ffe579840d3c5dc0a62717/solidity.rb
 
-Gentoo Linux also provides a solidity package that can be installed using ``emerge``:
+Gentoo Linux has an `Ethereum overlay <https://overlays.gentoo.org/#ethereum>`_ that contains a solidity package.
+After the overlay is setup, ``solc`` can be installed in x86_64 architectures by:
 
 .. code-block:: bash
 
@@ -303,6 +313,16 @@ you should fork Solidity and add your personal fork as a second remote:
 .. code-block:: bash
 
     git remote add personal git@github.com:[username]/solidity.git
+
+.. note::
+    This method will result in a prerelease build leading to e.g. a flag
+    being set in each bytecode produced by such a compiler.
+    If you want to re-build a released Solidity compiler, then
+    please use the source tarball on the github release page:
+
+    https://github.com/ethereum/solidity/releases/download/v0.X.Y/solidity_0.X.Y.tar.gz
+
+    (not the "Source code" provided by github).
 
 Command-Line Build
 ------------------

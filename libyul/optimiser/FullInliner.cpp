@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimiser component that performs function inlining for arbitrary functions.
  */
@@ -26,25 +27,25 @@
 #include <libyul/optimiser/OptimizerUtilities.h>
 #include <libyul/optimiser/Metrics.h>
 #include <libyul/optimiser/SSAValueTracker.h>
+#include <libyul/optimiser/Semantics.h>
 #include <libyul/Exceptions.h>
 #include <libyul/AsmData.h>
+#include <libyul/Dialect.h>
 
-#include <libdevcore/CommonData.h>
-#include <libdevcore/Visitor.h>
-
-#include <boost/range/adaptor/reversed.hpp>
+#include <libsolutil/CommonData.h>
+#include <libsolutil/Visitor.h>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
 
 void FullInliner::run(OptimiserStepContext& _context, Block& _ast)
 {
-	FullInliner{_ast, _context.dispenser}.run();
+	FullInliner{_ast, _context.dispenser, _context.dialect}.run();
 }
 
-FullInliner::FullInliner(Block& _ast, NameDispenser& _dispenser):
-	m_ast(_ast), m_nameDispenser(_dispenser)
+FullInliner::FullInliner(Block& _ast, NameDispenser& _dispenser, Dialect const& _dialect):
+	m_ast(_ast), m_nameDispenser(_dispenser), m_dialect(_dialect)
 {
 	// Determine constants
 	SSAValueTracker tracker;
@@ -62,6 +63,8 @@ FullInliner::FullInliner(Block& _ast, NameDispenser& _dispenser):
 			continue;
 		FunctionDefinition& fun = std::get<FunctionDefinition>(statement);
 		m_functions[fun.name] = &fun;
+		if (LeaveFinder::containsLeave(fun))
+			m_noInlineFunctions.insert(fun.name);
 		// Always inline functions that are only called once.
 		if (references[fun.name] == 1)
 			m_singleUse.emplace(fun.name);
@@ -94,7 +97,7 @@ bool FullInliner::shallInline(FunctionCall const& _funCall, YulString _callSite)
 	if (!calledFunction)
 		return false;
 
-	if (recursive(*calledFunction))
+	if (m_noInlineFunctions.count(_funCall.functionName.name) || recursive(*calledFunction))
 		return false;
 
 	// Inline really, really tiny functions
@@ -136,7 +139,7 @@ void FullInliner::updateCodeSize(FunctionDefinition const& _fun)
 
 void FullInliner::handleBlock(YulString _currentFunctionName, Block& _block)
 {
-	InlineModifier{*this, m_nameDispenser, _currentFunctionName}(_block);
+	InlineModifier{*this, m_nameDispenser, _currentFunctionName, m_dialect}(_block);
 }
 
 bool FullInliner::recursive(FunctionDefinition const& _fun) const
@@ -151,14 +154,14 @@ void InlineModifier::operator()(Block& _block)
 		visit(_statement);
 		return tryInlineStatement(_statement);
 	};
-	iterateReplacing(_block.statements, f);
+	util::iterateReplacing(_block.statements, f);
 }
 
 std::optional<vector<Statement>> InlineModifier::tryInlineStatement(Statement& _statement)
 {
 	// Only inline for expression statements, assignments and variable declarations.
-	Expression* e = std::visit(GenericVisitor{
-		VisitorFallback<Expression*>{},
+	Expression* e = std::visit(util::GenericVisitor{
+		util::VisitorFallback<Expression*>{},
 		[](ExpressionStatement& _s) { return &_s.expression; },
 		[](Assignment& _s) { return _s.value.get(); },
 		[](VariableDeclaration& _s) { return _s.value.get(); }
@@ -166,8 +169,8 @@ std::optional<vector<Statement>> InlineModifier::tryInlineStatement(Statement& _
 	if (e)
 	{
 		// Only inline direct function calls.
-		FunctionCall* funCall = std::visit(GenericVisitor{
-			VisitorFallback<FunctionCall*>{},
+		FunctionCall* funCall = std::visit(util::GenericVisitor{
+			util::VisitorFallback<FunctionCall*>{},
 			[](FunctionCall& _e) { return &_e; }
 		}, *e);
 		if (funCall && m_driver.shallInline(*funCall, m_currentFunction))
@@ -195,7 +198,7 @@ vector<Statement> InlineModifier::performInline(Statement& _statement, FunctionC
 		if (_value)
 			varDecl.value = make_unique<Expression>(std::move(*_value));
 		else
-			varDecl.value = make_unique<Expression>(Literal{{}, LiteralKind::Number, YulString{"0"}, {}});
+			varDecl.value = make_unique<Expression>(m_dialect.zeroLiteralForType(varDecl.variables.front().type));
 		newStatements.emplace_back(std::move(varDecl));
 	};
 
@@ -207,8 +210,8 @@ vector<Statement> InlineModifier::performInline(Statement& _statement, FunctionC
 	Statement newBody = BodyCopier(m_nameDispenser, variableReplacements)(function->body);
 	newStatements += std::move(std::get<Block>(newBody).statements);
 
-	std::visit(GenericVisitor{
-		VisitorFallback<>{},
+	std::visit(util::GenericVisitor{
+		util::VisitorFallback<>{},
 		[&](Assignment& _assignment)
 		{
 			for (size_t i = 0; i < _assignment.variableNames.size(); ++i)

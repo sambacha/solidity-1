@@ -15,6 +15,7 @@
     {
       "attributes":
       {
+        "abstract": false,
         "baseContracts":
         [
           null
@@ -24,7 +25,6 @@
           null
         ],
         "contractKind": "contract",
-        "documentation": null,
         "fullyImplemented": true,
         "linearizedBaseContracts":
         [
@@ -38,7 +38,6 @@
         {
           "attributes":
           {
-            "documentation": null,
             "implemented": true,
             "isConstructor": false,
             "kind": "fallback",
@@ -49,7 +48,7 @@
             "name": "",
             "scope": 5,
             "stateMutability": "payable",
-            "superFunction": null,
+            "virtual": false,
             "visibility": "external"
           },
           "children":

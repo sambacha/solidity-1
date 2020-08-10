@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 #pragma once
 
@@ -25,9 +26,9 @@
 
 #include <liblangutil/EVMVersion.h>
 
-#include <libdevcore/Common.h>
-#include <libdevcore/Assertions.h>
-#include <libdevcore/Keccak256.h>
+#include <libsolutil/Common.h>
+#include <libsolutil/Assertions.h>
+#include <libsolutil/Keccak256.h>
 
 #include <json/json.h>
 
@@ -35,9 +36,7 @@
 #include <sstream>
 #include <memory>
 
-namespace dev
-{
-namespace eth
+namespace solidity::evmasm
 {
 
 using AssemblyPointer = std::shared_ptr<Assembly>;
@@ -49,16 +48,18 @@ public:
 	AssemblyItem newPushTag() { assertThrow(m_usedTags < 0xffffffff, AssemblyException, ""); return AssemblyItem(PushTag, m_usedTags++); }
 	/// Returns a tag identified by the given name. Creates it if it does not yet exist.
 	AssemblyItem namedTag(std::string const& _name);
-	AssemblyItem newData(bytes const& _data) { h256 h(dev::keccak256(asString(_data))); m_data[h] = _data; return AssemblyItem(PushData, h); }
-	bytes const& data(h256 const& _i) const { return m_data.at(_i); }
+	AssemblyItem newData(bytes const& _data) { util::h256 h(util::keccak256(util::asString(_data))); m_data[h] = _data; return AssemblyItem(PushData, h); }
+	bytes const& data(util::h256 const& _i) const { return m_data.at(_i); }
 	AssemblyItem newSub(AssemblyPointer const& _sub) { m_subs.push_back(_sub); return AssemblyItem(PushSub, m_subs.size() - 1); }
 	Assembly const& sub(size_t _sub) const { return *m_subs.at(_sub); }
 	Assembly& sub(size_t _sub) { return *m_subs.at(_sub); }
+	size_t numSubs() const { return m_subs.size(); }
 	AssemblyItem newPushSubSize(u256 const& _subId) { return AssemblyItem(PushSubSize, _subId); }
 	AssemblyItem newPushLibraryAddress(std::string const& _identifier);
+	AssemblyItem newPushImmutable(std::string const& _identifier);
+	AssemblyItem newImmutableAssignment(std::string const& _identifier);
 
 	AssemblyItem const& append(AssemblyItem const& _i);
-	AssemblyItem const& append(std::string const& _data) { return append(newPushString(_data)); }
 	AssemblyItem const& append(bytes const& _data) { return append(newData(_data)); }
 
 	template <class T> Assembly& operator<<(T const& _d) { append(_d); return *this; }
@@ -67,6 +68,8 @@ public:
 	/// after compilation and CODESIZE is not an option.
 	void appendProgramSize() { append(AssemblyItem(PushProgramSize)); }
 	void appendLibraryAddress(std::string const& _identifier) { append(newPushLibraryAddress(_identifier)); }
+	void appendImmutable(std::string const& _identifier) { append(newPushImmutable(_identifier)); }
+	void appendImmutableAssignment(std::string const& _identifier) { append(newImmutableAssignment(_identifier)); }
 
 	AssemblyItem appendJump() { auto ret = append(newPushTag()); append(Instruction::JUMP); return ret; }
 	AssemblyItem appendJumpI() { auto ret = append(newPushTag()); append(Instruction::JUMPI); return ret; }
@@ -95,6 +98,7 @@ public:
 
 	/// Changes the source location used for each appended item.
 	void setSourceLocation(langutil::SourceLocation const& _location) { m_currentSourceLocation = _location; }
+	langutil::SourceLocation const& currentSourceLocation() const { return m_currentSourceLocation; }
 
 	/// Assembles the assembly into bytecode. The assembly should not be modified after this call, since the assembled version is cached.
 	LinkerObject const& assemble() const;
@@ -136,20 +140,14 @@ public:
 
 	/// Create a JSON representation of the assembly.
 	Json::Value assemblyJSON(
-		StringMap const& _sourceCodes = StringMap()
+		std::map<std::string, unsigned> const& _sourceIndices = std::map<std::string, unsigned>()
 	) const;
 
-public:
-	// These features are only used by LLL
-	AssemblyItem newPushString(std::string const& _data) { h256 h(dev::keccak256(_data)); m_strings[h] = _data; return AssemblyItem(PushString, h); }
+	/// Mark this assembly as invalid. Calling ``assemble`` on it will throw.
+	void markAsInvalid() { m_invalid = true; }
 
-	void append(Assembly const& _a);
-	void append(Assembly const& _a, int _deposit);
-
-	void injectStart(AssemblyItem const& _i);
-
-	AssemblyItem const& back() const { return m_items.back(); }
-	std::string backString() const { return m_items.size() && m_items.back().type() == PushString ? m_strings.at((h256)m_items.back().data()) : std::string(); }
+	std::vector<size_t> decodeSubPath(size_t _subObjectId) const;
+	size_t encodeSubPath(std::vector<size_t> const& _subPath);
 
 protected:
 	/// Does the same operations as @a optimise, but should only be applied to a sub and
@@ -160,20 +158,36 @@ protected:
 	unsigned bytesRequired(unsigned subTagSize) const;
 
 private:
-	static Json::Value createJsonValue(std::string _name, int _begin, int _end, std::string _value = std::string(), std::string _jumpType = std::string());
+	static Json::Value createJsonValue(
+		std::string _name,
+		int _source,
+		int _begin,
+		int _end,
+		std::string _value = std::string(),
+		std::string _jumpType = std::string()
+	);
 	static std::string toStringInHex(u256 _value);
+
+	bool m_invalid = false;
+
+	Assembly const* subAssemblyById(size_t _subId) const;
 
 protected:
 	/// 0 is reserved for exception
 	unsigned m_usedTags = 1;
 	std::map<std::string, size_t> m_namedTags;
 	AssemblyItems m_items;
-	std::map<h256, bytes> m_data;
+	std::map<util::h256, bytes> m_data;
 	/// Data that is appended to the very end of the contract.
 	bytes m_auxiliaryData;
 	std::vector<std::shared_ptr<Assembly>> m_subs;
-	std::map<h256, std::string> m_strings;
-	std::map<h256, std::string> m_libraries; ///< Identifiers of libraries to be linked.
+	std::map<util::h256, std::string> m_strings;
+	std::map<util::h256, std::string> m_libraries; ///< Identifiers of libraries to be linked.
+	std::map<util::h256, std::string> m_immutables; ///< Identifiers of immutables.
+
+	/// Map from a vector representing a path to a particular sub assembly to sub assembly id.
+	/// This map is used only for sub-assemblies which are not direct sub-assemblies (where path is having more than one value).
+	std::map<std::vector<size_t>, size_t> m_subPaths;
 
 	mutable LinkerObject m_assembledObject;
 	mutable std::vector<size_t> m_tagPositionsInBytecode;
@@ -181,6 +195,8 @@ protected:
 	int m_deposit = 0;
 
 	langutil::SourceLocation m_currentSourceLocation;
+public:
+	size_t m_currentModifierDepth = 0;
 };
 
 inline std::ostream& operator<<(std::ostream& _out, Assembly const& _a)
@@ -189,5 +205,4 @@ inline std::ostream& operator<<(std::ostream& _out, Assembly const& _a)
 	return _out;
 }
 
-}
 }

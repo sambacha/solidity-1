@@ -1,20 +1,20 @@
 pragma experimental SMTChecker;
 contract F {
 	uint a;
-	constructor(uint x) public {
+	constructor(uint x) {
 		a = x;
 	}
 }
 
-contract E is F {}
-contract D is E {
-	constructor() public {
+abstract contract E is F {}
+abstract contract D is E {
+	constructor() {
 		a = 3;
 	}
 }
-contract C is D {}
+abstract contract C is D {}
 contract B is C {
-	constructor() F(1) public {
+	constructor() F(1) {
 		assert(a == 3);
 		assert(a == 2);
 	}
@@ -23,5 +23,4 @@ contract B is C {
 contract A is B {
 }
 // ----
-// Warning: (260-274): Assertion violation happens here
-// Warning: (260-274): Assertion violation happens here
+// Warning 6328: (266-280): Assertion violation happens here

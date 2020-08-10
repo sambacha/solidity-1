@@ -22,24 +22,20 @@
 
 #include <test/libsolidity/AnalysisFramework.h>
 
-#include <test/Options.h>
+#include <test/Common.h>
 
 #include <libsolidity/ast/AST.h>
 
-#include <libdevcore/Keccak256.h>
+#include <libsolutil/Keccak256.h>
 
 #include <boost/test/unit_test.hpp>
 
 #include <string>
 
 using namespace std;
-using namespace langutil;
+using namespace solidity::langutil;
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+namespace solidity::frontend::test
 {
 
 BOOST_FIXTURE_TEST_SUITE(SolidityNameAndTypeResolution, AnalysisFramework)
@@ -48,15 +44,15 @@ BOOST_AUTO_TEST_CASE(function_no_implementation)
 {
 	SourceUnit const* sourceUnit = nullptr;
 	char const* text = R"(
-		contract test {
-			function functionName(bytes32 input) public returns (bytes32 out);
+		abstract contract test {
+			function functionName(bytes32 input) public virtual returns (bytes32 out);
 		}
 	)";
 	sourceUnit = parseAndAnalyse(text);
 	std::vector<ASTPointer<ASTNode>> nodes = sourceUnit->nodes();
 	ContractDefinition* contract = dynamic_cast<ContractDefinition*>(nodes[1].get());
 	BOOST_REQUIRE(contract);
-	BOOST_CHECK(!contract->annotation().unimplementedFunctions.empty());
+	BOOST_CHECK(!contract->annotation().unimplementedDeclarations.empty());
 	BOOST_CHECK(!contract->definedFunctions()[0]->isImplemented());
 }
 
@@ -64,18 +60,18 @@ BOOST_AUTO_TEST_CASE(abstract_contract)
 {
 	SourceUnit const* sourceUnit = nullptr;
 	char const* text = R"(
-		contract base { function foo() public; }
-		contract derived is base { function foo() public {} }
+		abstract contract base { function foo() public virtual; }
+		contract derived is base { function foo() public override {} }
 	)";
 	sourceUnit = parseAndAnalyse(text);
 	std::vector<ASTPointer<ASTNode>> nodes = sourceUnit->nodes();
 	ContractDefinition* base = dynamic_cast<ContractDefinition*>(nodes[1].get());
 	ContractDefinition* derived = dynamic_cast<ContractDefinition*>(nodes[2].get());
 	BOOST_REQUIRE(base);
-	BOOST_CHECK(!base->annotation().unimplementedFunctions.empty());
+	BOOST_CHECK(!base->annotation().unimplementedDeclarations.empty());
 	BOOST_CHECK(!base->definedFunctions()[0]->isImplemented());
 	BOOST_REQUIRE(derived);
-	BOOST_CHECK(derived->annotation().unimplementedFunctions.empty());
+	BOOST_CHECK(derived->annotation().unimplementedDeclarations.empty());
 	BOOST_CHECK(derived->definedFunctions()[0]->isImplemented());
 }
 
@@ -83,32 +79,32 @@ BOOST_AUTO_TEST_CASE(abstract_contract_with_overload)
 {
 	SourceUnit const* sourceUnit = nullptr;
 	char const* text = R"(
-		contract base { function foo(bool) public; }
-		contract derived is base { function foo(uint) public {} }
+		abstract contract base { function foo(bool) public virtual; }
+		abstract contract derived is base { function foo(uint) public {} }
 	)";
 	sourceUnit = parseAndAnalyse(text);
 	std::vector<ASTPointer<ASTNode>> nodes = sourceUnit->nodes();
 	ContractDefinition* base = dynamic_cast<ContractDefinition*>(nodes[1].get());
 	ContractDefinition* derived = dynamic_cast<ContractDefinition*>(nodes[2].get());
 	BOOST_REQUIRE(base);
-	BOOST_CHECK(!base->annotation().unimplementedFunctions.empty());
+	BOOST_CHECK(!base->annotation().unimplementedDeclarations.empty());
 	BOOST_REQUIRE(derived);
-	BOOST_CHECK(!derived->annotation().unimplementedFunctions.empty());
+	BOOST_CHECK(!derived->annotation().unimplementedDeclarations.empty());
 }
 
 BOOST_AUTO_TEST_CASE(implement_abstract_via_constructor)
 {
 	SourceUnit const* sourceUnit = nullptr;
 	char const* text = R"(
-		contract base { function foo() public; }
-		contract foo is base { constructor() public {} }
+		abstract contract base { function foo() public virtual; }
+		abstract contract foo is base { constructor() {} }
 	)";
 	sourceUnit = parseAndAnalyse(text);
 	std::vector<ASTPointer<ASTNode>> nodes = sourceUnit->nodes();
 	BOOST_CHECK_EQUAL(nodes.size(), 3);
 	ContractDefinition* derived = dynamic_cast<ContractDefinition*>(nodes[2].get());
 	BOOST_REQUIRE(derived);
-	BOOST_CHECK(!derived->annotation().unimplementedFunctions.empty());
+	BOOST_CHECK(!derived->annotation().unimplementedDeclarations.empty());
 }
 
 BOOST_AUTO_TEST_CASE(function_canonical_signature)
@@ -356,8 +352,8 @@ BOOST_AUTO_TEST_CASE(string)
 BOOST_AUTO_TEST_CASE(dynamic_return_types_not_possible)
 {
 	char const* sourceCode = R"(
-		contract C {
-			function f(uint) public returns (string memory);
+		abstract contract C {
+			function f(uint) public virtual returns (string memory);
 			function g() public {
 				string memory x = this.f(2);
 				// we can assign to x but it is not usable.
@@ -365,7 +361,7 @@ BOOST_AUTO_TEST_CASE(dynamic_return_types_not_possible)
 			}
 		}
 	)";
-	if (dev::test::Options::get().evmVersion() == EVMVersion::homestead())
+	if (solidity::test::CommonOptions::get().evmVersion() == EVMVersion::homestead())
 		CHECK_ERROR(sourceCode, TypeError, "Type inaccessible dynamic type is not implicitly convertible to expected type string memory.");
 	else
 		CHECK_SUCCESS_NO_WARNINGS(sourceCode);
@@ -374,6 +370,7 @@ BOOST_AUTO_TEST_CASE(dynamic_return_types_not_possible)
 BOOST_AUTO_TEST_CASE(warn_nonpresent_pragma)
 {
 	char const* text = R"(
+		// SPDX-License-Identifier: GPL-3.0
 		contract C {}
 	)";
 	auto sourceAndError = parseAnalyseAndReturnError(text, true, false);
@@ -390,8 +387,11 @@ BOOST_AUTO_TEST_CASE(returndatasize_as_variable)
 	vector<pair<Error::Type, std::string>> expectations(vector<pair<Error::Type, std::string>>{
 		{Error::Type::Warning, "Variable is shadowed in inline assembly by an instruction of the same name"}
 	});
-	if (!dev::test::Options::get().evmVersion().supportsReturndata())
+	if (!solidity::test::CommonOptions::get().evmVersion().supportsReturndata())
+	{
 		expectations.emplace_back(make_pair(Error::Type::TypeError, std::string("\"returndatasize\" instruction is only available for Byzantium-compatible VMs")));
+		expectations.emplace_back(make_pair(Error::Type::TypeError, std::string("Expected expression to evaluate to one value, but got 0 values instead.")));
+	}
 	CHECK_ALLOW_MULTI(text, expectations);
 }
 
@@ -405,8 +405,11 @@ BOOST_AUTO_TEST_CASE(create2_as_variable)
 	vector<pair<Error::Type, std::string>> expectations(vector<pair<Error::Type, std::string>>{
 		{Error::Type::Warning, "Variable is shadowed in inline assembly by an instruction of the same name"}
 	});
-	if (!dev::test::Options::get().evmVersion().hasCreate2())
+	if (!solidity::test::CommonOptions::get().evmVersion().hasCreate2())
+	{
 		expectations.emplace_back(make_pair(Error::Type::TypeError, std::string("\"create2\" instruction is only available for Constantinople-compatible VMs")));
+		expectations.emplace_back(make_pair(Error::Type::TypeError, std::string("Expected expression to evaluate to one value, but got 0 values instead.")));
+	}
 	CHECK_ALLOW_MULTI(text, expectations);
 }
 
@@ -420,8 +423,11 @@ BOOST_AUTO_TEST_CASE(extcodehash_as_variable)
 	vector<pair<Error::Type, std::string>> expectations(vector<pair<Error::Type, std::string>>{
 		{Error::Type::Warning, "Variable is shadowed in inline assembly by an instruction of the same name"}
 	});
-	if (!dev::test::Options::get().evmVersion().hasExtCodeHash())
+	if (!solidity::test::CommonOptions::get().evmVersion().hasExtCodeHash())
+	{
 		expectations.emplace_back(make_pair(Error::Type::TypeError, std::string("\"extcodehash\" instruction is only available for Constantinople-compatible VMs")));
+		expectations.emplace_back(make_pair(Error::Type::TypeError, std::string("Expected expression to evaluate to one value, but got 0 values instead.")));
+	}
 	CHECK_ALLOW_MULTI(text, expectations);
 }
 
@@ -456,7 +462,7 @@ BOOST_AUTO_TEST_CASE(address_staticcall)
 		}
 	)";
 
-	if (dev::test::Options::get().evmVersion().hasStaticCall())
+	if (solidity::test::CommonOptions::get().evmVersion().hasStaticCall())
 		CHECK_SUCCESS_NO_WARNINGS(sourceCode);
 	else
 		CHECK_ERROR(sourceCode, TypeError, "\"staticcall\" is not supported by the VM version.");
@@ -464,7 +470,7 @@ BOOST_AUTO_TEST_CASE(address_staticcall)
 
 BOOST_AUTO_TEST_CASE(address_staticcall_value)
 {
-	if (dev::test::Options::get().evmVersion().hasStaticCall())
+	if (solidity::test::CommonOptions::get().evmVersion().hasStaticCall())
 	{
 		char const* sourceCode = R"(
 			contract C {
@@ -488,7 +494,7 @@ BOOST_AUTO_TEST_CASE(address_call_full_return_type)
 		}
 	)";
 
-	if (dev::test::Options::get().evmVersion().supportsReturndata())
+	if (solidity::test::CommonOptions::get().evmVersion().supportsReturndata())
 		CHECK_SUCCESS_NO_WARNINGS(sourceCode);
 	else
 		CHECK_ERROR(sourceCode, TypeError, "Type inaccessible dynamic type is not implicitly convertible to expected type bytes memory.");
@@ -505,7 +511,7 @@ BOOST_AUTO_TEST_CASE(address_delegatecall_full_return_type)
 		}
 	)";
 
-	if (dev::test::Options::get().evmVersion().supportsReturndata())
+	if (solidity::test::CommonOptions::get().evmVersion().supportsReturndata())
 		CHECK_SUCCESS_NO_WARNINGS(sourceCode);
 	else
 		CHECK_ERROR(sourceCode, TypeError, "Type inaccessible dynamic type is not implicitly convertible to expected type bytes memory.");
@@ -514,7 +520,7 @@ BOOST_AUTO_TEST_CASE(address_delegatecall_full_return_type)
 
 BOOST_AUTO_TEST_CASE(address_staticcall_full_return_type)
 {
-	if (dev::test::Options::get().evmVersion().hasStaticCall())
+	if (solidity::test::CommonOptions::get().evmVersion().hasStaticCall())
 	{
 		char const* sourceCode = R"(
 			contract C {
@@ -531,6 +537,4 @@ BOOST_AUTO_TEST_CASE(address_staticcall_full_return_type)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
-}
 } // end namespaces

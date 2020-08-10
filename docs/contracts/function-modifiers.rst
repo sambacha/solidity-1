@@ -6,16 +6,22 @@
 Function Modifiers
 ******************
 
-Modifiers can be used to easily change the behaviour of functions.  For example,
-they can automatically check a condition prior to executing the function. Modifiers are
-inheritable properties of contracts and may be overridden by derived contracts.
+Modifiers can be used to change the behaviour of functions in a declarative way.
+For example,
+you can use a modifier to automatically check a condition prior to executing the function.
+
+Modifiers are
+inheritable properties of contracts and may be overridden by derived contracts, but only
+if they are marked ``virtual``. For details, please see
+:ref:`Modifier Overriding <modifier-overriding>`.
 
 ::
 
-    pragma solidity >=0.5.0 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >0.6.99 <0.8.0;
 
     contract owned {
-        constructor() public { owner = msg.sender; }
+        constructor() { owner = msg.sender; }
         address payable owner;
 
         // This contract only defines a modifier but does not use
@@ -34,12 +40,12 @@ inheritable properties of contracts and may be overridden by derived contracts.
         }
     }
 
-    contract mortal is owned {
+    contract destructible is owned {
         // This contract inherits the `onlyOwner` modifier from
-        // `owned` and applies it to the `close` function, which
-        // causes that calls to `close` only have an effect if
+        // `owned` and applies it to the `destroy` function, which
+        // causes that calls to `destroy` only have an effect if
         // they are made by the stored owner.
-        function close() public onlyOwner {
+        function destroy() public onlyOwner {
             selfdestruct(owner);
         }
     }
@@ -53,11 +59,11 @@ inheritable properties of contracts and may be overridden by derived contracts.
         }
     }
 
-    contract Register is priced, owned {
+    contract Register is priced, destructible {
         mapping (address => bool) registeredAddresses;
         uint price;
 
-        constructor(uint initialPrice) public { price = initialPrice; }
+        constructor(uint initialPrice) { price = initialPrice; }
 
         // It is important to also provide the
         // `payable` keyword here, otherwise the function will

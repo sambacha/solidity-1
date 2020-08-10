@@ -15,6 +15,7 @@
     {
       "attributes":
       {
+        "abstract": false,
         "baseContracts":
         [
           null
@@ -24,7 +25,6 @@
           null
         ],
         "contractKind": "contract",
-        "documentation": null,
         "fullyImplemented": true,
         "linearizedBaseContracts":
         [
@@ -38,8 +38,8 @@
         {
           "attributes":
           {
-            "documentation": null,
             "name": "M",
+            "virtual": false,
             "visibility": "internal"
           },
           "children":
@@ -51,12 +51,12 @@
                   "attributes":
                   {
                     "constant": false,
+                    "mutability": "mutable",
                     "name": "i",
                     "scope": 6,
                     "stateVariable": false,
                     "storageLocation": "default",
                     "type": "uint256",
-                    "value": null,
                     "visibility": "internal"
                   },
                   "children":
@@ -102,14 +102,14 @@
         {
           "attributes":
           {
-            "documentation": null,
+            "functionSelector": "28811f59",
             "implemented": true,
             "isConstructor": false,
             "kind": "function",
             "name": "F",
             "scope": 14,
             "stateMutability": "nonpayable",
-            "superFunction": null,
+            "virtual": false,
             "visibility": "public"
           },
           "children":
@@ -146,7 +146,6 @@
                 {
                   "attributes":
                   {
-                    "argumentTypes": null,
                     "overloadedDeclarations":
                     [
                       null
@@ -162,13 +161,11 @@
                 {
                   "attributes":
                   {
-                    "argumentTypes": null,
                     "hexvalue": "31",
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": true,
                     "lValueRequested": false,
-                    "subdenomination": null,
                     "token": "number",
                     "type": "int_const 1",
                     "value": "1"

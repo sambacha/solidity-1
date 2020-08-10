@@ -14,24 +14,25 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Small useful snippets for the optimiser.
  */
 
 #pragma once
 
-#include <libdevcore/Common.h>
+#include <libsolutil/Common.h>
 #include <libyul/AsmDataForward.h>
 
-namespace yul
+namespace solidity::yul
 {
 
 std::string reindent(std::string const& _code);
 
-dev::u256 valueOfNumberLiteral(Literal const& _literal);
-dev::u256 valueOfStringLiteral(Literal const& _literal);
-dev::u256 valueOfBoolLiteral(Literal const& _literal);
-dev::u256 valueOfLiteral(Literal const& _literal);
+u256 valueOfNumberLiteral(Literal const& _literal);
+u256 valueOfStringLiteral(Literal const& _literal);
+u256 valueOfBoolLiteral(Literal const& _literal);
+u256 valueOfLiteral(Literal const& _literal);
 
 /**
  * Linear order on Yul AST nodes.

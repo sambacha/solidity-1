@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Generic AST walker.
  */
@@ -25,13 +26,9 @@
 #include <boost/range/adaptor/reversed.hpp>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
-
-void ASTWalker::operator()(FunctionalInstruction const& _instr)
-{
-	walkVector(_instr.arguments | boost::adaptors::reversed);
-}
+using namespace solidity;
+using namespace solidity::yul;
+using namespace solidity::util;
 
 void ASTWalker::operator()(FunctionCall const& _funCall)
 {
@@ -102,11 +99,6 @@ void ASTWalker::visit(Expression const& _e)
 	std::visit(*this, _e);
 }
 
-void ASTModifier::operator()(FunctionalInstruction& _instr)
-{
-	walkVector(_instr.arguments | boost::adaptors::reversed);
-}
-
 void ASTModifier::operator()(FunctionCall& _funCall)
 {
 	// Does not visit _funCall.functionName on purpose
@@ -166,6 +158,10 @@ void ASTModifier::operator()(Break&)
 }
 
 void ASTModifier::operator()(Continue&)
+{
+}
+
+void ASTModifier::operator()(Leave&)
 {
 }
 

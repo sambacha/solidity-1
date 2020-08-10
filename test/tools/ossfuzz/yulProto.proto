@@ -14,11 +14,16 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 
 syntax = "proto2";
 
 message VarDecl {
   required Expression expr = 1;
+}
+
+message MultiVarDecl {
+  required uint32 num_vars = 1;
 }
 
 message LowLevelCall {
@@ -100,6 +105,7 @@ message Literal {
     uint64 intval = 1;
     string hexval = 2;
     string strval = 3;
+    bool boolval = 4;
   }
 }
 
@@ -173,7 +179,7 @@ message UnaryOpData {
     OFFSET = 2;
   }
   required UOpData op = 1;
-  required ObjectId identifier = 2;
+  required uint64 identifier = 2;
 }
 
 message TernaryOp {
@@ -207,38 +213,25 @@ message ExtCodeCopy {
   required Expression size = 4;
 }
 
-message ObjectId {
-  required uint64 id = 1;
-}
-
-message DataSize {
-  required ObjectId identifier = 1;
-}
-
-message DataOffset {
-  required ObjectId identifier = 1;
-}
-
 message NullaryOp {
   enum NOp {
-    PC = 1;
-    MSIZE = 2;
-    GAS = 3;
-    CALLDATASIZE = 4;
-    CODESIZE = 5;
-    RETURNDATASIZE = 6;
-    ADDRESS = 7;
-    ORIGIN = 8;
-    CALLER = 9;
-    CALLVALUE = 10;
-    GASPRICE = 11;
-    COINBASE = 12;
-    TIMESTAMP = 13;
-    NUMBER = 14;
-    DIFFICULTY = 15;
-    GASLIMIT = 16;
-    SELFBALANCE = 17;
-    CHAINID = 18;
+    MSIZE = 1;
+    GAS = 2;
+    CALLDATASIZE = 3;
+    CODESIZE = 4;
+    RETURNDATASIZE = 5;
+    ADDRESS = 6;
+    ORIGIN = 7;
+    CALLER = 8;
+    CALLVALUE = 9;
+    GASPRICE = 10;
+    COINBASE = 11;
+    TIMESTAMP = 12;
+    NUMBER = 13;
+    DIFFICULTY = 14;
+    GASLIMIT = 15;
+    SELFBALANCE = 16;
+    CHAINID = 17;
   }
   required NOp op = 1;
 }
@@ -355,11 +348,14 @@ message FunctionDef {
   required uint32 num_input_params = 1;
   required uint32 num_output_params = 2;
   required Block block = 3;
+  required bool force_call = 4;
 }
 
 message PopStmt {
   required Expression expr = 1;
 }
+
+message LeaveStmt {}
 
 message Statement {
   oneof stmt_oneof {
@@ -380,6 +376,8 @@ message Statement {
     BoundedForStmt      boundedforstmt  = 15;
     FunctionDef         funcdef         = 16;
     PopStmt             pop             = 17;
+    LeaveStmt           leave           = 18;
+    MultiVarDecl        multidecl       = 19;
   }
 }
 
@@ -390,7 +388,7 @@ message Block {
 message Object {
   required Code code = 1;
   optional Data data = 2;
-  optional Object sub_obj = 3;
+  repeated Object sub_obj = 3;
 }
 
 message Code {
@@ -402,10 +400,21 @@ message Data {
 }
 
 message Program {
+  enum Version {
+    HOMESTEAD = 0;
+    TANGERINE = 1;
+    SPURIOUS = 2;
+    BYZANTIUM = 3;
+    CONSTANTINOPLE = 4;
+    PETERSBURG = 5;
+    ISTANBUL = 6;
+    BERLIN = 7;
+  }
   oneof program_oneof {
     Block block = 1;
     Object obj = 2;
   }
+  required Version ver = 3;
 }
 
-package yul.test.yul_fuzzer;
+package solidity.yul.test.yul_fuzzer;

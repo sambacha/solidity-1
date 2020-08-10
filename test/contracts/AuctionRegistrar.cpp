@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Christian <c@ethdev.com>
  * @date 2015
@@ -24,53 +25,53 @@
 #include <test/contracts/ContractInterface.h>
 #include <test/EVMHost.h>
 
+#include <libsolutil/LazyInit.h>
+
 #include <boost/test/unit_test.hpp>
 
 #include <string>
+#include <optional>
 
 using namespace std;
-using namespace dev::test;
+using namespace solidity;
+using namespace solidity::util;
+using namespace solidity::test;
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+namespace solidity::frontend::test
 {
 
 namespace
 {
-
 static char const* registrarCode = R"DELIMITER(
-pragma solidity >=0.4.0 <0.6.0;
+pragma solidity >=0.4.0 <0.8.0;
 
-contract NameRegister {
-	function addr(string memory _name) public view returns (address o_owner);
-	function name(address _owner) public view returns (string memory o_name);
+abstract contract NameRegister {
+	function addr(string memory _name) public virtual view returns (address o_owner);
+	function name(address _owner) public view virtual returns (string memory o_name);
 }
 
-contract Registrar is NameRegister {
+abstract contract Registrar is NameRegister {
 	event Changed(string indexed name);
 	event PrimaryChanged(string indexed name, address indexed addr);
 
-	function owner(string memory _name) public view returns (address o_owner);
-	function addr(string memory _name) public view returns (address o_address);
-	function subRegistrar(string memory _name) public view returns (address o_subRegistrar);
-	function content(string memory _name) public view returns (bytes32 o_content);
+	function owner(string memory _name) public view virtual returns (address o_owner);
+	function addr(string memory _name) public virtual override view returns (address o_address);
+	function subRegistrar(string memory _name) public virtual view returns (address o_subRegistrar);
+	function content(string memory _name) public virtual view returns (bytes32 o_content);
 
-	function name(address _owner) public view returns (string memory o_name);
+	function name(address _owner) public virtual override view returns (string memory o_name);
 }
 
-contract AuctionSystem {
+abstract contract AuctionSystem {
 	event AuctionEnded(string indexed _name, address _winner);
 	event NewBid(string indexed _name, address _bidder, uint _value);
 
 	/// Function that is called once an auction ends.
-	function onAuctionEnd(string memory _name) internal;
+	function onAuctionEnd(string memory _name) internal virtual;
 
 	function bid(string memory _name, address payable _bidder, uint _value) internal {
 		Auction storage auction = m_auctions[_name];
-		if (auction.endDate > 0 && now > auction.endDate)
+		if (auction.endDate > 0 && block.timestamp > auction.endDate)
 		{
 			emit AuctionEnded(_name, auction.highestBidder);
 			onAuctionEnd(_name);
@@ -84,7 +85,7 @@ contract AuctionSystem {
 			auction.sumOfBids += _value;
 			auction.highestBid = _value;
 			auction.highestBidder = _bidder;
-			auction.endDate = now + c_biddingTime;
+			auction.endDate = block.timestamp + c_biddingTime;
 
 			emit NewBid(_name, _bidder, _value);
 		}
@@ -114,15 +115,15 @@ contract GlobalRegistrar is Registrar, AuctionSystem {
 	uint constant c_renewalInterval = 365 days;
 	uint constant c_freeBytes = 12;
 
-	constructor() public {
+	constructor() {
 		// TODO: Populate with hall-of-fame.
 	}
 
-	function onAuctionEnd(string memory _name) internal {
+	function onAuctionEnd(string memory _name) internal override {
 		Auction storage auction = m_auctions[_name];
 		Record storage record = m_toRecord[_name];
 		address previousOwner = record.owner;
-		record.renewalDate = now + c_renewalInterval;
+		record.renewalDate = block.timestamp + c_renewalInterval;
 		record.owner = auction.highestBidder;
 		emit Changed(_name);
 		if (previousOwner != 0x0000000000000000000000000000000000000000) {
@@ -140,7 +141,7 @@ contract GlobalRegistrar is Registrar, AuctionSystem {
 		bool needAuction = requiresAuction(_name);
 		if (needAuction)
 		{
-			if (now < m_toRecord[_name].renewalDate)
+			if (block.timestamp < m_toRecord[_name].renewalDate)
 				revert();
 			bid(_name, msg.sender, msg.value);
 		} else {
@@ -203,28 +204,29 @@ contract GlobalRegistrar is Registrar, AuctionSystem {
 		return true;
 	}
 
-	function owner(string memory _name) public view returns (address) { return m_toRecord[_name].owner; }
-	function addr(string memory _name) public view returns (address) { return m_toRecord[_name].primary; }
-	function subRegistrar(string memory _name) public view returns (address) { return m_toRecord[_name].subRegistrar; }
-	function content(string memory _name) public view returns (bytes32) { return m_toRecord[_name].content; }
-	function name(address _addr) public view returns (string memory o_name) { return m_toName[_addr]; }
+	function owner(string memory _name) public override view returns (address) { return m_toRecord[_name].owner; }
+	function addr(string memory _name) public override view returns (address) { return m_toRecord[_name].primary; }
+	function subRegistrar(string memory _name) public override view returns (address) { return m_toRecord[_name].subRegistrar; }
+	function content(string memory _name) public override view returns (bytes32) { return m_toRecord[_name].content; }
+	function name(address _addr) public override view returns (string memory o_name) { return m_toName[_addr]; }
 
 	mapping (address => string) m_toName;
 	mapping (string => Record) m_toRecord;
 }
 )DELIMITER";
 
-static unique_ptr<bytes> s_compiledRegistrar;
+static LazyInit<bytes> s_compiledRegistrar;
 
 class AuctionRegistrarTestFramework: public SolidityExecutionFramework
 {
 protected:
 	void deployRegistrar()
 	{
-		if (!s_compiledRegistrar)
-			s_compiledRegistrar = make_unique<bytes>(compileContract(registrarCode, "GlobalRegistrar"));
+		bytes const& compiled = s_compiledRegistrar.init([&]{
+			return compileContract(registrarCode, "GlobalRegistrar");
+		});
 
-		sendMessage(*s_compiledRegistrar, true);
+		sendMessage(compiled, true);
 		BOOST_REQUIRE(m_transactionSuccessful);
 		BOOST_REQUIRE(!m_output.empty());
 	}
@@ -455,6 +457,4 @@ BOOST_AUTO_TEST_CASE(auction_bidding)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
-}
 } // end namespaces

@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Lefteris <lefteris@ethdev.com>
  * @date 2015
@@ -34,14 +35,12 @@
 #include <stack>
 #include <vector>
 
-namespace langutil
+namespace solidity::langutil
 {
 struct SourceLocation;
 }
 
-namespace dev
-{
-namespace solidity
+namespace solidity::frontend
 {
 
 /**
@@ -81,6 +80,7 @@ public:
 	bool visit(EnumDefinition const& _node) override;
 	bool visit(EnumValue const& _node) override;
 	bool visit(ParameterList const& _node) override;
+	bool visit(OverrideSpecifier const& _node) override;
 	bool visit(FunctionDefinition const& _node) override;
 	bool visit(VariableDeclaration const& _node) override;
 	bool visit(ModifierDefinition const& _node) override;
@@ -95,6 +95,8 @@ public:
 	bool visit(Block const& _node) override;
 	bool visit(PlaceholderStatement const& _node) override;
 	bool visit(IfStatement const& _node) override;
+	bool visit(TryCatchClause const& _node) override;
+	bool visit(TryStatement const& _node) override;
 	bool visit(WhileStatement const& _node) override;
 	bool visit(ForStatement const& _node) override;
 	bool visit(Continue const& _node) override;
@@ -110,12 +112,15 @@ public:
 	bool visit(UnaryOperation const& _node) override;
 	bool visit(BinaryOperation const& _node) override;
 	bool visit(FunctionCall const& _node) override;
+	bool visit(FunctionCallOptions const& _node) override;
 	bool visit(NewExpression const& _node) override;
 	bool visit(MemberAccess const& _node) override;
 	bool visit(IndexAccess const& _node) override;
+	bool visit(IndexRangeAccess const& _node) override;
 	bool visit(Identifier const& _node) override;
 	bool visit(ElementaryTypeNameExpression const& _node) override;
 	bool visit(Literal const& _node) override;
+	bool visit(StructuredDocumentation const& _node) override;
 
 	void endVisit(EventDefinition const&) override;
 
@@ -130,6 +135,7 @@ private:
 		std::string const& _nodeName,
 		std::vector<std::pair<std::string, Json::Value>>&& _attributes
 	);
+	size_t sourceIndexFromLocation(langutil::SourceLocation const& _location) const;
 	std::string sourceLocationToString(langutil::SourceLocation const& _location) const;
 	static std::string namePathToString(std::vector<ASTString> const& _namePath);
 	static Json::Value idOrNull(ASTNode const* _pt)
@@ -142,7 +148,7 @@ private:
 	}
 	Json::Value inlineAssemblyIdentifierToJson(std::pair<yul::Identifier const* , InlineAssemblyAnnotation::ExternalIdentifierInfo> _info) const;
 	static std::string location(VariableDeclaration::Location _location);
-	static std::string contractKind(ContractDefinition::ContractKind _kind);
+	static std::string contractKind(ContractKind _kind);
 	static std::string functionCallKind(FunctionCallKind _kind);
 	static std::string literalTokenKind(Token _token);
 	static std::string type(Expression const& _expression);
@@ -188,5 +194,4 @@ private:
 	std::map<std::string, unsigned> m_sourceIndices;
 };
 
-}
 }

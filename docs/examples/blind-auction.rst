@@ -4,12 +4,10 @@
 Blind Auction
 *************
 
-In this section, we will show how easy it is to create a
-completely blind auction contract on Ethereum.
-We will start with an open auction where everyone
-can see the bids that are made and then extend this
-contract into a blind auction where it is not
-possible to see the actual bid until the bidding
+In this section, we will show how easy it is to create a completely blind
+auction contract on Ethereum.  We will start with an open auction where
+everyone can see the bids that are made and then extend this contract into a
+blind auction where it is not possible to see the actual bid until the bidding
 period ends.
 
 .. _simple_auction:
@@ -17,20 +15,17 @@ period ends.
 Simple Open Auction
 ===================
 
-The general idea of the following simple auction contract
-is that everyone can send their bids during
-a bidding period. The bids already include sending
-money / ether in order to bind the bidders to their
-bid. If the highest bid is raised, the previously
-highest bidder gets her money back.
-After the end of the bidding period, the
-contract has to be called manually for the
-beneficiary to receive their money - contracts cannot
-activate themselves.
+The general idea of the following simple auction contract is that everyone can
+send their bids during a bidding period. The bids already include sending money
+/ Ether in order to bind the bidders to their bid. If the highest bid is
+raised, the previously highest bidder gets their money back.  After the end of
+the bidding period, the contract has to be called manually for the beneficiary
+to receive their money - contracts cannot activate themselves.
 
 ::
 
-    pragma solidity >=0.4.22 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >0.6.99 <0.8.0;
 
     contract SimpleAuction {
         // Parameters of the auction. Times are either
@@ -65,9 +60,9 @@ activate themselves.
         constructor(
             uint _biddingTime,
             address payable _beneficiary
-        ) public {
+        ) {
             beneficiary = _beneficiary;
-            auctionEndTime = now + _biddingTime;
+            auctionEndTime = block.timestamp + _biddingTime;
         }
 
         /// Bid on the auction with the value sent
@@ -84,12 +79,15 @@ activate themselves.
             // Revert the call if the bidding
             // period is over.
             require(
-                now <= auctionEndTime,
+                block.timestamp <= auctionEndTime,
                 "Auction already ended."
             );
 
             // If the bid is not higher, send the
-            // money back.
+            // money back (the failing require
+            // will revert all changes in this
+            // function execution including
+            // it having received the money).
             require(
                 msg.value > highestBid,
                 "There already is a higher bid."
@@ -143,7 +141,7 @@ activate themselves.
             // external contracts.
 
             // 1. Conditions
-            require(now >= auctionEndTime, "Auction not yet ended.");
+            require(block.timestamp >= auctionEndTime, "Auction not yet ended.");
             require(!ended, "auctionEnd has already been called.");
 
             // 2. Effects
@@ -158,43 +156,37 @@ activate themselves.
 Blind Auction
 =============
 
-The previous open auction is extended to a blind auction
-in the following. The advantage of a blind auction is
-that there is no time pressure towards the end of
-the bidding period. Creating a blind auction on a
-transparent computing platform might sound like a
-contradiction, but cryptography comes to the rescue.
+The previous open auction is extended to a blind auction in the following. The
+advantage of a blind auction is that there is no time pressure towards the end
+of the bidding period. Creating a blind auction on a transparent computing
+platform might sound like a contradiction, but cryptography comes to the
+rescue.
 
-During the **bidding period**, a bidder does not
-actually send her bid, but only a hashed version of it.
-Since it is currently considered practically impossible
-to find two (sufficiently long) values whose hash
-values are equal, the bidder commits to the bid by that.
-After the end of the bidding period, the bidders have
-to reveal their bids: They send their values
-unencrypted and the contract checks that the hash value
-is the same as the one provided during the bidding period.
+During the **bidding period**, a bidder does not actually send their bid, but
+only a hashed version of it.  Since it is currently considered practically
+impossible to find two (sufficiently long) values whose hash values are equal,
+the bidder commits to the bid by that.  After the end of the bidding period,
+the bidders have to reveal their bids: They send their values unencrypted and
+the contract checks that the hash value is the same as the one provided during
+the bidding period.
 
-Another challenge is how to make the auction
-**binding and blind** at the same time: The only way to
-prevent the bidder from just not sending the money
-after they won the auction is to make her send it
-together with the bid. Since value transfers cannot
-be blinded in Ethereum, anyone can see the value.
+Another challenge is how to make the auction **binding and blind** at the same
+time: The only way to prevent the bidder from just not sending the money after
+they won the auction is to make them send it together with the bid. Since value
+transfers cannot be blinded in Ethereum, anyone can see the value.
 
-The following contract solves this problem by
-accepting any value that is larger than the highest
-bid. Since this can of course only be checked during
-the reveal phase, some bids might be **invalid**, and
-this is on purpose (it even provides an explicit
-flag to place invalid bids with high value transfers):
-Bidders can confuse competition by placing several
-high or low invalid bids.
+The following contract solves this problem by accepting any value that is
+larger than the highest bid. Since this can of course only be checked during
+the reveal phase, some bids might be **invalid**, and this is on purpose (it
+even provides an explicit flag to place invalid bids with high value
+transfers): Bidders can confuse competition by placing several high or low
+invalid bids.
 
 
 ::
 
-    pragma solidity >0.4.23 <0.7.0;
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >0.6.99 <0.8.0;
 
     contract BlindAuction {
         struct Bid {
@@ -221,16 +213,16 @@ high or low invalid bids.
         /// functions. `onlyBefore` is applied to `bid` below:
         /// The new function body is the modifier's body where
         /// `_` is replaced by the old function body.
-        modifier onlyBefore(uint _time) { require(now < _time); _; }
-        modifier onlyAfter(uint _time) { require(now > _time); _; }
+        modifier onlyBefore(uint _time) { require(block.timestamp < _time); _; }
+        modifier onlyAfter(uint _time) { require(block.timestamp > _time); _; }
 
         constructor(
             uint _biddingTime,
             uint _revealTime,
             address payable _beneficiary
-        ) public {
+        ) {
             beneficiary = _beneficiary;
-            biddingEnd = now + _biddingTime;
+            biddingEnd = block.timestamp + _biddingTime;
             revealEnd = biddingEnd + _revealTime;
         }
 
@@ -293,24 +285,6 @@ high or low invalid bids.
             msg.sender.transfer(refund);
         }
 
-        // This is an "internal" function which means that it
-        // can only be called from the contract itself (or from
-        // derived contracts).
-        function placeBid(address bidder, uint value) internal
-                returns (bool success)
-        {
-            if (value <= highestBid) {
-                return false;
-            }
-            if (highestBidder != address(0)) {
-                // Refund the previously highest bidder.
-                pendingReturns[highestBidder] += highestBid;
-            }
-            highestBid = value;
-            highestBidder = bidder;
-            return true;
-        }
-
         /// Withdraw a bid that was overbid.
         function withdraw() public {
             uint amount = pendingReturns[msg.sender];
@@ -335,5 +309,23 @@ high or low invalid bids.
             emit AuctionEnded(highestBidder, highestBid);
             ended = true;
             beneficiary.transfer(highestBid);
+        }
+
+        // This is an "internal" function which means that it
+        // can only be called from the contract itself (or from
+        // derived contracts).
+        function placeBid(address bidder, uint value) internal
+                returns (bool success)
+        {
+            if (value <= highestBid) {
+                return false;
+            }
+            if (highestBidder != address(0)) {
+                // Refund the previously highest bidder.
+                pendingReturns[highestBidder] += highestBid;
+            }
+            highestBid = value;
+            highestBidder = bidder;
+            return true;
         }
     }

@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /** @file AssemblyItem.h
  * @author Gav Wood <i@gavwood.com>
  * @date 2014
@@ -24,14 +25,12 @@
 #include <libevmasm/Instruction.h>
 #include <libevmasm/Exceptions.h>
 #include <liblangutil/SourceLocation.h>
-#include <libdevcore/Common.h>
-#include <libdevcore/Assertions.h>
+#include <libsolutil/Common.h>
+#include <libsolutil/Assertions.h>
 #include <iostream>
 #include <sstream>
 
-namespace dev
-{
-namespace eth
+namespace solidity::evmasm
 {
 
 enum AssemblyItemType {
@@ -46,10 +45,14 @@ enum AssemblyItemType {
 	Tag,
 	PushData,
 	PushLibraryAddress, ///< Push a currently unknown address of another (library) contract.
-	PushDeployTimeAddress ///< Push an address to be filled at deploy time. Should not be touched by the optimizer.
+	PushDeployTimeAddress, ///< Push an address to be filled at deploy time. Should not be touched by the optimizer.
+	PushImmutable, ///< Push the currently unknown value of an immutable variable. The actual value will be filled in by the constructor.
+	AssignImmutable ///< Assigns the current value on the stack to an immutable variable. Only valid during creation code.
 };
 
 class Assembly;
+class AssemblyItem;
+using AssemblyItems = std::vector<AssemblyItem>;
 
 class AssemblyItem
 {
@@ -77,8 +80,8 @@ public:
 	AssemblyItem& operator=(AssemblyItem const&) = default;
 	AssemblyItem& operator=(AssemblyItem&&) = default;
 
-	AssemblyItem tag() const { assertThrow(m_type == PushTag || m_type == Tag, Exception, ""); return AssemblyItem(Tag, data()); }
-	AssemblyItem pushTag() const { assertThrow(m_type == PushTag || m_type == Tag, Exception, ""); return AssemblyItem(PushTag, data()); }
+	AssemblyItem tag() const { assertThrow(m_type == PushTag || m_type == Tag, util::Exception, ""); return AssemblyItem(Tag, data()); }
+	AssemblyItem pushTag() const { assertThrow(m_type == PushTag || m_type == Tag, util::Exception, ""); return AssemblyItem(PushTag, data()); }
 	/// Converts the tag to a subassembly tag. This has to be called in order to move a tag across assemblies.
 	/// @param _subId the identifier of the subassembly the tag is taken from.
 	AssemblyItem toSubAssemblyTag(size_t _subId) const;
@@ -89,11 +92,11 @@ public:
 	void setPushTagSubIdAndTag(size_t _subId, size_t _tag);
 
 	AssemblyItemType type() const { return m_type; }
-	u256 const& data() const { assertThrow(m_type != Operation, Exception, ""); return *m_data; }
-	void setData(u256 const& _data) { assertThrow(m_type != Operation, Exception, ""); m_data = std::make_shared<u256>(_data); }
+	u256 const& data() const { assertThrow(m_type != Operation, util::Exception, ""); return *m_data; }
+	void setData(u256 const& _data) { assertThrow(m_type != Operation, util::Exception, ""); m_data = std::make_shared<u256>(_data); }
 
 	/// @returns the instruction of this item (only valid if type() == Operation)
-	Instruction instruction() const { assertThrow(m_type == Operation, Exception, ""); return m_instruction; }
+	Instruction instruction() const { assertThrow(m_type == Operation, util::Exception, ""); return m_instruction; }
 
 	/// @returns true if the type and data of the items are equal.
 	bool operator==(AssemblyItem const& _other) const
@@ -124,12 +127,17 @@ public:
 	}
 	bool operator!=(Instruction _instr) const { return !operator==(_instr); }
 
+	static std::string computeSourceMapping(
+		AssemblyItems const& _items,
+		std::map<std::string, unsigned> const& _sourceIndicesMap
+	);
+
 	/// @returns an upper bound for the number of bytes required by this item, assuming that
 	/// the value of a jump tag takes @a _addressLength bytes.
-	unsigned bytesRequired(unsigned _addressLength) const;
-	int arguments() const;
-	int returnValues() const;
-	int deposit() const { return returnValues() - arguments(); }
+	size_t bytesRequired(size_t _addressLength) const;
+	size_t arguments() const;
+	size_t returnValues() const;
+	size_t deposit() const { return returnValues() - arguments(); }
 
 	/// @returns true if the assembly item can be used in a functional context.
 	bool canBeFunctional() const;
@@ -144,7 +152,11 @@ public:
 	void setPushedValue(u256 const& _value) const { m_pushedValue = std::make_shared<u256>(_value); }
 	u256 const* pushedValue() const { return m_pushedValue.get(); }
 
-	std::string toAssemblyText() const;
+	std::string toAssemblyText(Assembly const& _assembly) const;
+
+	size_t m_modifierDepth = 0;
+
+	void setImmutableOccurrences(size_t _n) const { m_immutableOccurrences = std::make_shared<size_t>(_n); }
 
 private:
 	AssemblyItemType m_type;
@@ -155,9 +167,9 @@ private:
 	/// Pushed value for operations with data to be determined during assembly stage,
 	/// e.g. PushSubSize, PushTag, PushSub, etc.
 	mutable std::shared_ptr<u256> m_pushedValue;
+	/// Number of PushImmutable's with the same hash. Only used for AssignImmutable.
+	mutable std::shared_ptr<size_t> m_immutableOccurrences;
 };
-
-using AssemblyItems = std::vector<AssemblyItem>;
 
 inline size_t bytesRequired(AssemblyItems const& _items, size_t _addressLength)
 {
@@ -175,5 +187,4 @@ inline std::ostream& operator<<(std::ostream& _out, AssemblyItems const& _items)
 	return _out;
 }
 
-}
 }

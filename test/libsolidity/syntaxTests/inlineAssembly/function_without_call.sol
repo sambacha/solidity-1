@@ -8,4 +8,4 @@ contract C {
   }
 }
 // ----
-// TypeError: (86-87): Function k used without being called.
+// ParserError 6913: (92-93): Call or assignment expected.

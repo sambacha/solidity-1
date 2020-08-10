@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Optimiser component that removes assignments to variables that are not used
  * until they go out of scope or are re-assigned.
@@ -24,13 +25,13 @@
 #include <libyul/optimiser/Semantics.h>
 #include <libyul/AsmData.h>
 
-#include <libdevcore/CommonData.h>
+#include <libsolutil/CommonData.h>
 
 #include <boost/range/algorithm_ext/erase.hpp>
 
 using namespace std;
-using namespace dev;
-using namespace yul;
+using namespace solidity;
+using namespace solidity::yul;
 
 void RedundantAssignEliminator::run(OptimiserStepContext& _context, Block& _ast)
 {
@@ -104,11 +105,16 @@ void RedundantAssignEliminator::operator()(Switch const& _switch)
 void RedundantAssignEliminator::operator()(FunctionDefinition const& _functionDefinition)
 {
 	std::set<YulString> outerDeclaredVariables;
+	std::set<YulString> outerReturnVariables;
 	TrackedAssignments outerAssignments;
 	ForLoopInfo forLoopInfo;
 	swap(m_declaredVariables, outerDeclaredVariables);
+	swap(m_returnVariables, outerReturnVariables);
 	swap(m_assignments, outerAssignments);
 	swap(m_forLoopInfo, forLoopInfo);
+
+	for (auto const& retParam: _functionDefinition.returnVariables)
+		m_returnVariables.insert(retParam.name);
 
 	(*this)(_functionDefinition.body);
 
@@ -118,6 +124,7 @@ void RedundantAssignEliminator::operator()(FunctionDefinition const& _functionDe
 		finalize(retParam.name, State::Used);
 
 	swap(m_declaredVariables, outerDeclaredVariables);
+	swap(m_returnVariables, outerReturnVariables);
 	swap(m_assignments, outerAssignments);
 	swap(m_forLoopInfo, forLoopInfo);
 }
@@ -198,6 +205,12 @@ void RedundantAssignEliminator::operator()(Continue const&)
 {
 	m_forLoopInfo.pendingContinueStmts.emplace_back(move(m_assignments));
 	m_assignments.clear();
+}
+
+void RedundantAssignEliminator::operator()(Leave const&)
+{
+	for (YulString name: m_returnVariables)
+		changeUndecidedTo(name, State::Used);
 }
 
 void RedundantAssignEliminator::operator()(Block const& _block)
@@ -294,7 +307,7 @@ void RedundantAssignEliminator::finalize(YulString _variable, RedundantAssignEli
 
 void AssignmentRemover::operator()(Block& _block)
 {
-	boost::range::remove_erase_if(_block.statements, [=](Statement const& _statement) -> bool {
+	boost::range::remove_erase_if(_block.statements, [&](Statement const& _statement) -> bool {
 		return holds_alternative<Assignment>(_statement) && m_toRemove.count(&std::get<Assignment>(_statement));
 	});
 

@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 #include <liblangutil/SourceReferenceExtractor.h>
 #include <liblangutil/CharStream.h>
 #include <liblangutil/Exceptions.h>
@@ -22,14 +23,14 @@
 #include <iomanip>
 
 using namespace std;
-using namespace dev;
-using namespace langutil;
+using namespace solidity;
+using namespace solidity::langutil;
 
-SourceReferenceExtractor::Message SourceReferenceExtractor::extract(Exception const& _exception, string _category)
+SourceReferenceExtractor::Message SourceReferenceExtractor::extract(util::Exception const& _exception, string _category)
 {
 	SourceLocation const* location = boost::get_error_info<errinfo_sourceLocation>(_exception);
 
-	string const* message = boost::get_error_info<errinfo_comment>(_exception);
+	string const* message = boost::get_error_info<util::errinfo_comment>(_exception);
 	SourceReference primary = extract(location, message ? *message : "");
 
 	std::vector<SourceReference> secondary;
@@ -38,13 +39,24 @@ SourceReferenceExtractor::Message SourceReferenceExtractor::extract(Exception co
 		for (auto const& info: secondaryLocation->infos)
 			secondary.emplace_back(extract(&info.second, info.first));
 
-	return Message{std::move(primary), _category, std::move(secondary)};
+	return Message{std::move(primary), _category, std::move(secondary), nullopt};
+}
+
+SourceReferenceExtractor::Message SourceReferenceExtractor::extract(Error const& _error)
+{
+	string category = (_error.type() == Error::Type::Warning) ? "Warning" : "Error";
+	Message message = extract(_error, category);
+	message.errorId = _error.errorId();
+	return message;
 }
 
 SourceReference SourceReferenceExtractor::extract(SourceLocation const* _location, std::string message)
 {
 	if (!_location || !_location->source.get()) // Nothing we can extract here
 		return SourceReference::MessageOnly(std::move(message));
+
+	if (!_location->hasText()) // No source text, so we can only extract the source name
+		return SourceReference::MessageOnly(std::move(message), _location->source->name());
 
 	shared_ptr<CharStream> const& source = _location->source;
 
@@ -55,11 +67,15 @@ SourceReference SourceReferenceExtractor::extract(SourceLocation const* _locatio
 
 	string line = source->lineAtPosition(_location->start);
 
-	int locationLength = isMultiline ? line.length() - start.column : end.column - start.column;
+	int locationLength =
+		isMultiline ?
+			int(line.length()) - start.column :
+			end.column - start.column;
+
 	if (locationLength > 150)
 	{
-		int const lhs = start.column + 35;
-		int const rhs = (isMultiline ? line.length() : end.column) - 35;
+		auto const lhs = static_cast<size_t>(start.column) + 35;
+		string::size_type const rhs = (isMultiline ? line.length() : static_cast<size_t>(end.column)) - 35;
 		line = line.substr(0, lhs) + " ... " + line.substr(rhs);
 		end.column = start.column + 75;
 		locationLength = 75;
@@ -67,8 +83,13 @@ SourceReference SourceReferenceExtractor::extract(SourceLocation const* _locatio
 
 	if (line.length() > 150)
 	{
-		int const len = line.length();
-		line = line.substr(max(0, start.column - 35), min(start.column, 35) + min(locationLength + 35, len - start.column));
+		int const len = static_cast<int>(line.length());
+		line = line.substr(
+			static_cast<size_t>(max(0, start.column - 35)),
+			static_cast<size_t>(min(start.column, 35)) + static_cast<size_t>(
+				min(locationLength + 35,len - start.column)
+			)
+		);
 		if (start.column + locationLength + 35 < len)
 			line += " ...";
 		if (start.column > 35)
@@ -76,7 +97,7 @@ SourceReference SourceReferenceExtractor::extract(SourceLocation const* _locatio
 			line = " ... " + line;
 			start.column = 40;
 		}
-		end.column = start.column + locationLength;
+		end.column = start.column + static_cast<int>(locationLength);
 	}
 
 	return SourceReference{

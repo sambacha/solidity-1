@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * @author Yoichi Hirai <yoichi@ethereum.org>
  * @date 2016
@@ -22,20 +23,20 @@
 
 #include <liblangutil/SourceLocation.h>
 
-#include <test/Options.h>
+#include <test/Common.h>
 
-namespace langutil
-{
-namespace test
+#include <boost/test/unit_test.hpp>
+
+namespace solidity::langutil::test
 {
 
 BOOST_AUTO_TEST_SUITE(SourceLocationTest)
 
 BOOST_AUTO_TEST_CASE(test_fail)
 {
-	auto const source = std::make_shared<CharStream>("", "source");
-	auto const sourceA = std::make_shared<CharStream>("", "sourceA");
-	auto const sourceB = std::make_shared<CharStream>("", "sourceB");
+	auto const source = std::make_shared<CharStream>("lorem ipsum", "source");
+	auto const sourceA = std::make_shared<CharStream>("lorem ipsum", "sourceA");
+	auto const sourceB = std::make_shared<CharStream>("lorem ipsum", "sourceB");
 
 	BOOST_CHECK(SourceLocation{} == SourceLocation{});
 	BOOST_CHECK((SourceLocation{0, 3, sourceA} != SourceLocation{0, 3, sourceB}));
@@ -47,5 +48,4 @@ BOOST_AUTO_TEST_CASE(test_fail)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-}
 } // end namespaces

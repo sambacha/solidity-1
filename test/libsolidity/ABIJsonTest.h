@@ -14,6 +14,7 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+// SPDX-License-Identifier: GPL-3.0
 /**
  * Unit tests for the solidity compiler ABI JSON Interface output.
  */
@@ -24,11 +25,7 @@
 
 #include <string>
 
-namespace dev
-{
-namespace solidity
-{
-namespace test
+namespace solidity::frontend::test
 {
 
 
@@ -40,18 +37,6 @@ public:
 	ABIJsonTest(std::string const& _filename);
 
 	TestResult run(std::ostream& _stream, std::string const& _linePrefix = "", bool const _formatted = false) override;
-
-	void printSource(std::ostream& _stream, std::string const& _linePrefix = "", bool const _formatted = false) const override;
-	void printUpdatedExpectations(std::ostream& _stream, std::string const& _linePrefix) const override;
-
-private:
-	void printIndented(std::ostream& _stream, std::string const& _output, std::string const& _linePrefix = "") const;
-
-	std::string m_source;
-	std::string m_expectation;
-	std::string m_obtainedResult;
 };
 
-}
-}
 }
