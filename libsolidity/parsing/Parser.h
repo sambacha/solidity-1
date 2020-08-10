@@ -231,13 +231,11 @@ private:
 	/// Flag that signifies whether '_' is parsed as a PlaceholderStatement or a regular identifier.
 	bool m_insideModifier = false;
 	langutil::EVMVersion m_evmVersion;
-<<<<<<< HEAD
 
-	ASTPointer<Expression> parseSpecificationExpression(SpecificationExpressionInfo& info);
-=======
 	/// Counter for the next AST node ID
 	int64_t m_currentNodeID = 0;
->>>>>>> upstream/develop
+
+	ASTPointer<Expression> parseSpecificationExpression(SpecificationExpressionInfo& info);
 };
 
 }
