@@ -78,22 +78,6 @@ bool DocStringAnalyser::analyseDocStrings(SourceUnit const& _sourceUnit)
 	return errorWatcher.ok();
 }
 
-bool DocStringAnalyser::visit(ForStatement const& _loop)
-{
-	static set<string> const validTags = set<string>{"notice"};
-	parseDocStrings(_loop, _loop.annotation(), validTags, "loops");
-
-	return true;
-}
-
-bool DocStringAnalyser::visit(WhileStatement const& _loop)
-{
-	static set<string> const validTags = set<string>{"notice"};
-	parseDocStrings(_loop, _loop.annotation(), validTags, "loops");
-
-	return true;
-}
-
 bool DocStringAnalyser::visit(FunctionDefinition const& _function)
 {
 	if (!_function.isConstructor())
