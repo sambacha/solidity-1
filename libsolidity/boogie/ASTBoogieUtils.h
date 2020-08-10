@@ -8,9 +8,9 @@
 #include <liblangutil/Scanner.h>
 #include <string>
 
-namespace dev
-{
 namespace solidity
+{
+namespace frontend
 {
 
 class BoogieContext;

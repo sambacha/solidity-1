@@ -6,9 +6,9 @@
 #include <libsolidity/boogie/BoogieAstStmt.h>
 #include <libsolidity/boogie/BoogieContext.h>
 
-namespace dev
-{
 namespace solidity
+{
+namespace frontend
 {
 
 /**

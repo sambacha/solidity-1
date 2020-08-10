@@ -10,15 +10,15 @@
 #include <boost/algorithm/string.hpp>
 
 using namespace std;
-using namespace dev;
-using namespace dev::solidity;
+using namespace solidity;
+using namespace solidity::frontend;
 using namespace langutil;
 
 namespace bg = boogie;
 
-namespace dev
-{
 namespace solidity
+{
+namespace frontend
 {
 
 BoogieContext::BoogieGlobalContext::BoogieGlobalContext()

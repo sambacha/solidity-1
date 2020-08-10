@@ -13,9 +13,9 @@
 #include <libsolidity/boogie/BoogieAstStmt.h>
 #include <set>
 
-namespace dev
-{
 namespace solidity
+{
+namespace frontend
 {
 
 /**

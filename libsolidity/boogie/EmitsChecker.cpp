@@ -3,8 +3,8 @@
 #include <libsolidity/boogie/ASTBoogieUtils.h>
 #include <libsolidity/boogie/EmitsChecker.h>
 
-using namespace dev;
-using namespace dev::solidity;
+using namespace solidity;
+using namespace solidity::frontend;
 using namespace std;
 
 bool EmitsChecker::collectEmitsSpecs(FunctionDefinition const* fn, list<EmitsSpec>& specs)

@@ -2,12 +2,12 @@
 #include <libsolidity/boogie/ASTBoogieStats.h>
 #include <libsolidity/boogie/ASTBoogieUtils.h>
 
-using namespace dev;
-using namespace dev::solidity;
+using namespace solidity;
+using namespace solidity::frontend;
 
-namespace dev
-{
 namespace solidity
+{
+namespace frontend
 {
 
 bool ASTBoogieStats::hasDocTag(DocumentedAnnotation const& _annot, std::string _tag) const

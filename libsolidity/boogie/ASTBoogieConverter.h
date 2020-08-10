@@ -7,9 +7,9 @@
 #include <libsolidity/boogie/BoogieContext.h>
 #include <libsolidity/parsing/Parser.h>
 
-namespace dev
-{
 namespace solidity
+{
+namespace frontend
 {
 
 /**

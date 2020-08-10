@@ -10,15 +10,15 @@
 #include <liblangutil/Scanner.h>
 
 using namespace std;
-using namespace dev;
-using namespace dev::solidity;
+using namespace solidity;
+using namespace solidity::frontend;
 using namespace langutil;
 
 namespace bg = boogie;
 
-namespace dev
-{
 namespace solidity
+{
+namespace frontend
 {
 
 ASTBoogieUtils::SolidityID const ASTBoogieUtils::BALANCE = { "balance", "__balance" };

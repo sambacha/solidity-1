@@ -2,9 +2,9 @@
 
 #include <libsolidity/ast/ASTVisitor.h>
 
-namespace dev
-{
 namespace solidity
+{
+namespace frontend
 {
 /**
  * Helper class for collecting statistics about the AST

@@ -6,9 +6,9 @@
 #include <set>
 #include <list>
 
-namespace dev
-{
 namespace solidity
+{
+namespace frontend
 {
 
 /**

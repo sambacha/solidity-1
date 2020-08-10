@@ -3,15 +3,15 @@
 #include <libsolidity/boogie/StoragePtrHelper.h>
 
 using namespace std;
-using namespace dev;
-using namespace dev::solidity;
+using namespace solidity;
+using namespace solidity::frontend;
 using namespace langutil;
 
 namespace bg = boogie;
 
-namespace dev
-{
 namespace solidity
+{
+namespace frontend
 {
 bg::Expr::Ref StoragePtrHelper::packToLocalPtr(Expression const* expr, bg::Expr::Ref bgExpr, BoogieContext& context)
 {

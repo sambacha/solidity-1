@@ -4,9 +4,9 @@
 #include <libsolidity/boogie/BoogieAstExpr.h>
 #include <libsolidity/boogie/BoogieAstStmt.h>
 
-namespace dev
-{
 namespace solidity
+{
+namespace frontend
 {
 class BoogieContext;
 

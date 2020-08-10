@@ -9,15 +9,15 @@
 #include <liblangutil/Exceptions.h>
 
 using namespace std;
-using namespace dev;
-using namespace dev::solidity;
+using namespace solidity;
+using namespace solidity::frontend;
 using namespace langutil;
 
 namespace bg = boogie;
 
-namespace dev
-{
 namespace solidity
+{
+namespace frontend
 {
 
 void ASTBoogieExpressionConverter::addTCC(bg::Expr::Ref expr, TypePointer tp, std::string identifier, bool isArrayLength)
