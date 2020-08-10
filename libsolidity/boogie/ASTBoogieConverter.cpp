@@ -146,7 +146,7 @@ void ASTBoogieConverter::constructorPreamble()
 		if (!baseConstr)
 			continue;
 
-		m_context.pushExtraScope(baseConstr, toString(m_context.nextId()));
+		m_context.pushExtraScope(baseConstr, util::toString(m_context.nextId()));
 		pushedScopes++;
 		m_currentBlocks.top()->addStmt(bg::Stmt::comment("Arguments for " + base->name()));
 
@@ -861,7 +861,7 @@ void ASTBoogieConverter::processFuncModifiersAndBody()
 
 		if (modifierDecl)
 		{
-			m_context.pushExtraScope(modifierDecl, toString(m_context.nextId()) + toString(m_currentModifier));
+			m_context.pushExtraScope(modifierDecl, util::toString(m_context.nextId()) + util::toString(m_currentModifier));
 
 			string oldReturnLabel = m_currentReturnLabel;
 			m_currentReturnLabel = "$return" + to_string(m_nextReturnLabelId);
@@ -902,7 +902,7 @@ void ASTBoogieConverter::processFuncModifiersAndBody()
 	else if (m_currentFunc->isImplemented()) // We reached the function
 	{
 		if (!m_currentFunc->modifiers().empty())
-			m_context.pushExtraScope(&m_currentFunc->body(), toString(m_context.nextId()));
+			m_context.pushExtraScope(&m_currentFunc->body(), util::toString(m_context.nextId()));
 		string oldReturnLabel = m_currentReturnLabel;
 		m_currentReturnLabel = "$return" + to_string(m_nextReturnLabelId);
 		++m_nextReturnLabelId;
@@ -1588,9 +1588,9 @@ bool ASTBoogieConverter::visit(WhileStatement const& _node)
 	rememberScope(_node);
 
 	string oldContinueLabel = m_currentContinueLabel;
-	m_currentContinueLabel = "$continue" + toString(m_context.nextId());
+	m_currentContinueLabel = "$continue" + util::toString(m_context.nextId());
 	string oldBreakLabel = m_currentBreakLabel;
-	m_currentBreakLabel = "break" + toString(m_context.nextId());
+	m_currentBreakLabel = "break" + util::toString(m_context.nextId());
 
 	// Collect invariants
 	list<pair<bg::Expr::Ref, string>> invars;
@@ -1678,9 +1678,9 @@ bool ASTBoogieConverter::visit(ForStatement const& _node)
 	// initExpr; while (cond) { body; loopExpr }
 
 	string oldContinueLabel = m_currentContinueLabel;
-	m_currentContinueLabel = "$continue" + toString(m_context.nextId());
+	m_currentContinueLabel = "$continue" + util::toString(m_context.nextId());
 	string oldBreakLabel = m_currentBreakLabel;
-	m_currentBreakLabel = "break" + toString(m_context.nextId());
+	m_currentBreakLabel = "break" + util::toString(m_context.nextId());
 
 	// Get initialization recursively (adds statement to current block)
 	m_currentBlocks.top()->addStmt(bg::Stmt::comment("The following while loop was mapped from a for loop"));
