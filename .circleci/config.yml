@@ -1042,7 +1042,7 @@ workflows:
 
       # Code Coverage enabled build and tests
       - b_ubu_codecov: *workflow_trigger_on_tags
-<<<<<<< HEAD
+      - t_ubu_codecov: *workflow_ubuntu2004_codecov
       - t_ubu_codecov: *workflow_ubuntu1904_codecov
 
   sverif_nightly:
@@ -1060,6 +1060,3 @@ workflows:
       - t_ubu_sverif_bg: *workflow_sverif
       - t_ubu_sverif_syn: *workflow_sverif
       - t_ubu_sverif_trf: *workflow_sverif
-=======
-      - t_ubu_codecov: *workflow_ubuntu2004_codecov
->>>>>>> upstream/develop
