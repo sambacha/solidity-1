@@ -17,7 +17,7 @@ private:
 
 	std::list<ContractDefinition const*> m_allContracts;
 
-	bool hasDocTag(DocumentedAnnotation const& _annot, std::string _tag) const;
+	bool hasDocTag(StructurallyDocumentedAnnotation const& _annot, std::string _tag) const;
 
 public:
 	ASTBoogieStats() : m_hasModifiesSpecs(false), m_hasEventSpecs(false) {}

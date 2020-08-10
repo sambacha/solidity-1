@@ -109,14 +109,14 @@ private:
 	 * @param _tag Tag
 	 * @returns A list of parsed expressions
 	 */
-	std::vector<BoogieContext::DocTagExpr> getExprsFromDocTags(ASTNode const& _node, DocumentedAnnotation const& _annot,
+	std::vector<BoogieContext::DocTagExpr> getExprsFromDocTags(ASTNode const& _node, StructurallyDocumentedAnnotation const& _annot,
 			ASTNode const* _scope, std::vector<std::string> const& _tags);
 
 	/**
 	 * Checks if contract invariants are explicitly requested (for non-public functions).
 	 * @param _annot Annotations
 	 */
-	bool includeContractInvars(DocumentedAnnotation const& _annot);
+	bool includeContractInvars(StructurallyDocumentedAnnotation const& _annot);
 
 	/**
 	 * Collect the events that the current function specifies to emit.

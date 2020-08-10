@@ -611,7 +611,7 @@ bool ASTBoogieConverter::parseSpecificationCasesExpr(string exprStr, ASTNode con
 	return true;
 }
 
-std::vector<BoogieContext::DocTagExpr> ASTBoogieConverter::getExprsFromDocTags(ASTNode const& _node, DocumentedAnnotation const& _annot,
+std::vector<BoogieContext::DocTagExpr> ASTBoogieConverter::getExprsFromDocTags(ASTNode const& _node, StructurallyDocumentedAnnotation const& _annot,
 		ASTNode const* _scope, vector<string> const& _tags)
 {
 	std::vector<BoogieContext::DocTagExpr> exprs;
@@ -638,7 +638,7 @@ std::vector<BoogieContext::DocTagExpr> ASTBoogieConverter::getExprsFromDocTags(A
 	return exprs;
 }
 
-bool ASTBoogieConverter::includeContractInvars(DocumentedAnnotation const& _annot)
+bool ASTBoogieConverter::includeContractInvars(StructurallyDocumentedAnnotation const& _annot)
 {
 	for (auto docTag: _annot.docTags)
 		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, ASTBoogieUtils::DOCTAG_CONTRACT_INVARS_INCLUDE))

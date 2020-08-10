@@ -10,7 +10,7 @@ namespace solidity
 namespace frontend
 {
 
-bool ASTBoogieStats::hasDocTag(DocumentedAnnotation const& _annot, std::string _tag) const
+bool ASTBoogieStats::hasDocTag(StructurallyDocumentedAnnotation const& _annot, std::string _tag) const
 {
 	for (auto docTag: _annot.docTags)
 		if (docTag.first == "notice" && boost::starts_with(docTag.second.content, _tag)) // Find expressions with the given tag
