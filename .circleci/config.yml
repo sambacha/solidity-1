@@ -1043,7 +1043,6 @@ workflows:
       # Code Coverage enabled build and tests
       - b_ubu_codecov: *workflow_trigger_on_tags
       - t_ubu_codecov: *workflow_ubuntu2004_codecov
-      - t_ubu_codecov: *workflow_ubuntu1904_codecov
 
   sverif_nightly:
 
