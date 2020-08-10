@@ -372,7 +372,7 @@ void BoogieContext::warnForBalances()
 {
 	if (!m_warnForBalances)
 	{
-		m_errorReporter->warning(0000_error, "Balance modifications due to gas consumption or miner rewards are not modeled");
+		m_errorReporter->warning(5042_error, "Balance modifications due to gas consumption or miner rewards are not modeled");
 	}
 	m_warnForBalances = true;
 }
@@ -423,13 +423,13 @@ void BoogieContext::includeSendFunction()
 void BoogieContext::reportError(ASTNode const* associatedNode, string message)
 {
 	solAssert(associatedNode, "Error at unknown node: " + message);
-	m_errorReporter->error(0000_error, Error::Type::ParserError, associatedNode->location(), message);
+	m_errorReporter->error(2114_error, Error::Type::ParserError, associatedNode->location(), message);
 }
 
 void BoogieContext::reportWarning(ASTNode const* associatedNode, string message)
 {
 	solAssert(associatedNode, "Warning at unknown node: " + message);
-	m_errorReporter->warning(0000_error, associatedNode->location(), message);
+	m_errorReporter->warning(3200_error, associatedNode->location(), message);
 }
 
 void BoogieContext::addGlobalComment(string str)
