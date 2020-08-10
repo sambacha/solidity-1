@@ -39,20 +39,10 @@ public:
 	bool analyseDocStrings(SourceUnit const& _sourceUnit);
 
 private:
-<<<<<<< HEAD
-
-	virtual bool visit(ContractDefinition const& _contract) override;
-	virtual bool visit(FunctionDefinition const& _function) override;
-	virtual bool visit(ModifierDefinition const& _modifier) override;
-	virtual bool visit(EventDefinition const& _event) override;
-	virtual bool visit(ForStatement const& _loop) override;
-	virtual bool visit(WhileStatement const& _loop) override;
-=======
 	bool visit(FunctionDefinition const& _function) override;
 	bool visit(VariableDeclaration const& _variable) override;
 	bool visit(ModifierDefinition const& _modifier) override;
 	bool visit(EventDefinition const& _event) override;
->>>>>>> upstream/develop
 
 	CallableDeclaration const* resolveInheritDoc(
 		std::set<CallableDeclaration const*> const& _baseFunctions,
