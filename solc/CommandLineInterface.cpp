@@ -29,15 +29,12 @@
 #include <libsolidity/interface/Version.h>
 #include <libsolidity/parsing/Parser.h>
 #include <libsolidity/ast/ASTJsonConverter.h>
-<<<<<<< HEAD
 #include <libsolidity/boogie/ASTBoogieConverter.h>
 #include <libsolidity/boogie/ASTBoogieStats.h>
 #include <libsolidity/boogie/BoogieContext.h>
 #include <libsolidity/boogie/EmitsChecker.h>
 #include <libsolidity/analysis/GlobalContext.h>
-=======
 #include <libsolidity/ast/ASTJsonImporter.h>
->>>>>>> upstream/develop
 #include <libsolidity/analysis/NameAndTypeResolver.h>
 #include <libsolidity/interface/CompilerStack.h>
 #include <libsolidity/interface/StandardCompiler.h>
