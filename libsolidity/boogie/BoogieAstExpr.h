@@ -8,11 +8,11 @@
 #include <vector>
 #include <memory>
 #include <set>
-#include <libdevcore/Common.h>
+#include <libsolutil/Common.h>
 
 namespace boogie
 {
-using bigint = dev::bigint;
+using bigint = solidity::bigint;
 
 struct Binding;
 
