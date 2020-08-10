@@ -1315,7 +1315,7 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 					procDecl->getModifies().push_back(m_context.mapDeclName(*sv));
 	}
 
-	string funcType = _node.visibility() == Declaration::Visibility::External ? "" : " : " + _node.type()->toString();
+	string funcType = _node.visibility() == Visibility::External ? "" : " : " + _node.type()->toString();
 	m_context.addGlobalComment("\nFunction: " + _node.name() + funcType);
 	m_context.addDecl(procDecl);
 	return false;

@@ -886,7 +886,7 @@ void ASTBoogieExpressionConverter::functionCallConversion(FunctionCall const& _n
 	// Converting to address
 	bool toAddress = false;
 	if (auto expr = dynamic_cast<ElementaryTypeNameExpression const*>(&_node.expression()))
-		if (expr->typeName().token() == Token::Address)
+		if (expr->type().typeName().token() == Token::Address)
 			toAddress = true;
 
 	// Converting to other kind of contract
@@ -1382,7 +1382,7 @@ bool ASTBoogieExpressionConverter::visit(MemberAccess const& _node)
 	m_isLibraryCall = false;
 	if (auto fDef = dynamic_cast<FunctionDefinition const*>(_node.annotation().referencedDeclaration))
 	{
-		m_isLibraryCall = fDef->inContractKind() == ContractDefinition::ContractKind::Library;
+		m_isLibraryCall = fDef->libraryFunction();
 		if (m_isLibraryCall)
 		{
 			// Check if library call is static (e.g., Math.add(1, 2)) or not (e.g., 1.add(2))
