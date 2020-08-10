@@ -1144,11 +1144,11 @@ ASTPointer<VariableDeclaration> Parser::parseSpecificationVariableDeclaration(AS
 		type,
 		identifier,
 		nullptr,
-		Declaration::Visibility::Default,
+		Visibility::Default,
+		nullptr,
 		isStateVariable,
 		false,
-		false,
-		location
+		VariableDeclaration::Mutability::Immutable
 	);
 }
 
