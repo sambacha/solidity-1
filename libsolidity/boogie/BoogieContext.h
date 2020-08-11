@@ -13,9 +13,7 @@
 #include <libsolidity/boogie/BoogieAstStmt.h>
 #include <set>
 
-namespace solidity
-{
-namespace frontend
+namespace solidity::frontend
 {
 
 /**
@@ -107,6 +105,12 @@ public:
 	 */
 	class BoogieGlobalContext : public GlobalContext
 	{
+		/** Next magic variable Id */
+		int m_nextMagicVariableId;
+
+		/** Ids for magic variables. */
+		int newMagicVariableID();
+
 	public:
 		BoogieGlobalContext();
 	};
@@ -428,5 +432,4 @@ public:
 
 };
 
-}
 }

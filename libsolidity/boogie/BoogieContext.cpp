@@ -10,18 +10,22 @@
 #include <boost/algorithm/string.hpp>
 
 using namespace std;
-using namespace solidity;
-using namespace solidity::frontend;
-using namespace langutil;
+using namespace solidity::langutil;
 
 namespace bg = boogie;
 
-namespace solidity
-{
-namespace frontend
+namespace solidity::frontend
 {
 
+/// Magic variables get negative ids for easy differentiation
+int BoogieContext::BoogieGlobalContext::newMagicVariableID()
+{
+	return m_nextMagicVariableId --;
+}
+
 BoogieContext::BoogieGlobalContext::BoogieGlobalContext()
+:
+		m_nextMagicVariableId(-100)
 {
 	// Remove all variables, so we can just add our own
 	m_magicVariables.clear();
@@ -31,7 +35,8 @@ BoogieContext::BoogieGlobalContext::BoogieGlobalContext()
 	{
 		auto funType = TypeProvider::function(strings { }, strings { sumType },
 				FunctionType::Kind::Internal, true, StateMutability::Pure);
-		auto sum = new MagicVariableDeclaration(ASTBoogieUtils::VERIFIER_SUM + "_" + sumType, funType);
+		auto funName = ASTBoogieUtils::VERIFIER_SUM + "_" + sumType;
+		auto sum = new MagicVariableDeclaration(newMagicVariableID(), funName, funType);
 		m_magicVariables.push_back(shared_ptr<MagicVariableDeclaration const>(sum));
 	}
 
@@ -40,7 +45,8 @@ BoogieContext::BoogieGlobalContext::BoogieGlobalContext()
 	{
 		auto funType = TypeProvider::function(strings { oldType }, strings { oldType },
 				FunctionType::Kind::Internal, false, StateMutability::Pure);
-		auto old = new MagicVariableDeclaration(ASTBoogieUtils::VERIFIER_OLD + "_" + oldType, funType);
+		auto funName = ASTBoogieUtils::VERIFIER_OLD + "_" + oldType;
+		auto old = new MagicVariableDeclaration(newMagicVariableID(), funName, funType);
 		m_magicVariables.push_back(shared_ptr<MagicVariableDeclaration const>(old));
 	}
 
@@ -49,25 +55,26 @@ BoogieContext::BoogieGlobalContext::BoogieGlobalContext()
 	{
 		auto funType = TypeProvider::function(strings { befType }, strings { befType },
 				FunctionType::Kind::Internal, false, StateMutability::Pure);
-		auto bef = new MagicVariableDeclaration(ASTBoogieUtils::VERIFIER_BEFORE + "_" + befType, funType);
+		auto funName = ASTBoogieUtils::VERIFIER_BEFORE + "_" + befType;
+		auto bef = new MagicVariableDeclaration(newMagicVariableID(), funName, funType);
 		m_magicVariables.push_back(shared_ptr<MagicVariableDeclaration const>(bef));
 	}
 
 	// Magic variable for 'eq' function
 	auto eqFunType = TypeProvider::function(strings { }, strings { "bool" },
 					FunctionType::Kind::Internal, true, StateMutability::Pure);
-	auto eq = new MagicVariableDeclaration(ASTBoogieUtils::VERIFIER_EQ, eqFunType);
+	auto eq = new MagicVariableDeclaration(newMagicVariableID(), ASTBoogieUtils::VERIFIER_EQ, eqFunType);
 	m_magicVariables.push_back(shared_ptr<MagicVariableDeclaration const>(eq));
 
 	// Add magic variables for 'index'
 	m_magicVariables.push_back(shared_ptr<MagicVariableDeclaration const>(
-			new MagicVariableDeclaration(ASTBoogieUtils::VERIFIER_IDX + "_address",
+			new MagicVariableDeclaration(newMagicVariableID(), ASTBoogieUtils::VERIFIER_IDX + "_address",
 					TypeProvider::address())));
 	m_magicVariables.push_back(shared_ptr<MagicVariableDeclaration const>(
-			new MagicVariableDeclaration(ASTBoogieUtils::VERIFIER_IDX + "_int",
+			new MagicVariableDeclaration(newMagicVariableID(), ASTBoogieUtils::VERIFIER_IDX + "_int",
 					TypeProvider::integer(8, IntegerType::Modifier::Signed))));
 	m_magicVariables.push_back(shared_ptr<MagicVariableDeclaration const>(
-			new MagicVariableDeclaration(ASTBoogieUtils::VERIFIER_IDX + "_uint",
+			new MagicVariableDeclaration(newMagicVariableID(), ASTBoogieUtils::VERIFIER_IDX + "_uint",
 					TypeProvider::integer(8, IntegerType::Modifier::Unsigned))));
 }
 
@@ -1561,6 +1568,6 @@ void ExprConditionStore::clear()
 }
 
 }
-}
+
 
 
