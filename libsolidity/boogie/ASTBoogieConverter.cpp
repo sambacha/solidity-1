@@ -363,7 +363,7 @@ void ASTBoogieConverter::processSpecificationExpression(ASTPointer<Expression> e
 	{
 		// Do type checking
 		TypeChecker typeChecker(m_context.evmVersion(), *m_context.errorReporter(), m_context.currentContract());
-		if (typeChecker.checkTypeRequirements(*expr))
+		if (typeChecker.checkTypeRequirements(*m_context.currentSource(), *expr))
 		{
 			// Convert expression to Boogie representation
 			auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr, true);
@@ -932,6 +932,8 @@ ASTBoogieConverter::ASTBoogieConverter(BoogieContext& context) :
 bool ASTBoogieConverter::visit(SourceUnit const& _node)
 {
 	rememberScope(_node);
+
+	m_context.setCurrentSource(&_node);
 
 	// Boogie programs are flat, source units do not appear explicitly
 	m_context.addGlobalComment("\n------- Source: " + _node.annotation().path + " -------");

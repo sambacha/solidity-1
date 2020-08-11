@@ -170,6 +170,8 @@ private:
 	std::list<DocTagExpr> m_currentContractInvars;
 	std::map<ContractDefinition const*, std::list<SumSpec>> m_currentSumSpecs;
 
+	SourceUnit const* m_currentSource = nullptr;
+
 	typedef std::map<std::string, boogie::Decl::ConstRef> builtin_cache;
 	builtin_cache m_builtinFunctions;
 
@@ -211,6 +213,8 @@ public:
 	boogie::VarDeclRef freshTempVar(boogie::TypeDeclRef type, std::string prefix = "tmp");
 	ContractDefinition const* currentContract() const { return m_currentContract; }
 	void setCurrentContract(ContractDefinition const* contract) { m_currentContract = contract; }
+	SourceUnit const* currentSource() const { return m_currentSource; }
+	void setCurrentSource(SourceUnit const* source) { m_currentSource = source; }
 	void printErrors(std::ostream& out);
 
 	/** Prints the Boogie program to an output stream. */

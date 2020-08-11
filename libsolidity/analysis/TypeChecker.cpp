@@ -72,6 +72,14 @@ bool TypeChecker::checkTypeRequirements(SourceUnit const& _source)
 	return Error::containsOnlyWarnings(m_errorReporter.errors());
 }
 
+bool TypeChecker::checkTypeRequirements(SourceUnit const& _source, ASTNode const& _node)
+{
+	m_currentSourceUnit = &_source;
+	_node.accept(*this);
+	m_currentSourceUnit = nullptr;
+	return Error::containsOnlyWarnings(m_errorReporter.errors());
+}
+
 TypePointer const& TypeChecker::type(Expression const& _expression) const
 {
 	solAssert(!!_expression.annotation().type, "Type requested but not present.");
