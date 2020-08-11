@@ -47,8 +47,7 @@ class TypeChecker: private ASTConstVisitor
 {
 public:
 	/// @param _errorReporter provides the error logging functionality.
-	TypeChecker(langutil::EVMVersion _evmVersion, langutil::ErrorReporter& _errorReporter, ContractDefinition const* scope = nullptr):
-		m_scope(scope),
+	TypeChecker(langutil::EVMVersion _evmVersion, langutil::ErrorReporter& _errorReporter):
 		m_evmVersion(_evmVersion),
 		m_errorReporter(_errorReporter)
 	{}

@@ -323,10 +323,8 @@ public:
 	/// @returns a JSON representing the estimated gas usage for contract creation, internal and external functions
 	Json::Value gasEstimates(std::string const& _contractName) const;
 
-	std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>> getScopes() const { return m_scopes; }
 	/// Overwrites the release/prerelease flag. Should only be used for testing.
 	void overwriteReleaseFlag(bool release) { m_release = release; }
-
 private:
 	/// The state per source unit. Filled gradually during parsing.
 	struct Source
