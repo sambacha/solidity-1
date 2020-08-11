@@ -52,11 +52,18 @@ class NameAndTypeResolver: private boost::noncopyable
 {
 public:
 	/// Creates the resolver with the given declarations added to the global scope.
+	NameAndTypeResolver(
+		GlobalContext& _globalContext,
+		langutil::EVMVersion _evmVersion,
+		langutil::ErrorReporter& _errorReporter
+	);
+	/// Creates the resolver with the given declarations added to the global scope.
 	/// @param _scopes mapping of scopes to be used (usually default constructed), these
 	/// are filled during the lifetime of this object.
 	NameAndTypeResolver(
 		GlobalContext& _globalContext,
 		langutil::EVMVersion _evmVersion,
+		std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>> const& _scopes,
 		langutil::ErrorReporter& _errorReporter
 	);
 	/// Registers all declarations found in the AST node, usually a source unit.
@@ -69,6 +76,9 @@ public:
 	/// Resolves all names and types referenced from the given Source Node.
 	/// @returns false in case of error.
 	bool resolveNamesAndTypes(SourceUnit& _source);
+	/// Resolves all names and types referenced from the given node
+	/// @returns false in case of error.
+	bool resolveNamesAndTypes(ASTNode& _node);
 	/// Updates the given global declaration (used for "this"). Not to be used with declarations
 	/// that create their own scope.
 	/// @returns false in case of error.

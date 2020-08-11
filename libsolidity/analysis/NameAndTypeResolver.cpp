@@ -51,6 +51,25 @@ NameAndTypeResolver::NameAndTypeResolver(
 	}
 }
 
+NameAndTypeResolver::NameAndTypeResolver(
+	GlobalContext& _globalContext,
+	langutil::EVMVersion _evmVersion,
+	std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>> const& _scopes,
+	ErrorReporter& _errorReporter
+):
+	m_scopes(_scopes),
+	m_evmVersion(_evmVersion),
+	m_errorReporter(_errorReporter),
+	m_globalContext(_globalContext)
+{
+	if (!m_scopes[nullptr])
+		m_scopes[nullptr] = make_shared<DeclarationContainer>();
+	for (Declaration const* declaration: _globalContext.declarations())
+	{
+		solAssert(m_scopes[nullptr]->registerDeclaration(*declaration), "Unable to register global declaration.");
+	}
+}
+
 bool NameAndTypeResolver::registerDeclarations(SourceUnit& _sourceUnit, ASTNode const* _currentScope)
 {
 	// The helper registers all declarations in m_scopes as a side-effect of its construction.
@@ -131,6 +150,22 @@ bool NameAndTypeResolver::resolveNamesAndTypes(SourceUnit& _source)
 		for (shared_ptr<ASTNode> const& node: _source.nodes())
 			if (!resolveNamesAndTypesInternal(*node, true))
 				return false;
+	}
+	catch (langutil::FatalError const&)
+	{
+		if (m_errorReporter.errors().empty())
+			throw; // Something is weird here, rather throw again.
+		return false;
+	}
+	return true;
+}
+
+bool NameAndTypeResolver::resolveNamesAndTypes(ASTNode& _node)
+{
+	try
+	{
+		if (!resolveNamesAndTypesInternal(_node, true))
+			return false;
 	}
 	catch (langutil::FatalError const&)
 	{
