@@ -705,6 +705,11 @@ TryCatchClauseAnnotation& TryCatchClause::annotation() const
 	return initAnnotation<TryCatchClauseAnnotation>();
 }
 
+WhileStatementAnnotation& WhileStatement::annotation() const
+{
+	return initAnnotation<WhileStatementAnnotation>();
+}
+
 ForStatementAnnotation& ForStatement::annotation() const
 {
 	return initAnnotation<ForStatementAnnotation>();

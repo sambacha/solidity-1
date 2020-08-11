@@ -213,7 +213,11 @@ struct TryCatchClauseAnnotation: ASTAnnotation, ScopableAnnotation
 {
 };
 
-struct ForStatementAnnotation: StatementAnnotation, ScopableAnnotation
+struct WhileStatementAnnotation: StatementAnnotation, ScopableAnnotation, StructurallyDocumentedAnnotation
+{
+};
+
+struct ForStatementAnnotation: StatementAnnotation, ScopableAnnotation, StructurallyDocumentedAnnotation
 {
 };
 

@@ -1512,6 +1512,8 @@ public:
 	Statement const& body() const { return *m_body; }
 	bool isDoWhile() const { return m_isDoWhile; }
 
+	WhileStatementAnnotation& annotation() const override;
+
 private:
 	ASTPointer<Expression> m_condition;
 	ASTPointer<Statement> m_body;
