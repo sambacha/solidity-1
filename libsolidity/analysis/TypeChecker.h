@@ -56,7 +56,7 @@ public:
 	/// @returns true iff all checks passed. Note even if all checks passed, errors() can still contain warnings
 	bool checkTypeRequirements(SourceUnit const& _source);
 
-	/// Performs type checking on the given node withing the given source
+	/// Performs type checking on the given node within the given source
 	/// @returns true iff all checks passed. Note even if all checks passed, errors() can still contain warnings
 	bool checkTypeRequirements(SourceUnit const& _source, ASTNode const& _node);
 
