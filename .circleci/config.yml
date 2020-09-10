@@ -53,9 +53,8 @@ defaults:
   - setup_sverif_cvc4: &setup_sverif_cvc4
       name: Install CVC4
       command: | # apt installs old version (1.5) so we download a newer manually
-        wget http://cvc4.cs.stanford.edu/downloads/builds/x86_64-linux-opt/cvc4-1.8-x86_64-linux-opt
-        chmod a+x cvc4-1.8-x86_64-linux-opt
-        cp cvc4-1.8-x86_64-linux-opt /usr/local/bin/cvc4
+        curl --silent "https://api.github.com/repos/CVC4/CVC4/releases/latest" | grep browser_download_url | grep -E 'linux' | cut -d '"' -f 4 | wget -qi - -O /usr/local/bin/cvc4
+        chmod a+x /usr/local/bin/cvc4
 
   - setup_sverif_boogie: &setup_sverif_boogie
       name: Install Boogie
@@ -69,8 +68,7 @@ defaults:
         apt-get update
         apt-get install netcore-runtime-3.1 -y
         # Boogie
-        wget https://github.com/boogie-org/boogie/releases/download/v2.6.5/Boogie.2.6.5.nupkg
-        unzip Boogie.2.6.5.nupkg -d Boogie
+        dotnet tool install --global boogie
 
   # --------------------------------------------------------------------------
   # Artifacts Templates
@@ -905,7 +903,7 @@ jobs:
 
   b_ubu_sverif:
     docker:
-      - image: ethereum/solidity-buildpack-deps:ubuntu1804
+      - image: << pipeline.parameters.ubuntu-2004-docker-image >>
     environment:
       TERM: xterm
       DEBIAN_FRONTEND: noninteractive
@@ -917,7 +915,7 @@ jobs:
           name: Install build dependencies
           command: |
             # TODO: try to set cmake options in the environment variable
-            echo 'export CMAKE_OPTIONS="-DBOOGIE_BIN=$HOME/project/Boogie/tools/netcoreapp3.1/any"' >> $BASH_ENV
+            echo 'export PATH="$PATH:$HOME/.dotnet/tools"' >> $BASH_ENV
       - run: *setup_prerelease_commit_hash
       - run: *run_build
       - store_artifacts: *artifacts_solc
@@ -925,7 +923,7 @@ jobs:
 
   t_ubu_sverif_bg:
     docker:
-      - image: ethereum/solidity-buildpack-deps:ubuntu1804
+      - image: << pipeline.parameters.ubuntu-2004-docker-image >>
     environment:
       TERM: xterm
     steps:
@@ -946,7 +944,7 @@ jobs:
 
   t_ubu_sverif_syn:
     docker:
-      - image: ethereum/solidity-buildpack-deps:ubuntu1804
+      - image: << pipeline.parameters.ubuntu-2004-docker-image >>
     environment:
       TERM: xterm
     steps:
@@ -967,7 +965,7 @@ jobs:
 
   t_ubu_sverif_trf:
     docker:
-      - image: ethereum/solidity-buildpack-deps:ubuntu1804
+      - image: << pipeline.parameters.ubuntu-2004-docker-image >>
     environment:
       TERM: xterm
     steps:
