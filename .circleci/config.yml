@@ -419,7 +419,7 @@ jobs:
       - run: *run_docs_pragma_min_version
 
   b_ubu_clang: &build_ubuntu2004_clang
-    resource_class: xlarge
+    # resource_class: xlarge
     docker:
       - image: << pipeline.parameters.ubuntu-2004-clang-docker-image >>
     environment:
@@ -448,7 +448,7 @@ jobs:
       - persist_to_workspace: *artifacts_executables
 
   b_ubu: &build_ubuntu2004
-    resource_class: xlarge
+    # resource_class: xlarge
     docker:
       - image: << pipeline.parameters.ubuntu-2004-docker-image >>
     environment:
@@ -633,7 +633,7 @@ jobs:
       - store_artifacts: *artifacts_test_results
 
   b_ems:
-    resource_class: xlarge
+    # resource_class: xlarge
     docker:
       - image: << pipeline.parameters.emscripten-docker-image >>
     environment:
