@@ -906,6 +906,7 @@ jobs:
     environment:
       TERM: xterm
       DEBIAN_FRONTEND: noninteractive
+      MAKEFLAGS: -j 3
     steps:
       - checkout
       - run: *setup_sverif_cvc4
