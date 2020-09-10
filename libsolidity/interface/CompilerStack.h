@@ -325,6 +325,10 @@ public:
 
 	/// Overwrites the release/prerelease flag. Should only be used for testing.
 	void overwriteReleaseFlag(bool release) { m_release = release; }
+
+	// [solc-verify] Needed for pushing the scopes forward
+	std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>> getScopes() const { return m_scopes; }
+
 private:
 	/// The state per source unit. Filled gradually during parsing.
 	struct Source
@@ -457,6 +461,8 @@ private:
 	std::map<util::h256, std::string> m_smtlib2Responses;
 	std::shared_ptr<GlobalContext> m_globalContext;
 	std::vector<Source const*> m_sourceOrder;
+	/// This is updated during compilation. [solc-verify] needed for passing scopes forward to analysis
+	std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>> m_scopes;
 	std::map<std::string const, Contract> m_contracts;
 	langutil::ErrorList m_errorList;
 	langutil::ErrorReporter m_errorReporter;

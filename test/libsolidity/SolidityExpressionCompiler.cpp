@@ -117,7 +117,8 @@ bytes compileFirstExpression(
 	ErrorList errors;
 	ErrorReporter errorReporter(errors);
 	GlobalContext globalContext;
-	NameAndTypeResolver resolver(globalContext, solidity::test::CommonOptions::get().evmVersion(), errorReporter);
+	std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>> scopes;
+	NameAndTypeResolver resolver(globalContext, solidity::test::CommonOptions::get().evmVersion(), scopes, errorReporter);
 	resolver.registerDeclarations(*sourceUnit);
 	BOOST_REQUIRE_MESSAGE(resolver.resolveNamesAndTypes(*sourceUnit), "Resolving names failed");
 	DeclarationTypeChecker declarationTypeChecker(errorReporter, solidity::test::CommonOptions::get().evmVersion());

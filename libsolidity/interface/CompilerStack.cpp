@@ -313,7 +313,7 @@ bool CompilerStack::analyze()
 
 		m_globalContext = make_shared<GlobalContext>();
 		// We need to keep the same resolver during the whole process.
-		NameAndTypeResolver resolver(*m_globalContext, m_evmVersion, m_errorReporter);
+		NameAndTypeResolver resolver(*m_globalContext, m_evmVersion, m_scopes, m_errorReporter);
 		for (Source const* source: m_sourceOrder)
 			if (source->ast && !resolver.registerDeclarations(*source->ast))
 				return false;

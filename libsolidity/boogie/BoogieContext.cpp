@@ -368,7 +368,7 @@ string BoogieContext::mapDeclName(Declaration const& decl)
 				name += "#" + extraScope.second;
 				break;
 			}
-			running = m_scopes[running]->enclosingNode();
+			running = scopes()[running]->enclosingNode();
 		}
 	}
 

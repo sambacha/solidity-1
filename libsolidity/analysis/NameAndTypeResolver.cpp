@@ -38,23 +38,7 @@ namespace solidity::frontend
 NameAndTypeResolver::NameAndTypeResolver(
 	GlobalContext& _globalContext,
 	langutil::EVMVersion _evmVersion,
-	ErrorReporter& _errorReporter
-):
-	m_evmVersion(_evmVersion),
-	m_errorReporter(_errorReporter),
-	m_globalContext(_globalContext)
-{
-	m_scopes[nullptr] = make_shared<DeclarationContainer>();
-	for (Declaration const* declaration: _globalContext.declarations())
-	{
-		solAssert(m_scopes[nullptr]->registerDeclaration(*declaration), "Unable to register global declaration.");
-	}
-}
-
-NameAndTypeResolver::NameAndTypeResolver(
-	GlobalContext& _globalContext,
-	langutil::EVMVersion _evmVersion,
-	std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>> const& _scopes,
+	std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>>& _scopes,
 	ErrorReporter& _errorReporter
 ):
 	m_scopes(_scopes),
