@@ -27,6 +27,8 @@
 #include <libsolidity/ast/ASTEnums.h>
 #include <libsolidity/ast/ExperimentalFeatures.h>
 
+#include <libsolutil/SetOnce.h>
+
 #include <map>
 #include <memory>
 #include <optional>
@@ -238,9 +240,6 @@ struct UserDefinedTypeNameAnnotation: TypeNameAnnotation
 {
 	/// Referenced declaration, set during reference resolution stage.
 	Declaration const* referencedDeclaration = nullptr;
-	/// Stores a reference to the current contract.
-	/// This is needed because types of base contracts change depending on the context.
-	ContractDefinition const* contractScope = nullptr;
 };
 
 struct ExpressionAnnotation: ASTAnnotation
@@ -289,7 +288,6 @@ struct BinaryOperationAnnotation: ExpressionAnnotation
 
 enum class FunctionCallKind
 {
-	Unset,
 	FunctionCall,
 	TypeConversion,
 	StructConstructorCall
@@ -297,7 +295,7 @@ enum class FunctionCallKind
 
 struct FunctionCallAnnotation: ExpressionAnnotation
 {
-	FunctionCallKind kind = FunctionCallKind::Unset;
+	util::SetOnce<FunctionCallKind> kind;
 	/// If true, this is the external call of a try statement.
 	bool tryCall = false;
 };

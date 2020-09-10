@@ -128,27 +128,11 @@ private:
 
 bool ViewPureChecker::check()
 {
-	vector<ContractDefinition const*> contracts;
-
-	for (auto const& node: m_ast)
-	{
-		SourceUnit const* source = dynamic_cast<SourceUnit const*>(node.get());
-		solAssert(source, "");
-		contracts += source->filteredNodes<ContractDefinition>(source->nodes());
-	}
-
-	// Check modifiers first to infer their state mutability.
-	for (auto const& contract: contracts)
-		for (ModifierDefinition const* mod: contract->functionModifiers())
-			mod->accept(*this);
-
-	for (auto const& contract: contracts)
-		contract->accept(*this);
+	for (auto const& source: m_ast)
+		source->accept(*this);
 
 	return !m_errors;
 }
-
-
 
 bool ViewPureChecker::visit(FunctionDefinition const& _funDef)
 {
@@ -277,21 +261,24 @@ void ViewPureChecker::reportMutability(
 	{
 		// We do not warn for library functions because they cannot be payable anyway.
 		// Also internal functions should be allowed to use `msg.value`.
-		if (m_currentFunction->isPublic() && !m_currentFunction->libraryFunction())
+		if ((m_currentFunction->isConstructor() || m_currentFunction->isPublic()) && !m_currentFunction->libraryFunction())
 		{
 			if (_nestedLocation)
 				m_errorReporter.typeError(
 					4006_error,
 					_location,
 					SecondarySourceLocation().append("\"msg.value\" or \"callvalue()\" appear here inside the modifier.", *_nestedLocation),
-					"This modifier uses \"msg.value\" or \"callvalue()\" and thus the function has to be payable or internal."
+					m_currentFunction->isConstructor()  ?
+						"This modifier uses \"msg.value\" or \"callvalue()\" and thus the constructor has to be payable."
+						: "This modifier uses \"msg.value\" or \"callvalue()\" and thus the function has to be payable or internal."
 				);
 			else
 				m_errorReporter.typeError(
 					5887_error,
 					_location,
-					"\"msg.value\" and \"callvalue()\" can only be used in payable public functions. Make the function "
-					"\"payable\" or use an internal function to avoid this error."
+					m_currentFunction->isConstructor()  ?
+						"\"msg.value\" and \"callvalue()\" can only be used in payable constructors. Make the constructor \"payable\" to avoid this error."
+						: "\"msg.value\" and \"callvalue()\" can only be used in payable public functions. Make the function \"payable\" or use an internal function to avoid this error."
 				);
 			m_errors = true;
 		}
@@ -304,12 +291,31 @@ void ViewPureChecker::reportMutability(
 		m_currentFunction->stateMutability() == StateMutability::Pure ||
 		m_currentFunction->stateMutability() == StateMutability::NonPayable,
 		""
-	);
+				);
+}
+
+ViewPureChecker::MutabilityAndLocation const& ViewPureChecker::modifierMutability(
+	ModifierDefinition const& _modifier
+)
+{
+	if (!m_inferredMutability.count(&_modifier))
+	{
+		MutabilityAndLocation bestMutabilityAndLocation{};
+		FunctionDefinition const* currentFunction = nullptr;
+		swap(bestMutabilityAndLocation, m_bestMutabilityAndLocation);
+		swap(currentFunction, m_currentFunction);
+
+		_modifier.accept(*this);
+
+		swap(bestMutabilityAndLocation, m_bestMutabilityAndLocation);
+		swap(currentFunction, m_currentFunction);
+	}
+	return m_inferredMutability.at(&_modifier);
 }
 
 void ViewPureChecker::endVisit(FunctionCall const& _functionCall)
 {
-	if (_functionCall.annotation().kind != FunctionCallKind::FunctionCall)
+	if (*_functionCall.annotation().kind != FunctionCallKind::FunctionCall)
 		return;
 
 	StateMutability mutability = dynamic_cast<FunctionType const&>(*_functionCall.expression().annotation().type).stateMutability();
@@ -429,8 +435,7 @@ void ViewPureChecker::endVisit(ModifierInvocation const& _modifier)
 	solAssert(_modifier.name(), "");
 	if (ModifierDefinition const* mod = dynamic_cast<decltype(mod)>(_modifier.name()->annotation().referencedDeclaration))
 	{
-		solAssert(m_inferredMutability.count(mod), "");
-		auto const& mutAndLocation = m_inferredMutability.at(mod);
+		MutabilityAndLocation const& mutAndLocation = modifierMutability(*mod);
 		reportMutability(mutAndLocation.mutability, _modifier.location(), mutAndLocation.location);
 	}
 	else

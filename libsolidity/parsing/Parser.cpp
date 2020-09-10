@@ -108,8 +108,11 @@ ASTPointer<SourceUnit> Parser::parse(shared_ptr<Scanner> const& _scanner)
 			case Token::Enum:
 				nodes.push_back(parseEnumDefinition());
 				break;
+			case Token::Function:
+				nodes.push_back(parseFunctionDefinition(true));
+				break;
 			default:
-				fatalParserError(7858_error, "Expected pragma, import directive or contract/interface/library/struct/enum definition.");
+				fatalParserError(7858_error, "Expected pragma, import directive or contract/interface/library/struct/enum/function definition.");
 			}
 		}
 		solAssert(m_recursionDepth == 0, "");
@@ -569,7 +572,7 @@ Parser::FunctionHeaderParserResult Parser::parseFunctionHeader(bool _isStateVari
 	return result;
 }
 
-ASTPointer<ASTNode> Parser::parseFunctionDefinition()
+ASTPointer<ASTNode> Parser::parseFunctionDefinition(bool _freeFunction)
 {
 	RecursionGuard recursionGuard(*this);
 	ASTNodeFactory nodeFactory(*this);
@@ -628,6 +631,7 @@ ASTPointer<ASTNode> Parser::parseFunctionDefinition()
 		name,
 		header.visibility,
 		header.stateMutability,
+		_freeFunction,
 		kind,
 		header.isVirtual,
 		header.overrides,
@@ -1067,7 +1071,7 @@ ASTPointer<Mapping> Parser::parseMapping()
 	}
 	else
 		fatalParserError(1005_error, "Expected elementary type name or identifier for mapping key type");
-	expectToken(Token::Arrow);
+	expectToken(Token::DoubleArrow);
 	ASTPointer<TypeName> valueType = parseTypeName();
 	nodeFactory.markEndPosition();
 	expectToken(Token::RParen);
@@ -1192,7 +1196,7 @@ ASTPointer<Block> Parser::parseBlock(ASTPointer<ASTString> const& _docString)
 			BOOST_THROW_EXCEPTION(FatalError()); /* Don't try to recover here. */
 		m_inParserRecovery = true;
 	}
-	if (m_parserErrorRecovery)
+	if (m_inParserRecovery)
 		expectTokenOrConsumeUntil(Token::RBrace, "Block");
 	else
 		expectToken(Token::RBrace);

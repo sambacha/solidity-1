@@ -294,6 +294,12 @@ bool NameAndTypeResolver::resolveNamesAndTypesInternal(ASTNode& _node, bool _res
 			if (!resolveNamesAndTypesInternal(*node, true))
 				success = false;
 		}
+
+		// make "this" and "super" invisible.
+		m_scopes[nullptr]->registerDeclaration(*m_globalContext.currentThis(), nullptr, true, true);
+		m_scopes[nullptr]->registerDeclaration(*m_globalContext.currentSuper(), nullptr, true, true);
+		m_globalContext.resetCurrentContract();
+
 		return success;
 	}
 	else
@@ -567,6 +573,10 @@ bool DeclarationRegistrationHelper::visit(ContractDefinition& _contract)
 
 void DeclarationRegistrationHelper::endVisit(ContractDefinition&)
 {
+	// make "this" and "super" invisible.
+	m_scopes[nullptr]->registerDeclaration(*m_globalContext.currentThis(), nullptr, true, true);
+	m_scopes[nullptr]->registerDeclaration(*m_globalContext.currentSuper(), nullptr, true, true);
+	m_globalContext.resetCurrentContract();
 	m_currentContract = nullptr;
 	closeCurrentScope();
 }

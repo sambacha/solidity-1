@@ -112,6 +112,8 @@ set(sources
 	formal/EncodingContext.h
 	formal/ModelChecker.cpp
 	formal/ModelChecker.h
+	formal/Predicate.cpp
+	formal/Predicate.h
 	formal/SMTEncoder.cpp
 	formal/SMTEncoder.h
 	formal/SSAVariable.cpp

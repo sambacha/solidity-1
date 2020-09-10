@@ -127,6 +127,8 @@ add_library(yul
 	optimiser/NameDispenser.h
 	optimiser/NameDisplacer.cpp
 	optimiser/NameDisplacer.h
+	optimiser/NameSimplifier.cpp
+	optimiser/NameSimplifier.h
 	optimiser/OptimiserStep.h
 	optimiser/OptimizerUtilities.cpp
 	optimiser/OptimizerUtilities.h
@@ -156,6 +158,9 @@ add_library(yul
 	optimiser/SyntacticalEquality.h
 	optimiser/TypeInfo.cpp
 	optimiser/TypeInfo.h
+	optimiser/UnusedFunctionParameterPruner.cpp
+	optimiser/UnusedFunctionParameterPruner.h
+	optimiser/UnusedFunctionsCommon.h
 	optimiser/UnusedPruner.cpp
 	optimiser/UnusedPruner.h
 	optimiser/VarDeclInitializer.cpp
