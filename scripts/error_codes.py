@@ -193,8 +193,9 @@ def examine_id_coverage(top_dir, source_id_to_file_names, new_ids_only=False):
     white_ids = {
         "3805", # "This is a pre-release compiler version, please do not use it in production."
                 # The warning may or may not exist in a compiler build.
-        "4591"  # "There are more than 256 warnings. Ignoring the rest."
+        "4591", # "There are more than 256 warnings. Ignoring the rest."
                 # Due to 3805, the warning lists look different for different compiler builds.
+        "1553", "2114", "2180", "3200", "4272", "5042", "5674", "6155", # solc-verify errors
     }
     assert len(test_ids & white_ids) == 0, "The sets are not supposed to intersect"
     test_ids |= white_ids
