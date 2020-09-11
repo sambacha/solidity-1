@@ -37,7 +37,7 @@ contract SelfDestruct {
 
     receive() external payable {
         require(msg.value > 0);
-        (bool b,) = address(tbk).call.value(msg.value)("");
+        (bool b,) = address(tbk).call{value: msg.value}("");
         require(b);
         assert(address(p).balance > 0);
     }

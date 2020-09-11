@@ -37,7 +37,7 @@ contract SimpleBank {
         uint amount = user_balances[msg.sender];
         if (amount > 0 && address(this).balance > amount) {
             user_balances[msg.sender] = 0;
-            (bool ok,) = msg.sender.call.value(amount)("");
+            (bool ok,) = msg.sender.call{value: amount}("");
             if (!ok) {
                 revert();
             }
