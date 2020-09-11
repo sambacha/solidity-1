@@ -139,10 +139,10 @@ abstract contract Escrow is Secondary {
  *
  * @notice invariant __verifier_sum_uint(_deposits) <= address(this).balance
  */
-contract ConditionalEscrow is Escrow {
+abstract contract ConditionalEscrow is Escrow {
 
     /** @notice emits PrimaryTransferred */
-    constructor() internal {}
+    constructor() {}
 
     /**
      * @dev Returns whether an address is allowed to withdraw their funds. To be
@@ -199,7 +199,7 @@ contract RefundEscrow is ConditionalEscrow {
      * @param beneficiary The beneficiary of the deposits.
      * @notice emits PrimaryTransferred
      */
-    constructor (address payable beneficiary) public {
+    constructor (address payable beneficiary) {
         require(beneficiary != address(0), "RefundEscrow: beneficiary is the zero address");
         _beneficiary = beneficiary;
         _state = State.Active;

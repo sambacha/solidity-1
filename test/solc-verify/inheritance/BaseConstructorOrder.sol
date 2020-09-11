@@ -24,7 +24,7 @@ contract BaseConstructorOrder is B1, B2 {
     assert(x == 6);
   }
 
-  constructor() public B1(x+2) m(x+2) B2(x) {
+  constructor() B1(x+2) m(x+2) B2(x) {
     assert(x == 4);
   }
 
