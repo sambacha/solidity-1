@@ -81,7 +81,7 @@ abstract contract Secondary {
 }
 
 /// @notice invariant __verifier_sum_uint(_deposits) <= address(this).balance
-contract Escrow is Secondary {
+abstract contract Escrow is Secondary {
     using SafeMath for uint256;
 
     /// @notice tracks-changes-in _deposits

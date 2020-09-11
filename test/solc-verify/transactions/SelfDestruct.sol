@@ -30,7 +30,7 @@ contract SelfDestruct {
     NonPayable p;
     ToBeKilled tbk;
 
-    constructor() public {
+    constructor() {
         p = new NonPayable();
         tbk = new ToBeKilled(p);
     }

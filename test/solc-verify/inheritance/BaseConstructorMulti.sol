@@ -13,7 +13,7 @@ contract B is A(1) {
 }
 
 contract BaseConstructorMulti is A, B {
-    constructor() public {
+    constructor() {
         assert(n == 1); // Constructor of A is only called once
     }
 

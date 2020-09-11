@@ -14,7 +14,7 @@ contract BaseConstructorAndModifiers is A {
     }
 
     // Will call A() first, then the two modifiers
-    constructor() m A(1) m public {
+    constructor() m A(1) m {
         assert(x == 3);
     }
 

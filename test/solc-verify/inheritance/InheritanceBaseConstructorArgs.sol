@@ -13,7 +13,7 @@ contract D is C(1) {
 }
 
 contract E is C {
-    constructor() C(1) public {
+    constructor() C(1) {
         assert(x == 1);
     }
 }

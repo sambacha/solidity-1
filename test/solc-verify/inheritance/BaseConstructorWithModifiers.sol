@@ -14,7 +14,7 @@ contract A {
 
 contract BaseConstructorWithModifiers is A {
 
-    constructor() A(1) m(2) public {
+    constructor() A(1) m(2) {
         assert(x == 4);
     }
 
