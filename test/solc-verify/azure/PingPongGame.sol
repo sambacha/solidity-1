@@ -64,7 +64,7 @@ contract Player
     address public GameStarter;
     string public PingPongGameName;
 
-    constructor (string memory pingPongGameName) public {
+    constructor (string memory pingPongGameName) {
         GameStarter = msg.sender;
         PingPongGameName = pingPongGameName;
 

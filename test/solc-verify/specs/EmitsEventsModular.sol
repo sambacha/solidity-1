@@ -22,7 +22,7 @@ contract EmitsEventsModular is Base {
     }
 
     /// @notice emits Created
-    constructor() public Base() {}
+    constructor() Base() {}
 
     /// @notice emits Increased
     function inc() public increases_x {

@@ -14,7 +14,7 @@ contract SimpleBank {
     function withdraw(uint256 amount) public {
         require(balances[msg.sender] > amount);
         bool ok;
-        (ok, ) = msg.sender.call.value(amount)(""); // Reentrancy attack
+        (ok, ) = msg.sender.call{value: amount}(""); // Reentrancy attack
         if (!ok) revert();
         balances[msg.sender] -= amount;
     }

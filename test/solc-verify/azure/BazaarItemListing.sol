@@ -72,7 +72,7 @@ contract Bazaar
     ItemListing currentItemListing;
     address public CurrentContractAddress;
 
-    constructor(address partyA, int balanceA, address partyB, int balanceB) public {
+    constructor(address partyA, int balanceA, address partyB, int balanceB) {
         InstanceBazaarMaintainer = msg.sender;
 
         // ensure the two parties are different

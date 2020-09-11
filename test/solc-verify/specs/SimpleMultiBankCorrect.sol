@@ -22,7 +22,7 @@ contract SimpleMultiBankCorrect {
         /// @notice invariant __verifier_sum_uint(balances) + (n-i)*amount <= address(this).balance
         for (uint i = 0; i < n; ++ i) {
             address payable recipient = recipients[i];
-            (bool ok, ) = recipient.call.value(amount)(""); // No reentrancy attack
+            (bool ok, ) = recipient.call{value: amount}(""); // No reentrancy attack
             if (!ok) revert();
         }
     }

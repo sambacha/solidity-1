@@ -15,7 +15,7 @@ contract SimpleBank {
         require(balances[msg.sender] > amount);
         balances[msg.sender] -= amount;
         bool ok;
-        (ok, ) = msg.sender.call.value(amount)(""); // No reentrancy attack
+        (ok, ) = msg.sender.call{value: amount}(""); // No reentrancy attack
         if (!ok) revert();
     }
 }

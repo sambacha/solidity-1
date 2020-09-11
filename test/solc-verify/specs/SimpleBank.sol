@@ -24,7 +24,7 @@ contract SimpleBank {
         require(address(this) != msg.sender);
         uint amount = user_balances[msg.sender];
         if (amount > 0 && address(this).balance > amount) {
-            (bool ok,) = msg.sender.call.value(amount)("");
+            (bool ok,) = msg.sender.call{value: amount}("");
             if (!ok) {
                 revert();
             }
