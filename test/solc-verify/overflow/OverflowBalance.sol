@@ -7,7 +7,7 @@ pragma solidity >=0.7.0;
 contract Overflow {
     uint256 bal;
 
-    constructor() public {
+    constructor() {
         bal = 0;
     }
 

@@ -13,7 +13,7 @@ contract B {
     A a;
     int y;
 
-    constructor() public {
+    constructor() {
         y = 0;
         a.setX(y);
     }

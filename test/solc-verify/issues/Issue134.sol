@@ -13,7 +13,7 @@ contract A {
     title = str;
   }
 
-  constructor() public {
+  constructor() {
     f(s2);
   }
 }

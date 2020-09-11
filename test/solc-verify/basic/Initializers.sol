@@ -5,7 +5,7 @@ contract Initializers {
     int b;
     int c;
 
-    constructor(int b0) public {
+    constructor(int b0) {
         assert(a == 5);
         assert(b == 0);
         assert(c == 0);

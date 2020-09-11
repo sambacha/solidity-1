@@ -16,7 +16,7 @@ contract Constr {
 
     S2 s;
 
-    constructor(uint init) public {
+    constructor(uint init) {
         // Value should be initialize to 0 here
         assert(value == 0);
         value = init;

@@ -5,7 +5,7 @@ contract Base {
     event Created();
 
     /// @notice emits Created
-    constructor() public {
+    constructor() {
         emit Created();
     }
 }

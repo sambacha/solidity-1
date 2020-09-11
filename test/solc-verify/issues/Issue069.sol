@@ -2,7 +2,7 @@
 pragma solidity >=0.7.0;
 
 contract Base {
-    constructor() public {
+    constructor() {
         f();
     }
 

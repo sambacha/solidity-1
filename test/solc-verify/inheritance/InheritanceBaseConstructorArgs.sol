@@ -3,7 +3,7 @@ pragma solidity >=0.7.0;
 
 contract C {
     int x;
-    constructor(int _x) public { x = _x; }
+    constructor(int _x) { x = _x; }
 }
 
 contract D is C(1) {

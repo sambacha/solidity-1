@@ -2,7 +2,7 @@
 pragma solidity >=0.7.0;
 
 contract C1 {
-    constructor() public {
+    constructor() {
         // Should hold
         assert(address(this).balance >= 0);
     }

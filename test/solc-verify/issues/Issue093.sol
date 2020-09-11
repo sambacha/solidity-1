@@ -3,7 +3,7 @@ pragma solidity >=0.7.0;
 
 contract A {
   int constant c = 0;
-  constructor() public {
+  constructor() {
     assembly {}
   }
 }

@@ -7,7 +7,7 @@ contract VerifResults {
 
     // Constructor: OK
     /// @notice postcondition x == 0
-    constructor() public {
+    constructor() {
     }
 
     // Setting a value: OK

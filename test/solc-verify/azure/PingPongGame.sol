@@ -12,7 +12,7 @@ contract Starter
     address public GamePlayer;
     int public PingPongTimes;
 
-    constructor (string memory gameName) public{
+    constructor (string memory gameName) {
         PingPongGameName = gameName;
         GameStarter = msg.sender;
 

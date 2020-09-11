@@ -16,7 +16,7 @@ contract ItemListing
     address public PartyB;
 
 
-    constructor(string memory itemName, int itemPrice, address seller, address parentContractAddress, address partyA, address partyB) public {
+    constructor(string memory itemName, int itemPrice, address seller, address parentContractAddress, address partyA, address partyB) {
         Seller = seller;
         ParentContract = parentContractAddress;
         ItemName = itemName;

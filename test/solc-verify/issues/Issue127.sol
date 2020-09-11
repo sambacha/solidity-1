@@ -3,7 +3,7 @@ pragma solidity >=0.7.0;
 
 contract A {
   address owner;
-  constructor(address _owner) public {
+  constructor(address _owner) {
     owner = _owner;
   }
 }

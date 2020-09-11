@@ -15,7 +15,7 @@ contract B {
     // This reference can be trusted as it is only assigned with 'new' internally
     A a;
 
-    constructor() public {
+    constructor() {
         a = new A(); // Calling the constsructor will establish invariant
         a.incr();
         assert(a.getX() >= 0); // Should hold

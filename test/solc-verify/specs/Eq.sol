@@ -17,7 +17,7 @@ contract MapsEq {
         y[address(this)] = v;
     }
 
-    constructor() public {}
+    constructor() {}
 }
 
 /// @notice invariant __verifier_eq(s1, s2)

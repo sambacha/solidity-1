@@ -6,7 +6,7 @@ contract OldExpr {
     int256 counter;
     uint40 counter2;
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
     }
 

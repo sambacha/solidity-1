@@ -9,7 +9,7 @@ contract Simple {
     uint x;
     uint y;
 
-    constructor() public {
+    constructor() {
         x = y = 0;
     }
 

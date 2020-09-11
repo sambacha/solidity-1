@@ -28,7 +28,7 @@ library SafeMath {
     }
 }
 
-contract Secondary {
+abstract contract Secondary {
     address internal _primary;
 
     /**

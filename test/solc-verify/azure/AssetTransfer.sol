@@ -14,7 +14,7 @@ contract AssetTransfer
     address public InstanceInspector;
     address public InstanceAppraiser;
 
-    constructor(string memory description, uint256 price) public
+    constructor(string memory description, uint256 price) 
     {
         InstanceOwner = msg.sender;
         AskingPrice = price;

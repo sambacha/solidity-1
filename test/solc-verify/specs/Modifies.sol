@@ -6,7 +6,7 @@ contract Simple {
     address owner;
     int counter;
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
     }
 
