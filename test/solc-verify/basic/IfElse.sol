@@ -23,7 +23,7 @@ contract IfElse {
         return param > 10 ? 10 : 0;
     }
 
-    function() external payable {
+    receive() external payable {
         assert(ifthenelse(5) == 10);
         assert(ifthenelse(15) == 20);
         assert(ifthenelse(25) == 30);

@@ -8,18 +8,18 @@ contract C {
 }
 
 contract D is C {
-    int x;
+    int x1;
 
     /// @notice modifies C.x
     function correct1() public { f(); }
 
-    /// @notice modifies x
-    function correct2() public { x = 5; }
+    /// @notice modifies x1
+    function correct2() public { x1 = 5; }
 
     function incorrect1() public { f(); }
 
-    function incorrect2() public { x = 3; }
+    function incorrect2() public { x1 = 3; }
 
-    /// @notice modifies x
+    /// @notice modifies x1
     function incorrect3() public { C.x = 3; }
 }

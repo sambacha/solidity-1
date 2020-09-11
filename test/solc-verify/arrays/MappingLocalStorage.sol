@@ -8,7 +8,7 @@ contract MappingLocalStorage {
     mapping(int=>S) m1;
     mapping(int=>S) m2;
 
-    function() external payable {
+    receive() external payable {
         m1[0].x = 1;
         m2[5].x = 3;
         mapping(int=>S) storage m = m1;

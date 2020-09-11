@@ -10,7 +10,7 @@ contract RIPMD160 {
     ok = (h1 == h2);
   }
 
-  function() external payable {
+  receive() external payable {
     assert(hashTwice("test"));
   }
 }

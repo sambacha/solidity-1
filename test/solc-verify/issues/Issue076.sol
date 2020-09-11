@@ -6,7 +6,7 @@ contract Issue076 {
         assert(x == 1);
         assert(y);
     }
-    function() external payable {
+    receive() external payable {
         f(1, true);
         f({y:true, x:1});
     }

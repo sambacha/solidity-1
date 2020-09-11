@@ -79,7 +79,7 @@ contract Arithmetic {
         return a >= b;
     }
 
-    function() external payable {
+    receive() external payable {
         assert(and(true, true) == true);
         assert(and(true, false) == false);
         assert(and(false, true) == false);

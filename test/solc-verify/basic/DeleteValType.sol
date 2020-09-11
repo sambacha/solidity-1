@@ -26,7 +26,7 @@ contract DeleteValType {
         assert(a == address(0x0));
     }
 
-    function() external payable {
+    receive() external payable {
     }
 
 }

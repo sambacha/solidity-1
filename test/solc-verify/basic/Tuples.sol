@@ -55,7 +55,7 @@ contract Tuples {
       }
     }
 
-    function() external payable {
+    receive() external payable {
       int x = 10;
       int y = 20;
       (int min, int max) = minMax(x, y);

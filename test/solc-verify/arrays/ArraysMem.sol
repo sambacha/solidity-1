@@ -11,7 +11,7 @@ contract ArraysMem {
         return a;
     }
 
-    function() external payable {
+    receive() external payable {
         int[] memory a1 = new int[](2);
         assert(a1[0] == 0); // Check default values
         assert(a1[1] == 0);

@@ -24,6 +24,6 @@ contract DeleteStorageStruct {
         assert(s.x == 0);
     }
 
-    function() external payable {
+    receive() external payable {
     }
 }

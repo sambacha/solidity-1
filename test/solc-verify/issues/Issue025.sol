@@ -11,7 +11,7 @@ library L {
 }
 
 contract Issue025 {
-    function() external payable {
+    receive() external payable {
         assert(L.msgsender() == msg.sender);
         assert(L.msgvalue() == msg.value);
     }

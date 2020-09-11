@@ -93,7 +93,7 @@ contract StructsStorMemCopy {
         assert(sm.x == 1);
     }
 
-    function() external payable {
+    receive() external payable {
         storToMem();
         memToStor();
         checkReturnMem();

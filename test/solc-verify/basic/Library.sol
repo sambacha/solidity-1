@@ -19,7 +19,7 @@ contract Library {
         return MathLib.add(1, 2);
     }
 
-    function() external payable {
+    receive() external payable {
         assert(someFunc() == 15);
         assert(otherFunc() == 3);
     }

@@ -18,5 +18,5 @@ contract BaseConstructorWithModifiers is A {
         assert(x == 4);
     }
 
-    function() external payable { } // Needed for detecting as a truffle test case
+    receive() external payable { } // Needed for detecting as a truffle test case
 }

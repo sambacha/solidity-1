@@ -12,7 +12,7 @@ contract Base {
 
 contract Transactions is Base {
 
-    function() external payable {
+    receive() external payable {
         require(msg.sender != address(this));
 
         f(4); // Internal

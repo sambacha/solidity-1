@@ -9,7 +9,7 @@ contract Casts {
         return x;
     }
 
-    function() external payable {
+    receive() external payable {
         assert(literalCast() == 123);
     }
 }

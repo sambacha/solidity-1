@@ -3,7 +3,7 @@ pragma solidity >=0.7.0;
 
 contract SpecialMembers {
     int x;
-    function() external payable {
+    receive() external payable {
         uint now1 = now;
         uint bn1 = block.number;
         x++;

@@ -2,7 +2,7 @@
 pragma solidity >=0.7.0;
 
 contract Issue020 {
-  function() external payable {
+  receive() external payable {
     uint d1 = 654_321;
     uint d2 =  54_321;
     uint d3 =   4_321;

@@ -23,7 +23,7 @@ contract LocalStorageSpec is B {
   function setC0(S storage s_ptr) internal {
     setB0(s_ptr);
   }
-  function() external payable {
+  receive() external payable {
     setC0(s);
     assert(s.x == 0);
   }

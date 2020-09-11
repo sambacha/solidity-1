@@ -8,7 +8,7 @@ contract MappingInArray {
         assert(arr[0][msg.sender] == 0);
     }
 
-    function() external payable {
+    receive() external payable {
         arr[0][msg.sender] = 5;
         int x = arr[0][msg.sender];
         assert(x == 5);

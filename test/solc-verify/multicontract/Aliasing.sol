@@ -21,7 +21,7 @@ contract Aliasing is A {
         a2 = new A();
     }
 
-    function() external payable {
+    receive() external payable {
         require(a1 != a2);
         a1.reset();
         assert(a1.get() == 0); // Should hold

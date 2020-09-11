@@ -4,7 +4,7 @@ pragma solidity >=0.7.0;
 contract ArrayLocalStoragePushPopLen {
     int[] arr;
 
-    function() external payable {
+    receive() external payable {
         require(arr.length == 0);
 
         int[] storage s = arr;

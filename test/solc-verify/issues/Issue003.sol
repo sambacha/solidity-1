@@ -142,7 +142,7 @@ contract Issue003 {
         check();
     }
 
-    function() external payable {
+    receive() external payable {
         check();
     }
 

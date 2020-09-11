@@ -165,7 +165,7 @@ contract StructsLocalStorage {
         assert(s_map[1].t.z == 4);
     }
 
-    function() external payable {
+    receive() external payable {
         testSimple();
         testMember();
         testConditional(true);

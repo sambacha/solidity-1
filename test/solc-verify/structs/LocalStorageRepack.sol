@@ -20,7 +20,7 @@ contract LocalStorageRepack {
     P p;
     S[] s_arr;
 
-    function() external payable {
+    receive() external payable {
         s1.x = 1;
         s1.t.z = 11;
         s2.x = 2;

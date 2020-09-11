@@ -34,7 +34,7 @@ contract Structs {
     f_s1_other = s1_stor;
   }
 
-  function() external payable {
+  receive() external payable {
     // Copy from memory to storage
     S1 memory s1_mem = S1(1, true);
     f_s1 = s1_mem;

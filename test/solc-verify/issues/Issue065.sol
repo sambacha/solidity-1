@@ -7,7 +7,7 @@ contract Issue065 {
         return 1;
     }
 
-    function() external payable {
+    receive() external payable {
         assert(Issue065(this).value() == 1);
     }
 }

@@ -55,7 +55,7 @@ contract FunctionCall {
         sum = x1 + y1;
     }
 
-    function() external payable {
+    receive() external payable {
       a = 0;
       x = 0;
       y = 0;

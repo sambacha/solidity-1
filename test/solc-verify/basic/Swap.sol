@@ -5,7 +5,7 @@ contract Swap {
     uint a;
     uint b;
 
-    function() external payable {
+    receive() external payable {
         uint x = 1;
         uint y = 2;
         (x, y) = (y, x);

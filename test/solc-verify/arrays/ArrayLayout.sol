@@ -9,7 +9,7 @@ contract ArrayLayout {
 
   S[] m_a; // No aliasing inside
 
-  function() external payable {
+  receive() external payable {
     S[] memory a; // Memory array can have pointers inside
     S memory f = S(1);
 

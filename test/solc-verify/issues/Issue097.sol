@@ -9,7 +9,7 @@ contract Issue097 {
         assert(arr[arr.length-1] == 0); // Should hold
     }
 
-    function() external payable {
+    receive() external payable {
         arr.length += 1;
         assert(arr[arr.length-1] == 0); // Should hold
     }

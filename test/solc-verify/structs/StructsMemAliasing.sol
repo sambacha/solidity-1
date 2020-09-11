@@ -6,7 +6,7 @@ contract StructsMemAliasing {
         int x;
     }
 
-    function() external payable {
+    receive() external payable {
         S memory sm1 = S(1);
         S memory sm2 = S(2);
         S memory sm3 = sm1;

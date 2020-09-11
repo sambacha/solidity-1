@@ -8,7 +8,7 @@ contract Issue084 {
 
     S s;
 
-    function() external payable {
+    receive() external payable {
         assert(s.x >= 0);
     }
 }

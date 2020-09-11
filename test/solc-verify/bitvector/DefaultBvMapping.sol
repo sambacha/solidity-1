@@ -10,7 +10,7 @@ contract DefaultBvMapping {
         assert(map[0] == 0);
     }
 
-    function() external payable {
+    receive() external payable {
         assert(map[0] == 0);
     }
 }

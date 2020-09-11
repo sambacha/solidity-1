@@ -22,6 +22,6 @@ contract MappingInit {
     }
 
     // This is here to be run by truffle
-    function() external payable {
+    receive() external payable {
     }
 }

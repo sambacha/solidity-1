@@ -5,7 +5,7 @@ pragma solidity >=0.7.0;
  * @notice invariant address(this).balance == 0
  */
 contract NonPayable {
-    function() external payable {
+    receive() external payable {
         require(false);
     }
 }
@@ -19,7 +19,7 @@ contract ToBeKilled {
     }
 
     /// @notice postcondition address(p).balance >= msg.value
-    function() external payable {
+    receive() external payable {
         selfdestruct(address(p));
     }
 }
@@ -35,7 +35,7 @@ contract SelfDestruct {
         tbk = new ToBeKilled(p);
     }
 
-    function() external payable {
+    receive() external payable {
         require(msg.value > 0);
         (bool b,) = address(tbk).call.value(msg.value)("");
         require(b);

@@ -86,7 +86,7 @@ contract Loops {
         return x;
     }
 
-    function() external payable {
+    receive() external payable {
         assert(whileLoopFunc(5) == 15);
         assert(doWhileLoopFunc(5) == 15);
         assert(forLoopFunc(9) == 19);

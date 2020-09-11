@@ -3,7 +3,7 @@ pragma solidity >=0.7.0;
 
 contract BitPreciseCast {
 
-    function() external payable {
+    receive() external payable {
         uint8 x = 255;
         assert(int8(x) == -1);
         uint16 y = 257;

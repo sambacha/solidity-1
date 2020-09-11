@@ -28,5 +28,5 @@ contract BaseConstructorOrder is B1, B2 {
     assert(x == 4);
   }
 
-  function() external payable { } // Needed for detecting as a truffle test case
+  receive() external payable { } // Needed for detecting as a truffle test case
 }

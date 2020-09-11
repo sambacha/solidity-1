@@ -15,7 +15,7 @@ contract Payable {
 
     PayableFunctions p;
 
-    function() external payable {
+    receive() external payable {
         assert(transfer(1) == 2);
     }
 

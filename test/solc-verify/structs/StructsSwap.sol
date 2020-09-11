@@ -18,7 +18,7 @@ contract StructsSwap {
 
   B b;
 
-  function() external payable {
+  receive() external payable {
     a1.x = 1;
     a2.x = 2;
     a3.x = 3;

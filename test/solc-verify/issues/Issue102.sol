@@ -7,7 +7,7 @@ contract Issue102 {
         bool b;
     }
 
-    function() external payable {
+    receive() external payable {
         S memory s; // Allocate new and set default values
         assert(s.x == 0);
         assert(s.b == false);

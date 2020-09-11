@@ -11,7 +11,7 @@ contract StructsArrays {
   A a1;
   A a2;
 
-  function() external payable {
+  receive() external payable {
     // Conditions established by constructor
     require(a1.x == 0);
     require(a2.x == 0);

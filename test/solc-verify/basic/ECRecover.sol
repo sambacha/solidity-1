@@ -10,7 +10,7 @@ contract ECRecover {
     ok = (a1 == a2);
   }
 
-  function() external payable {
+  receive() external payable {
     bytes32 h = keccak256('yas');
     uint8 v = 0x2a;
     bytes32 r = 0xc19db245478a06032e69cdbd2b54e648b78431d0a47bd1fbab18f79f820ba407;

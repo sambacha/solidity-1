@@ -8,7 +8,7 @@ contract NamedArgs {
     int f2;
   }
 
-  function() external payable {
+  receive() external payable {
     S memory s1 = S({f1: true, f2: 10});
     S memory s2 = S({f2: 10, f1: true});
     assert(s1.f1 == s2.f1);

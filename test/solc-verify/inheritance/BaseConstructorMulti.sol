@@ -17,5 +17,5 @@ contract BaseConstructorMulti is A, B {
         assert(n == 1); // Constructor of A is only called once
     }
 
-    function() external payable { } // Needed for detecting as a truffle test case
+    receive() external payable { } // Needed for detecting as a truffle test case
 }

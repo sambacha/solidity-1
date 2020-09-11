@@ -31,7 +31,7 @@ contract StructsLocalStorageFunc {
         else return u[i].s2;
     }
 
-    function() external payable {
+    receive() external payable {
         // Calling a function
         set_x_with_ptr(s, 1);
         set_x_with_ptr(u[0].s1, 2);

@@ -27,6 +27,6 @@ contract PushBeforeLocal {
         assert(s.x == 2);
     }
 
-    function() external payable {
+    receive() external payable {
     }
 }

@@ -34,7 +34,7 @@ contract NewExpr {
         assert(a1.getX() == 1); // Should hold
     }
 
-    function() external payable {
+    receive() external payable {
         single();
         multiple();
     }

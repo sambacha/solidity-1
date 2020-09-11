@@ -15,7 +15,7 @@ contract ModifiersDuplicate {
         x++;
     }
 
-    function() external payable {
+    receive() external payable {
         x = 0;
         test();
         assert(x == 13);

@@ -11,7 +11,7 @@ contract StructsMem {
         int z;
     }
 
-    function() external payable {
+    receive() external payable {
         // Initialize a new memory struct
         T memory tm = T(2);
         S memory sm = S(1, tm);

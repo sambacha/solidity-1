@@ -10,7 +10,7 @@ contract StructsSwap0 {
   A a1;
   A a2;
 
-  function() external payable {
+  receive() external payable {
     a1.x = 1;
     a2.x = 2;
     assert(a1.x == 1);

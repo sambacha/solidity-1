@@ -6,7 +6,7 @@ contract ArraysPopDangling {
 
     S[] arr;
 
-    function() external payable {
+    receive() external payable {
         arr.push(S(1));
         S storage s = arr[arr.length-1];
         arr.pop();

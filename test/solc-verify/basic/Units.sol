@@ -2,7 +2,7 @@
 pragma solidity >=0.7.0;
 
 contract Units {
-    function() external payable {
+    receive() external payable {
         assert(1 seconds == 1);
         assert(1 minutes == 60 seconds);
         assert(1 hours == 3600 seconds);

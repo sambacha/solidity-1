@@ -135,7 +135,7 @@ contract StructsCopying {
         assert(t1.s.x == 2);
     }
 
-    function() external payable {
+    receive() external payable {
         storToStor();
         storToMem();
         storToLoc();

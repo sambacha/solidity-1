@@ -5,7 +5,7 @@ contract ArraysStorage {
     int[2] x;
     int[2] y;
 
-    function() external payable {
+    receive() external payable {
         x[0] = 1;
         x[1] = 2;
         y[0] = 3;

@@ -20,7 +20,7 @@ contract Partial {
     /// @notice modifies y
     /// @notice modifies address(this).balance
     /// @notice postcondition x != y
-    function() external payable {
+    receive() external payable {
         x = 1;
         y = 2;
         unsupported();

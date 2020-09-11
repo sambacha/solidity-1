@@ -14,6 +14,6 @@ contract DeleteStorageArray {
         assert(arr.length == 0);
     }
 
-    function() external payable {
+    receive() external payable {
     }
 }

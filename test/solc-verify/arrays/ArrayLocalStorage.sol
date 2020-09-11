@@ -84,7 +84,7 @@ contract ArrayLocalStorage {
         assert(m[0] == 1);
     }
 
-    function() external payable {
+    receive() external payable {
         testSimple();
         testReassign();
         testAssignToStorage();

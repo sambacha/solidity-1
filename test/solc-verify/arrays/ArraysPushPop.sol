@@ -15,7 +15,7 @@ contract ArraysPushPop {
 
     /// @notice modifies x
     /// @notice modifies address(this).balance
-    function() external payable {
+    receive() external payable {
         require(x.length == 0);
         x.push(4);
         assert(x.length == 1);

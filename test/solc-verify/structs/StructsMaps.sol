@@ -11,7 +11,7 @@ contract StructsMaps {
   A a1;
   A a2;
 
-  function() external payable {
+  receive() external payable {
     A memory ma = A(1);
     assert(a1.x == 0);
     assert(a2.x == 0);
