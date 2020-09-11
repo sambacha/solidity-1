@@ -93,7 +93,7 @@ abstract contract Escrow is Secondary {
     mapping(address => uint256) internal _deposits;
 
     /** @notice emits PrimaryTransferred */
-    constructor() internal {}
+    constructor() {}
 
     function depositsOf(address payee) public view returns (uint256) {
         return _deposits[payee];

@@ -13,7 +13,7 @@ contract B1 is A {
 }
 
 contract B2 is A {
-  constructor(int _x) public { set(x+_x); }
+  constructor(int _x) { set(x+_x); }
 }
 
 contract BaseConstructorOrder is B1, B2 {
