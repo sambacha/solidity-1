@@ -45,7 +45,7 @@ abstract contract Secondary {
      *
      * @notice emits PrimaryTransferred
      */
-    constructor () internal {
+    constructor () {
         address msgSender = msg.sender;
         _primary = msgSender;
         emit PrimaryTransferred(msgSender);

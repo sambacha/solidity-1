@@ -138,7 +138,7 @@ contract Issue003 {
     A constant FB = FC;
     A constant FC = A(0x00);
 
-    constructor() public {
+    constructor() {
         check();
     }
 

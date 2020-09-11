@@ -12,5 +12,5 @@ contract D is C { }
 
 /// @notice invariant C.x == 42
 contract E is D {
-    constructor() public { }
+    constructor() { }
 }

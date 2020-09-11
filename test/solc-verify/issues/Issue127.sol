@@ -9,7 +9,7 @@ contract A {
 }
 contract B {
   A a;
-  constructor() public {
+  constructor() {
     a = new A(msg.sender);
   }
 }

@@ -4,7 +4,7 @@ pragma solidity >=0.7.0;
 contract A {
     int public x;
 
-    constructor(int _x) public { x = _x; }
+    constructor(int _x) { x = _x; }
 }
 
 contract BaseConstructorAndModifiers is A {

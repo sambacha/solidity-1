@@ -13,7 +13,7 @@ contract MappingInit {
     mapping(int => mapping(int => int)) nested;
     mapping(int => S) ms;
 
-    constructor() public {
+    constructor() {
         assert(m[0] == 0);
         assert(nested[0][0] == 0);
         assert(ms[0].x == 0);

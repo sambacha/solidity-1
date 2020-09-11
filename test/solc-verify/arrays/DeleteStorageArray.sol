@@ -4,7 +4,7 @@ pragma solidity >=0.7.0;
 contract DeleteStorageArray {
     int[] arr;
 
-    constructor() public {
+    constructor() {
         arr.push(1);
         arr.push(2);
         assert(arr.length == 2);

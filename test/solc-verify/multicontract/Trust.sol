@@ -30,7 +30,7 @@ contract B {
 contract C {
     A a; // Cannot (always) be trusted
 
-    constructor() public {
+    constructor() {
         a = new A(); // Calling the constsructor will establish invariant
         assert(a.getX() >= 0); // Should hold
     }

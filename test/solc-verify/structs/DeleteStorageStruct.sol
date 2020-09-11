@@ -12,7 +12,7 @@ contract DeleteStorageStruct {
 
     S s;
 
-    constructor() public {
+    constructor() {
         assert(s.t.z == 0);
         assert(s.x == 0);
         s.t.z = 1;

@@ -6,7 +6,7 @@ contract DeleteValType {
     bool b;
     address a;
 
-    constructor() public {
+    constructor() {
         assert(x == 0);
         assert(!b);
         assert(a == address(0x0));

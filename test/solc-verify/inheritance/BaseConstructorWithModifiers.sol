@@ -9,7 +9,7 @@ contract A {
         _;
     }
 
-    constructor(int _x) public m(_x) { x++; }
+    constructor(int _x) m(_x) { x++; }
 }
 
 contract BaseConstructorWithModifiers is A {

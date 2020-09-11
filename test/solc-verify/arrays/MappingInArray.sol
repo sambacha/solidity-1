@@ -4,7 +4,7 @@ pragma solidity >=0.7.0;
 contract MappingInArray {
     mapping(address=>int)[2] arr;
 
-    constructor() public {
+    constructor() {
         assert(arr[0][msg.sender] == 0);
     }
 

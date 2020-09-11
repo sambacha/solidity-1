@@ -6,7 +6,7 @@ contract DefaultBvMapping {
 
     mapping(int16=>int32) map;
 
-    constructor() public {
+    constructor() {
         assert(map[0] == 0);
     }
 

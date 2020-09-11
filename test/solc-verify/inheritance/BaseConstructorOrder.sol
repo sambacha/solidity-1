@@ -5,7 +5,7 @@ contract A {
     int public x;
     /// @notice postcondition (x == __verifier_old_int(_x))
     function set(int _x) public { x = _x; }
-    constructor(int _x) public { set(_x); }
+    constructor(int _x) { set(_x); }
 }
 
 contract B1 is A {

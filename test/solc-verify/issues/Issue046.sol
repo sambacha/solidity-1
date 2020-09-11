@@ -9,7 +9,7 @@ contract C1 {
 }
 
 contract C2 {
-    constructor() public {
+    constructor() {
         // Might not hold
         assert(address(this).balance == 0);
     }

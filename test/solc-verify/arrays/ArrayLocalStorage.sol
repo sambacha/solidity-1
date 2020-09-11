@@ -6,7 +6,7 @@ contract ArrayLocalStorage {
     int[] x2;
     bool[] b;
 
-    constructor() public {
+    constructor() {
         x1.push(0);
         x2.push(0);
     }

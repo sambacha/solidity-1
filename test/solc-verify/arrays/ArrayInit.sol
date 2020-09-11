@@ -12,7 +12,7 @@ contract ArrayInit {
 
     int[2][3] ma;
 
-    constructor() public {
+    constructor() {
         assert(a.length == 2);
         assert(a[0] == 0);
         assert(a[1] == 0);

@@ -13,7 +13,7 @@ contract StructsStorMemCopy {
 
     S st = S(1, T(2));
 
-    constructor() public {
+    constructor() {
         assert(st.x == 1);
         assert(st.t.z == 2);
     }

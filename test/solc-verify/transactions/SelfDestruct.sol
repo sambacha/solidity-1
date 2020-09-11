@@ -14,7 +14,7 @@ contract ToBeKilled {
     NonPayable public p;
 
     /// @notice postcondition p == np
-    constructor(NonPayable np) public {
+    constructor(NonPayable np) {
         p = np;
     }
 

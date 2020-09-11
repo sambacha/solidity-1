@@ -19,7 +19,7 @@ contract Structs {
   S1 f_s1;
   S1 f_s1_other;
 
-  constructor() public {
+  constructor() {
     // Initialize something
     S2 storage owner_entry = m[msg.sender];
     owner_entry.flag = true;

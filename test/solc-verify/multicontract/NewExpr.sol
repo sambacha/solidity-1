@@ -6,7 +6,7 @@ contract A {
     int private x;
 
     /** @notice postcondition x == 0 */
-    constructor() public {}
+    constructor() {}
 
     function incr() public { x++; }
 
