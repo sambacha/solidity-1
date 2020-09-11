@@ -11,8 +11,6 @@ contract Units {
         assert(1 weeks == 7 days);
 
         assert(1 wei == 1);
-        assert(1 szabo == 1e12);
-        assert(1 finney == 1e15);
         assert(1 ether == 1e18);
     }
 }
