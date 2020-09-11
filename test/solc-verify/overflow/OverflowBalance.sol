@@ -11,7 +11,7 @@ contract Overflow {
         bal = 0;
     }
 
-    function receive() public payable {
+    receive() public payable {
         bal += msg.value; // Should not overflow
     }
 }

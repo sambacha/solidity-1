@@ -19,13 +19,13 @@ contract B is A {
 }
 
 contract LocalStorageSpec is B {
-  S s;
+  S s1;
   function setC0(S storage s_ptr) internal {
     setB0(s_ptr);
   }
   receive() external payable {
-    setC0(s);
-    assert(s.x == 0);
+    setC0(s1);
+    assert(s1.x == 0);
   }
 
 }
