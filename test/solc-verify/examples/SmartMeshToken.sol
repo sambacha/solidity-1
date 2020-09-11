@@ -4,7 +4,8 @@
 
 // Abstract contract for the full ERC 20 Token standard
 // https://github.com/ethereum/EIPs/issues/20
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Token {
     /* This is a slight change to the ERC20 base standard.*/

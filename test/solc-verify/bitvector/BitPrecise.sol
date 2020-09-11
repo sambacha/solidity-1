@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract BitPrecise {
     function add128(uint128 a, uint128 b) public pure returns (uint128) {

@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract ArraysMemAliasingParam {
     function f(int[] memory a1, int[] memory a2) public pure {

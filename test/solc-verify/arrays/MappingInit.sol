@@ -1,4 +1,5 @@
-pragma solidity ^0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 /// @notice invariant m[0] == 0
 /// @notice invariant nested[0][0] == 0

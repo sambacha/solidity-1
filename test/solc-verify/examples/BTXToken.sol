@@ -2,7 +2,8 @@
  *Submitted for verification at Etherscan.io on 2018-07-05
 */
 
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 interface Token {
 

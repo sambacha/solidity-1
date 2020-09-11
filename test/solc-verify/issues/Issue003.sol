@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 /// From test/libsolidity/syntaxTests/types/cyclic_dependency_check_on_consts_good.sol
 

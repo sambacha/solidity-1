@@ -2,7 +2,8 @@
  *Submitted for verification at Etherscan.io on 2018-02-11
 */
 
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 interface ERC20 {
 	//ERC-20 Token Standard https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
