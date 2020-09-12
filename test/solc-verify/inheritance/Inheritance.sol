@@ -5,7 +5,7 @@ contract Base {
     /**
      * @notice postcondition r == 1
      */
-    function f() public pure returns (uint r) {
+    function f() public pure virtual returns (uint r) {
         return 1;
     }
 
@@ -21,7 +21,7 @@ contract Inheritance is Base {
     /**
      * @notice postcondition r == 3
      */
-    function f() public pure returns (uint r) {
+    function f() public pure override returns (uint r) {
         return 3;
     }
 

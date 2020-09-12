@@ -11,7 +11,7 @@ contract Overflow {
         bal = 0;
     }
 
-    receive() public payable {
+    receive() external payable {
         bal += msg.value; // Should not overflow
     }
 }

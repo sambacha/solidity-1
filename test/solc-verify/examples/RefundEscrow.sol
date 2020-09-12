@@ -107,7 +107,7 @@ abstract contract Escrow is Secondary {
      * @notice modifies address(this).balance
      * @notice emits Deposited
      */
-    function deposit(address payee) public onlyPrimary payable {
+    function deposit(address payee) public virtual onlyPrimary payable {
         uint256 amount = msg.value;
         _deposits[payee] = _deposits[payee].add(amount);
 
@@ -123,7 +123,7 @@ abstract contract Escrow is Secondary {
      * @notice modifies payee.balance
      * @notice emits Withdrawn
      */
-    function withdraw(address payable payee) public onlyPrimary {
+    function withdraw(address payable payee) public virtual onlyPrimary {
         uint256 payment = _deposits[payee];
         _deposits[payee] = 0;
         payee.transfer(payment);
@@ -149,7 +149,7 @@ abstract contract ConditionalEscrow is Escrow {
      * implemented by derived contracts.
      * @param payee The destination address of the funds.
      */
-    function withdrawalAllowed(address payee) public view returns (bool);
+    function withdrawalAllowed(address payee) public view virtual returns (bool);
 
     /**
      * @notice emits Withdrawn
@@ -157,7 +157,7 @@ abstract contract ConditionalEscrow is Escrow {
      * @notice modifies address(this).balance
      * @notice modifies payee.balance
      */
-    function withdraw(address payable payee) public {
+    function withdraw(address payable payee) public override {
         require(withdrawalAllowed(payee), "ConditionalEscrow: payee is not allowed to withdraw");
         super.withdraw(payee);
     }
@@ -227,7 +227,7 @@ contract RefundEscrow is ConditionalEscrow {
      * @notice modifies _deposits[refundee] if _state == State.Active
      * @notice modifies address(this).balance
      */
-    function deposit(address refundee) public payable {
+    function deposit(address refundee) public override payable {
         require(_state == State.Active, "RefundEscrow: can only deposit while active");
         super.deposit(refundee);
     }
@@ -273,7 +273,7 @@ contract RefundEscrow is ConditionalEscrow {
      *
      * @notice postcondition allowed == (_state == State.Refunding)
      */
-    function withdrawalAllowed(address) public view returns (bool allowed) {
+    function withdrawalAllowed(address) public view override returns (bool allowed) {
         return _state == State.Refunding;
     }
 }

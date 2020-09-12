@@ -27,7 +27,7 @@ contract VerifResults {
     // Unsupported feature, but can be specified
     /// @notice modifies x
     /// @notice postcondition x == 0
-    function unsupported() public {
+    function unsupported() public pure {
         assembly {
             // ... set x to 0
         }
@@ -36,7 +36,7 @@ contract VerifResults {
     // Relies on specification of unsupported
     // function to prove assertion
     /// @notice modifies x
-    function use_unsupported() public {
+    function use_unsupported() public view {
         unsupported();
         assert(x == 0);
     }

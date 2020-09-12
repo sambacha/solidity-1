@@ -12,7 +12,7 @@ contract B1 is A {
   constructor(int _x) A(_x) { set(x*_x); }
 }
 
-contract B2 is A {
+abstract contract B2 is A {
   constructor(int _x) { set(x+_x); }
 }
 

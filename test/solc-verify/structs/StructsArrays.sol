@@ -24,7 +24,9 @@ contract StructsArrays {
     assert(a2.x == 0);
     assert(ma.x == 1);
 
-    a1.m.length = 3;
+    a1.m.push(0);
+    a1.m.push(0);
+    a1.m.push(0);
     ma.x = 2;
     a2.x = 3;
 

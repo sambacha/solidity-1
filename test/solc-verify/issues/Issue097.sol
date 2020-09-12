@@ -5,12 +5,12 @@ contract Issue097 {
     int[] arr;
 
     constructor() {
-        arr.length += 1;
+        arr.push(0);
         assert(arr[arr.length-1] == 0); // Should hold
     }
 
     receive() external payable {
-        arr.length += 1;
+        arr.push(0);
         assert(arr[arr.length-1] == 0); // Should hold
     }
 }

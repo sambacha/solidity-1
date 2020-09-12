@@ -12,22 +12,18 @@ contract StructsMaps {
   A a2;
 
   receive() external payable {
-    A memory ma = A(1);
     assert(a1.x == 0);
     assert(a2.x == 0);
-    assert(ma.x == 1);
+    assert(a1.m[address(this)] == 0);
+    assert(a2.m[address(this)] == 0);
 
     a1.m[address(this)] = 2;
-    ma.x = 2;
     a2.x = 3;
 
-    a1 = ma;
-    assert(a1.x == 2);
+    assert(a1.x == 0);
+    assert(a2.x == 3);
     assert(a1.m[address(this)] == 2);
-
-    a1 = a2;
-    assert(a1.x == 3);
-    assert(a1.m[address(this)] == 2);
+    assert(a2.m[address(this)] == 0);
   }
 
 }
