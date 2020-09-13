@@ -1,5 +1,5 @@
-test/solc-verify/specs/EmitsEvents.sol:17:5: solc-verify warning: Event 'Increased' already specified.
-test/solc-verify/specs/EmitsEvents.sol:17:5: solc-verify warning: Event 'Increased' already specified.
+test/solc-verify/specs/EmitsEvents.sol:18:5: solc-verify warning: Event 'Increased' already specified.
+test/solc-verify/specs/EmitsEvents.sol:18:5: solc-verify warning: Event 'Increased' already specified.
 EmitsEvents::increase: OK
 EmitsEvents::increaseWarning: OK
 EmitsEvents::[implicit_constructor]: OK

@@ -1,4 +1,4 @@
-test/solc-verify/specs/ModifiesWarning.sol:8:5: solc-verify warning: Modifies specification for non-state variable 'y' ignored
+test/solc-verify/specs/ModifiesWarning.sol:9:5: solc-verify warning: Modifies specification for non-state variable 'y' ignored
 solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
 C::f: OK
 C::[implicit_constructor]: OK

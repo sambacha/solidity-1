@@ -1,5 +1,4 @@
-test/solc-verify/structs/StructsMemAliasingParam.sol:2:1: Warning: Experimental features are turned on. Do not use experimental features on live deployments.
 StructsMemAliasingParam::f: ERROR
- - test/solc-verify/structs/StructsMemAliasingParam.sol:17:9: Assertion might not hold.
+ - test/solc-verify/structs/StructsMemAliasingParam.sol:18:9: Assertion might not hold.
 StructsMemAliasingParam::[implicit_constructor]: OK
 Errors were found by the verifier.

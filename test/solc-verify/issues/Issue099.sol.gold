@@ -1,5 +1,5 @@
-test/solc-verify/issues/Issue099.sol:10:5: solc-verify error: Deep copy between storage/memory arrays with reference types is not yet supported.
-test/solc-verify/issues/Issue099.sol:8:3: solc-verify warning: Errors while translating function body, will be skipped
+test/solc-verify/issues/Issue099.sol:11:5: solc-verify error: Deep copy between storage/memory arrays with reference types is not yet supported.
+test/solc-verify/issues/Issue099.sol:9:3: solc-verify warning: Errors while translating function body, will be skipped
 Test::[implicit_constructor]: OK
 Test::test: SKIPPED
 Some functions were skipped. Use --show-warnings to see details.

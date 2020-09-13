@@ -1,4 +1,4 @@
 ArraysMemAliasingParam::f: ERROR
- - test/solc-verify/arrays/ArraysMemAliasingParam.sol:17:9: Assertion might not hold.
+ - test/solc-verify/arrays/ArraysMemAliasingParam.sol:18:9: Assertion might not hold.
 ArraysMemAliasingParam::[implicit_constructor]: OK
 Errors were found by the verifier.

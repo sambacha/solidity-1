@@ -1,12 +1,12 @@
-test/solc-verify/issues/Issue141.sol:10:9: solc-verify error: 'data' is tracked by event 'changed' but it is not specified to emit
-test/solc-verify/issues/Issue141.sol:22:9: solc-verify error: 'a' is tracked by events 'add_element', 'remove_element' but none are specified to emit
-test/solc-verify/issues/Issue141.sol:27:9: solc-verify error: 'a' is tracked by events 'add_element', 'remove_element' but none are specified to emit
-test/solc-verify/issues/Issue141.sol:32:9: solc-verify error: 'a' is tracked by events 'add_element', 'remove_element' but none are specified to emit
-test/solc-verify/issues/Issue141.sol:32:9: solc-verify error: 'data' is tracked by event 'changed' but it is not specified to emit
-test/solc-verify/issues/Issue141.sol:9:5: solc-verify warning: Errors while translating function body, will be skipped
-test/solc-verify/issues/Issue141.sol:21:5: solc-verify warning: Errors while translating function body, will be skipped
-test/solc-verify/issues/Issue141.sol:25:5: solc-verify warning: Errors while translating function body, will be skipped
-test/solc-verify/issues/Issue141.sol:30:5: solc-verify warning: Errors while translating function body, will be skipped
+test/solc-verify/issues/Issue141.sol:11:9: solc-verify error: 'data' is tracked by event 'changed' but it is not specified to emit
+test/solc-verify/issues/Issue141.sol:23:9: solc-verify error: 'a' is tracked by events 'add_element', 'remove_element' but none are specified to emit
+test/solc-verify/issues/Issue141.sol:28:9: solc-verify error: 'a' is tracked by events 'add_element', 'remove_element' but none are specified to emit
+test/solc-verify/issues/Issue141.sol:33:9: solc-verify error: 'a' is tracked by events 'add_element', 'remove_element' but none are specified to emit
+test/solc-verify/issues/Issue141.sol:33:9: solc-verify error: 'data' is tracked by event 'changed' but it is not specified to emit
+test/solc-verify/issues/Issue141.sol:10:5: solc-verify warning: Errors while translating function body, will be skipped
+test/solc-verify/issues/Issue141.sol:22:5: solc-verify warning: Errors while translating function body, will be skipped
+test/solc-verify/issues/Issue141.sol:26:5: solc-verify warning: Errors while translating function body, will be skipped
+test/solc-verify/issues/Issue141.sol:31:5: solc-verify warning: Errors while translating function body, will be skipped
 C::[implicit_constructor]: OK
 C::f: SKIPPED
 C::push: SKIPPED
