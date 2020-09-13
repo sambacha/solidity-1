@@ -174,11 +174,7 @@ contract StandardToken is Token,Controlled {
     mapping (address => mapping (address => uint256)) allowed;
 }
 
-contract SMT is StandardToken {
-
-    receive() external payable {
-        revert();
-    }
+contract SmartMeshToken is StandardToken {
 
     string public name = "SmartMesh Token";                   //fancy name
     uint8 public decimals = 18;                //How many decimals to show. ie. There could 1000 base units with 3 decimals. Meaning 0.980 SBX = 980 base units. It's like comparing 1 wei to 1 ether.
