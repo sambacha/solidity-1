@@ -976,7 +976,7 @@ jobs:
           name: Install dependencies
           command: |
             apt-get -qq update
-            apt-get -qy install libssl1.0-dev
+            apt-get -qy install libssl1.1
             wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
             source ~/.nvm/nvm.sh
             nvm install 11.14.0
