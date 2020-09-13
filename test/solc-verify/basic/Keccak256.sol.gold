@@ -1,4 +1,4 @@
 Keccak256::hashTwice: OK
-Keccak256::[fallback]: OK
+Keccak256::[receive]: OK
 Keccak256::[implicit_constructor]: OK
 No errors found.

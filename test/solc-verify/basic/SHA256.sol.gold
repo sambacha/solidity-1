@@ -1,4 +1,4 @@
 SHA256::hashTwice: OK
-SHA256::[fallback]: OK
+SHA256::[receive]: OK
 SHA256::[implicit_constructor]: OK
 No errors found.

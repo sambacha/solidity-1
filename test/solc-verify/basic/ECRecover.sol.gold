@@ -1,4 +1,4 @@
 ECRecover::verifyTwice: OK
-ECRecover::[fallback]: OK
+ECRecover::[receive]: OK
 ECRecover::[implicit_constructor]: OK
 No errors found.
