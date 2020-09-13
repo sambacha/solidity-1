@@ -1,6 +1,7 @@
 Error while running compiler, details:
 Warning: This is a pre-release compiler version, please do not use it in production.
 
+
 ======= Converting to Boogie IVL =======
 test/solc-verify/specs/EmitsEventsIncorrect.sol:10:5: solc-verify error: Function possibly emits 'Increased' without specifying
     function increase() public {

@@ -192,13 +192,18 @@ def main(tmpDir):
 
     # Print warnings if requested
     warnings = 0
-    for line in compilerOutputStr.split('\n'):
+    compilerOutputLines = compilerOutputStr.split('\n')
+    compilerOutputLines.append("") # Add extra empty line due to iteration with next line
+    for line, nextLine in zip(compilerOutputLines, compilerOutputLines[1:]):
         # Ignore pre-release warnings
         if line == 'Warning: This is a pre-release compiler version, please do not use it in production.': continue
         # Other warnings should be printed
         if 'Warning: ' in line or 'solc-verify warning: ' in line:
             warnings += 1
             if args.show_warnings:
+                # For compiler warnings, source location is in next line
+                if 'Warning: ' in line and nextLine.lstrip().startswith('--> '):
+                    line = nextLine.lstrip().replace('--> ', '') + ' ' + line
                 line = line.replace('Warning: ', yellowTxt('Warning') + ': ')
                 line = line.replace('solc-verify warning: ', yellowTxt('solc-verify warning') + ': ')
                 print(line)
