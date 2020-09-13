@@ -1302,6 +1302,8 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 		traceabilityName = "[constructor]";
 	else if (_node.isFallback())
 		traceabilityName = "[fallback]";
+	else if (_node.isReceive())
+		traceabilityName = "[receive]";
 	traceabilityName = m_context.currentContract()->name() + "::" + traceabilityName;
 	procDecl->addAttrs(ASTBoogieUtils::createAttrs(_node.location(), traceabilityName, *m_context.currentScanner()));
 
