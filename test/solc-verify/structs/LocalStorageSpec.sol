@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.7.0;
 
-contract A {
+contract LSS_A {
   struct S {
       int x;
   }
@@ -10,7 +10,7 @@ contract A {
   }
 }
 
-contract B is A {
+contract LSS_B is LSS_A {
   S s;
   /// @notice postcondition s.x == 0
   function setB0(S storage s_ptr) internal {
@@ -18,7 +18,7 @@ contract B is A {
   }
 }
 
-contract LocalStorageSpec is B {
+contract LocalStorageSpec is LSS_B {
   S s1;
   function setC0(S storage s_ptr) internal {
     setB0(s_ptr);

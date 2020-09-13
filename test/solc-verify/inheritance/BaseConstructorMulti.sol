@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.7.0;
 
-contract A {
+contract BCM_A {
     int public n;
     constructor(int x) {
         n += x;
     }
 }
 
-contract B is A(1) {
+contract BCM_B is BCM_A(1) {
 
 }
 
-contract BaseConstructorMulti is A, B {
+contract BaseConstructorMulti is BCM_A, BCM_B {
     constructor() {
         assert(n == 1); // Constructor of A is only called once
     }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.7.0;
 
-contract A {
+contract BCWM_A {
     int public x;
 
     modifier m(int _m) {
@@ -12,9 +12,9 @@ contract A {
     constructor(int _x) m(_x) { x++; }
 }
 
-contract BaseConstructorWithModifiers is A {
+contract BaseConstructorWithModifiers is BCWM_A {
 
-    constructor() A(1) m(2) {
+    constructor() BCWM_A(1) m(2) {
         assert(x == 4);
     }
 
