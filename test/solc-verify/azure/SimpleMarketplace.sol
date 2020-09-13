@@ -17,7 +17,7 @@ contract SimpleMarketplace
     address public InstanceBuyer;
     int public OfferPrice;
 
-    constructor(string memory description, int price) 
+    constructor(string memory description, int price)
     {
         InstanceOwner = msg.sender;
         AskingPrice = price;

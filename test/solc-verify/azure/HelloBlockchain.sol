@@ -15,7 +15,7 @@ contract HelloBlockchain
     string public ResponseMessage;
 
     // constructor function
-    constructor(string memory message) 
+    constructor(string memory message)
     {
         Requestor = msg.sender;
         RequestMessage = message;

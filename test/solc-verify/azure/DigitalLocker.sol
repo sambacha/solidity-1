@@ -17,7 +17,7 @@ contract DigitalLocker
     string public RejectionReason;
     StateType public State;
 
-    constructor(string memory lockerFriendlyName, address bankAgent) 
+    constructor(string memory lockerFriendlyName, address bankAgent)
     {
         Owner = msg.sender;
         LockerFriendlyName = lockerFriendlyName;

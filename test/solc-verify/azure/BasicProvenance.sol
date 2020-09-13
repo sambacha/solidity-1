@@ -15,7 +15,7 @@ contract BasicProvenance
     address public  SupplyChainOwner;
     address public  SupplyChainObserver;
 
-    constructor(address supplyChainOwner, address supplyChainObserver) 
+    constructor(address supplyChainOwner, address supplyChainObserver)
     {
         InitiatingCounterparty = msg.sender;
         Counterparty = InitiatingCounterparty;
