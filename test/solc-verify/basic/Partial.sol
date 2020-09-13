@@ -9,9 +9,9 @@ contract Partial {
     /// @notice postcondition x == __verifier_old_uint(x) + 1
     function unsupported() internal {
         assembly {
-            let t := sload(x_slot)
+            let t := sload(x.slot)
             t := add(t, 1)
-            sstore(x_slot, t)
+            sstore(x.slot, t)
         }
     }
 
