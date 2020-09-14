@@ -977,9 +977,9 @@ jobs:
           command: |
             apt-get -qq update
             apt-get -qy install libssl1.1
-            wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
+            wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
             source ~/.nvm/nvm.sh
-            nvm install 11.14.0
+            nvm install --lts
             npm install -g truffle --unsafe-perm
       - run:
           name: Test solc-verify with Truffle
