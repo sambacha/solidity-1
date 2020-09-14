@@ -1227,7 +1227,7 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	}
 
 	// add invariants as pre/postconditions for: public functions and if explicitly requested
-	if (_node.isPublic() || includeContractInvars(_node.annotation()))
+	if (_node.isConstructor() || _node.isPublic() || includeContractInvars(_node.annotation()))
 	{
 		for (auto invar: m_context.currentContractInvars())
 		{
@@ -1255,7 +1255,7 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 		}
 	}
 
-	if (!_node.isPublic()) // Non-public functions: inline
+	if (!_node.isConstructor() && !_node.isPublic()) // Non-public functions: inline
 		procDecl->addAttr(bg::Attr::attr("inline", 1));
 
 	// Add other pre/postconditions
@@ -1319,8 +1319,11 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 					procDecl->getModifies().push_back(m_context.mapDeclName(*sv));
 	}
 
-	string funcType = _node.visibility() == Visibility::External ? "" : " : " + _node.type()->toString();
-	m_context.addGlobalComment("\nFunction: " + _node.name() + funcType);
+	if (!_node.isConstructor() && _node.visibility() != Visibility::External) {
+		m_context.addGlobalComment("\nFunction: " + _node.name() + " : " + _node.type()->toString());
+	} else {
+		m_context.addGlobalComment("\nFunction: " + _node.name());
+	}
 	m_context.addDecl(procDecl);
 	return false;
 }
