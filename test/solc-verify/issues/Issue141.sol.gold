@@ -12,5 +12,4 @@ C::f: SKIPPED
 C::push: SKIPPED
 C::pop: SKIPPED
 C::modify_tuple: SKIPPED
-Some functions were skipped. Use --show-warnings to see details.
 No errors found.

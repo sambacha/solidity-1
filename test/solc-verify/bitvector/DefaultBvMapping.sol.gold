@@ -1,4 +1,4 @@
 DefaultBvMapping::[constructor]: OK
-DefaultBvMapping::[fallback]: OK
+DefaultBvMapping::[receive]: OK
 DefaultBvMapping::[receive_ether_selfdestruct]: OK
 No errors found.

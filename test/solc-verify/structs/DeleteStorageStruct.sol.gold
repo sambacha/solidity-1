@@ -1,3 +1,3 @@
 DeleteStorageStruct::[constructor]: OK
-DeleteStorageStruct::[fallback]: OK
+DeleteStorageStruct::[receive]: OK
 No errors found.

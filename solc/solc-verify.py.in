@@ -272,7 +272,7 @@ def main(tmpDir):
         print(yellowTxt('Use --show-warnings to see %d warning%s.' % (warnings, '' if warnings == 1 else 's')))
     if inconclusive > 0:
         print(yellowTxt('Inconclusive results.'))
-    if skipped > 0:
+    if skipped > 0 and not args.show_warnings:
         print(yellowTxt('Some functions were skipped. Use --show-warnings to see details.'))
 
     # Final result

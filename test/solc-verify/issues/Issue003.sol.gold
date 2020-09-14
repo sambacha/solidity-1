@@ -1,4 +1,4 @@
-A::[implicit_constructor]: OK
+I003_A::[implicit_constructor]: OK
 Issue003::[constructor]: OK
-Issue003::[fallback]: OK
+Issue003::[receive]: OK
 No errors found.

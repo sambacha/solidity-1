@@ -1,5 +1,4 @@
-test/solc-verify/issues/Issue093.sol:5:5: solc-verify error: Inline assembly is not supported
-test/solc-verify/issues/Issue093.sol:4:3: solc-verify warning: Errors while translating function body, will be skipped
+test/solc-verify/issues/Issue093.sol:7:5: solc-verify error: Inline assembly is not supported
+test/solc-verify/issues/Issue093.sol:6:3: solc-verify warning: Errors while translating function body, will be skipped
 A::[constructor]: SKIPPED
-Some functions were skipped. Use --show-warnings to see details.
 No errors found.
