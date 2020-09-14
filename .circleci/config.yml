@@ -425,7 +425,7 @@ jobs:
     environment:
       CC: clang
       CXX: clang++
-      MAKEFLAGS: -j 10
+      MAKEFLAGS: -j 3
     steps:
       - checkout
       - run: *run_build
@@ -452,7 +452,7 @@ jobs:
     docker:
       - image: << pipeline.parameters.ubuntu-2004-docker-image >>
     environment:
-      MAKEFLAGS: -j 10
+      MAKEFLAGS: -j 3
     steps:
       - checkout
       - run: *run_build
@@ -464,7 +464,7 @@ jobs:
     <<: *build_ubuntu2004
     environment:
       FORCE_RELEASE: ON
-      MAKEFLAGS: -j 10
+      MAKEFLAGS: -j 3
 
   b_ubu18: &build_ubuntu1804
     docker:
@@ -484,7 +484,7 @@ jobs:
     environment:
       COVERAGE: ON
       CMAKE_BUILD_TYPE: Debug
-      MAKEFLAGS: -j 10
+      MAKEFLAGS: -j 3
     steps:
       - checkout
       - run: *run_build
@@ -518,7 +518,7 @@ jobs:
     environment:
       CMAKE_BUILD_TYPE: Debug
       CMAKE_OPTIONS: -DCMAKE_CXX_STANDARD=20 -DUSE_CVC4=OFF
-      MAKEFLAGS: -j 10
+      MAKEFLAGS: -j 3
     steps:
       - checkout
       - run: *run_build
@@ -576,7 +576,7 @@ jobs:
     environment:
       TERM: xterm
       CMAKE_BUILD_TYPE: Release
-      MAKEFLAGS: -j 5
+      MAKEFLAGS: -j 3
     steps:
       - checkout
       - restore_cache:
@@ -637,7 +637,7 @@ jobs:
     docker:
       - image: << pipeline.parameters.emscripten-docker-image >>
     environment:
-      MAKEFLAGS: -j 10
+      MAKEFLAGS: -j 3
       TERM: xterm
     steps:
       - checkout
@@ -662,7 +662,7 @@ jobs:
     <<: *build_ubuntu2004
     environment:
       CMAKE_OPTIONS: -DSANITIZE=address
-      MAKEFLAGS: -j 10
+      MAKEFLAGS: -j 3
       CMAKE_BUILD_TYPE: Release
     steps:
       - checkout
