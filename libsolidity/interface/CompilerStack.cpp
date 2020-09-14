@@ -214,6 +214,7 @@ void CompilerStack::reset(bool _keepSettings)
 	}
 	m_globalContext.reset();
 	m_sourceOrder.clear();
+	m_scopes.clear();
 	m_contracts.clear();
 	m_errorReporter.clear();
 	TypeProvider::reset();
