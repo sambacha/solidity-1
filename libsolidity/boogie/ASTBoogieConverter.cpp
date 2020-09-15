@@ -1319,11 +1319,10 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 					procDecl->getModifies().push_back(m_context.mapDeclName(*sv));
 	}
 
-	if (!_node.isConstructor() && _node.visibility() != Visibility::External) {
+	if (!_node.isConstructor() && _node.visibility() != Visibility::External)
 		m_context.addGlobalComment("\nFunction: " + _node.name() + " : " + _node.type()->toString());
-	} else {
+	else
 		m_context.addGlobalComment("\nFunction: " + _node.name());
-	}
 	m_context.addDecl(procDecl);
 	return false;
 }
