@@ -26,6 +26,7 @@
 #include <liblangutil/Scanner.h>
 #include <libsolidity/parsing/Parser.h>
 #include <libsolidity/analysis/NameAndTypeResolver.h>
+#include <libsolidity/analysis/Scoper.h>
 #include <libsolidity/analysis/DeclarationTypeChecker.h>
 #include <libsolidity/codegen/CompilerContext.h>
 #include <libsolidity/codegen/ExpressionCompiler.h>
@@ -117,8 +118,13 @@ bytes compileFirstExpression(
 	ErrorList errors;
 	ErrorReporter errorReporter(errors);
 	GlobalContext globalContext;
+<<<<<<< HEAD
 	std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>> scopes;
 	NameAndTypeResolver resolver(globalContext, solidity::test::CommonOptions::get().evmVersion(), scopes, errorReporter);
+=======
+	Scoper::assignScopes(*sourceUnit);
+	NameAndTypeResolver resolver(globalContext, solidity::test::CommonOptions::get().evmVersion(), errorReporter);
+>>>>>>> upstream/develop
 	resolver.registerDeclarations(*sourceUnit);
 	BOOST_REQUIRE_MESSAGE(resolver.resolveNamesAndTypes(*sourceUnit), "Resolving names failed");
 	DeclarationTypeChecker declarationTypeChecker(errorReporter, solidity::test::CommonOptions::get().evmVersion());

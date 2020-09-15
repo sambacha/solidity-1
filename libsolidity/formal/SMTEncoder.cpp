@@ -133,10 +133,7 @@ bool SMTEncoder::visit(FunctionDefinition const& _function)
 	if (_function.isConstructor())
 		inlineConstructorHierarchy(dynamic_cast<ContractDefinition const&>(*_function.scope()));
 
-	// Base constructors' parameters should be set by explicit calls,
-	// but the most derived one needs to be initialized.
-	if (_function.scope() == m_currentContract)
-		initializeLocalVariables(_function);
+	initializeLocalVariables(_function);
 
 	_function.parameterList().accept(*this);
 	if (_function.returnParameterList())
@@ -881,16 +878,36 @@ bool SMTEncoder::visit(MemberAccess const& _memberAccess)
 	auto identifier = dynamic_cast<Identifier const*>(&_memberAccess.expression());
 	if (exprType->category() == Type::Category::Magic)
 	{
-		string accessedName;
 		if (identifier)
-			accessedName = identifier->name();
+			defineGlobalVariable(identifier->name() + "." + _memberAccess.memberName(), _memberAccess);
+		else if (auto magicType = dynamic_cast<MagicType const*>(exprType); magicType->kind() == MagicType::Kind::MetaType)
+		{
+			auto const& memberName = _memberAccess.memberName();
+			if (memberName == "min" || memberName == "max")
+			{
+				IntegerType const& integerType = dynamic_cast<IntegerType const&>(*magicType->typeArgument());
+				defineExpr(_memberAccess, memberName == "min" ? integerType.minValue() : integerType.maxValue());
+			}
+			else if (memberName == "interfaceId")
+			{
+				ContractDefinition const& contract = dynamic_cast<ContractType const&>(*magicType->typeArgument()).contractDefinition();
+				defineExpr(_memberAccess, contract.interfaceId());
+			}
+			else
+				// NOTE: supporting name, creationCode, runtimeCode would be easy enough, but the bytes/string they return are not
+				//       at all useable in the SMT checker currently
+				m_errorReporter.warning(
+					7507_error,
+					_memberAccess.location(),
+					"Assertion checker does not yet support this expression."
+				);
+		}
 		else
 			m_errorReporter.warning(
 				9551_error,
 				_memberAccess.location(),
 				"Assertion checker does not yet support this expression."
 			);
-		defineGlobalVariable(accessedName + "." + _memberAccess.memberName(), _memberAccess);
 		return false;
 	}
 	else if (smt::isNonRecursiveStruct(*exprType))
@@ -2038,6 +2055,14 @@ vector<VariableDeclaration const*> SMTEncoder::stateVariablesIncludingInheritedA
 vector<VariableDeclaration const*> SMTEncoder::stateVariablesIncludingInheritedAndPrivate(FunctionDefinition const& _function)
 {
 	return stateVariablesIncludingInheritedAndPrivate(dynamic_cast<ContractDefinition const&>(*_function.scope()));
+}
+
+SourceUnit const* SMTEncoder::sourceUnitContaining(Scopable const& _scopable)
+{
+	for (auto const* s = &_scopable; s; s = dynamic_cast<Scopable const*>(s->scope()))
+		if (auto const* source = dynamic_cast<SourceUnit const*>(s->scope()))
+			return source;
+	solAssert(false, "");
 }
 
 void SMTEncoder::createReturnedExpressions(FunctionCall const& _funCall)
