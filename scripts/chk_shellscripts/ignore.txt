@@ -49,6 +49,7 @@
 ./scripts/release_emscripten.sh
 ./scripts/create_source_tarball.sh
 ./scripts/docs.sh
+./docker/runsv.sh
 ./.circleci/soltest.sh
 ./.circleci/osx_install_dependencies.sh
 ./.circleci/soltest_all.sh
