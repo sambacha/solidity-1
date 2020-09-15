@@ -35,6 +35,7 @@
 ./scripts/install_static_z3.sh
 ./scripts/install_obsolete_jsoncpp_1_7_4.sh
 ./scripts/install_deps.sh
+./scripts/install_solc_verify_deps.sh
 ./scripts/build.sh
 ./scripts/check_style.sh
 ./scripts/run_proofs.sh
