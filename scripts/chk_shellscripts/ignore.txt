@@ -6,6 +6,9 @@
 ./test/externalTests/zeppelin.sh
 ./test/externalTests/colony.sh
 ./test/externalTests/solc-js/solc-js.sh
+./test/solc-verify/test_syntax_with_boogie.sh
+./test/solc-verify/test_with_boogie.sh
+./test/solc-verify/test_with_truffle.sh
 ./scripts/common.sh
 ./scripts/isoltest.sh
 ./scripts/get_version.sh
