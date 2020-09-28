@@ -23,6 +23,7 @@
 #include <libsolidity/formal/SymbolicTypes.h>
 
 #include <libsmtutil/SMTPortfolio.h>
+#include <libsmtutil/Helpers.h>
 
 #include <boost/range/adaptors.hpp>
 #include <boost/range/adaptor/reversed.hpp>
@@ -351,31 +352,10 @@ void SMTEncoder::endVisit(Assignment const& _assignment)
 {
 	createExpr(_assignment);
 
-	static set<Token> const compoundOps{
-		Token::AssignAdd,
-		Token::AssignSub,
-		Token::AssignMul,
-		Token::AssignDiv,
-		Token::AssignMod
-	};
 	Token op = _assignment.assignmentOperator();
-	if (op != Token::Assign && !compoundOps.count(op))
-	{
-		Expression const* identifier = &_assignment.leftHandSide();
-		if (auto const* indexAccess = dynamic_cast<IndexAccess const*>(identifier))
-			identifier = leftmostBase(*indexAccess);
-		// Give it a new index anyway to keep the SSA scheme sound.
-		solAssert(identifier, "");
-		if (auto varDecl = identifierToVariable(*identifier))
-			m_context.newValue(*varDecl);
+	solAssert(TokenTraits::isAssignmentOp(op), "");
 
-		m_errorReporter.warning(
-			9149_error,
-			_assignment.location(),
-			"Assertion checker does not yet implement this assignment operator."
-		);
-	}
-	else if (!smt::isSupportedType(*_assignment.annotation().type))
+	if (!smt::isSupportedType(*_assignment.annotation().type))
 	{
 		// Give it a new index anyway to keep the SSA scheme sound.
 
@@ -393,9 +373,9 @@ void SMTEncoder::endVisit(Assignment const& _assignment)
 		else
 		{
 			auto const& type = _assignment.annotation().type;
-			auto rightHandSide = compoundOps.count(op) ?
-				compoundAssignment(_assignment) :
-				expr(_assignment.rightHandSide(), type);
+			auto rightHandSide = op == Token::Assign ?
+				expr(_assignment.rightHandSide(), type) :
+				compoundAssignment(_assignment);
 			defineExpr(_assignment, rightHandSide);
 			assignment(
 				_assignment.leftHandSide(),
@@ -631,6 +611,10 @@ void SMTEncoder::endVisit(FunctionCall const& _funCall)
 	case FunctionType::Kind::Require:
 		visitRequire(_funCall);
 		break;
+	case FunctionType::Kind::Revert:
+		// Revert is a special case of require and equals to `require(false)`
+		addPathImpliedExpression(smtutil::Expression(false));
+		break;
 	case FunctionType::Kind::GasLeft:
 		visitGasLeft(_funCall);
 		break;
@@ -671,6 +655,17 @@ void SMTEncoder::endVisit(FunctionCall const& _funCall)
 	case FunctionType::Kind::ArrayPop:
 		arrayPop(_funCall);
 		break;
+	case FunctionType::Kind::Log0:
+	case FunctionType::Kind::Log1:
+	case FunctionType::Kind::Log2:
+	case FunctionType::Kind::Log3:
+	case FunctionType::Kind::Log4:
+	case FunctionType::Kind::Event:
+		// These can be safely ignored.
+		break;
+	case FunctionType::Kind::ObjectCreation:
+		visitObjectCreation(_funCall);
+		return;
 	default:
 		m_errorReporter.warning(
 			4588_error,
@@ -743,6 +738,25 @@ void SMTEncoder::visitGasLeft(FunctionCall const& _funCall)
 		m_context.addAssertion(symbolicVar->currentValue() <= symbolicVar->valueAtIndex(index - 1));
 }
 
+void SMTEncoder::visitObjectCreation(FunctionCall const& _funCall)
+{
+	auto const& args = _funCall.arguments();
+	solAssert(args.size() >= 1, "");
+	auto argType = args.front()->annotation().type->category();
+	solAssert(argType == Type::Category::Integer || argType == Type::Category::RationalNumber, "");
+
+	smtutil::Expression arraySize = expr(*args.front());
+	setSymbolicUnknownValue(arraySize, TypeProvider::uint256(), m_context);
+
+	auto symbArray = dynamic_pointer_cast<smt::SymbolicArrayVariable>(m_context.expression(_funCall));
+	solAssert(symbArray, "");
+	smt::setSymbolicZeroValue(*symbArray, m_context);
+	auto zeroElements = symbArray->elements();
+	symbArray->increaseIndex();
+	m_context.addAssertion(symbArray->length() == arraySize);
+	m_context.addAssertion(symbArray->elements() == zeroElements);
+}
+
 void SMTEncoder::endVisit(Identifier const& _identifier)
 {
 	if (auto decl = identifierToVariable(_identifier))
@@ -755,6 +769,13 @@ void SMTEncoder::endVisit(Identifier const& _identifier)
 	{
 		defineExpr(_identifier, m_context.state().thisAddress());
 		m_uninterpretedTerms.insert(&_identifier);
+	}
+	// Ignore the builtin abi, it is handled in FunctionCall.
+	// TODO: ignore MagicType in general (abi, block, msg, tx, type)
+	else if (auto magicType = dynamic_cast<MagicType const*>(_identifier.annotation().type); magicType && magicType->kind() == MagicType::Kind::ABI)
+	{
+		solAssert(_identifier.name() == "abi", "");
+		return;
 	}
 	else
 		createExpr(_identifier);
@@ -779,12 +800,19 @@ void SMTEncoder::visitTypeConversion(FunctionCall const& _funCall)
 	auto argument = _funCall.arguments().front();
 	unsigned argSize = argument->annotation().type->storageBytes();
 	unsigned castSize = _funCall.annotation().type->storageBytes();
-	if (argSize == castSize)
+	auto const& funCallCategory = _funCall.annotation().type->category();
+	// Allow casting number literals to address.
+	// TODO: remove the isNegative() check once the type checker disallows this
+	if (
+		auto const* numberType = dynamic_cast<RationalNumberType const*>(argument->annotation().type);
+		numberType && !numberType->isNegative() && (funCallCategory == Type::Category::Address)
+	)
+		defineExpr(_funCall, numberType->literalValue(nullptr));
+	else if (argSize == castSize)
 		defineExpr(_funCall, expr(*argument));
 	else
 	{
 		m_context.setUnknownValue(*m_context.expression(_funCall));
-		auto const& funCallCategory = _funCall.annotation().type->category();
 		// TODO: truncating and bytesX needs a different approach because of right padding.
 		if (funCallCategory == Type::Category::Integer || funCallCategory == Type::Category::Address)
 		{
@@ -828,7 +856,20 @@ void SMTEncoder::endVisit(Literal const& _literal)
 	else if (smt::isBool(type))
 		defineExpr(_literal, smtutil::Expression(_literal.token() == Token::TrueLiteral ? true : false));
 	else if (smt::isStringLiteral(type))
+	{
 		createExpr(_literal);
+
+		// Add constraints for the length and values as it is known.
+		auto symbArray = dynamic_pointer_cast<smt::SymbolicArrayVariable>(m_context.expression(_literal));
+		solAssert(symbArray, "");
+
+		auto value = _literal.value();
+		m_context.addAssertion(symbArray->length() == value.length());
+		for (size_t i = 0; i < value.length(); i++)
+			m_context.addAssertion(
+				smtutil::Expression::select(symbArray->elements(), i) == size_t(value[i])
+			);
+	}
 	else
 	{
 		m_errorReporter.warning(
@@ -971,13 +1012,36 @@ void SMTEncoder::endVisit(IndexAccess const& _indexAccess)
 
 	if (_indexAccess.annotation().type->category() == Type::Category::TypeType)
 		return;
-	if (_indexAccess.baseExpression().annotation().type->category() == Type::Category::FixedBytes)
+	if (auto const* type = dynamic_cast<FixedBytesType const*>(_indexAccess.baseExpression().annotation().type))
 	{
-		m_errorReporter.warning(
-			7989_error,
-			_indexAccess.location(),
-			"Assertion checker does not yet support index accessing fixed bytes."
-		);
+		smtutil::Expression base = expr(_indexAccess.baseExpression());
+
+		if (type->numBytes() == 1)
+			defineExpr(_indexAccess, base);
+		else
+		{
+			auto [bvSize, isSigned] = smt::typeBvSizeAndSignedness(_indexAccess.baseExpression().annotation().type);
+			solAssert(!isSigned, "");
+			solAssert(bvSize >= 16, "");
+			solAssert(bvSize % 8 == 0, "");
+
+			smtutil::Expression idx = expr(*_indexAccess.indexExpression());
+
+			auto bvBase = smtutil::Expression::int2bv(base, bvSize);
+			auto bvShl = smtutil::Expression::int2bv(idx * 8, bvSize);
+			auto bvShr = smtutil::Expression::int2bv(bvSize - 8, bvSize);
+			auto result = (bvBase << bvShl) >> bvShr;
+
+			auto anyValue = expr(_indexAccess);
+			m_context.expression(_indexAccess)->increaseIndex();
+			unsigned numBytes = bvSize / 8;
+			auto withBound = smtutil::Expression::ite(
+				idx < numBytes,
+				smtutil::Expression::bv2int(result, false),
+				anyValue
+			);
+			defineExpr(_indexAccess, withBound);
+		}
 		return;
 	}
 
@@ -1368,6 +1432,59 @@ pair<smtutil::Expression, smtutil::Expression> SMTEncoder::arithmeticOperation(
 	return {value, valueUnbounded};
 }
 
+smtutil::Expression SMTEncoder::bitwiseOperation(
+	Token _op,
+	smtutil::Expression const& _left,
+	smtutil::Expression const& _right,
+	TypePointer const& _commonType
+)
+{
+	static set<Token> validOperators{
+		Token::BitAnd,
+		Token::BitOr,
+		Token::BitXor,
+		Token::SHL,
+		Token::SHR,
+		Token::SAR
+	};
+	solAssert(validOperators.count(_op), "");
+	solAssert(_commonType, "");
+
+	auto [bvSize, isSigned] = smt::typeBvSizeAndSignedness(_commonType);
+
+	auto bvLeft = smtutil::Expression::int2bv(_left, bvSize);
+	auto bvRight = smtutil::Expression::int2bv(_right, bvSize);
+
+	optional<smtutil::Expression> result;
+	switch (_op)
+	{
+		case Token::BitAnd:
+			result = bvLeft & bvRight;
+			break;
+		case Token::BitOr:
+			result = bvLeft | bvRight;
+			break;
+		case Token::BitXor:
+			result = bvLeft ^ bvRight;
+			break;
+		case Token::SHL:
+			result = bvLeft << bvRight;
+			break;
+		case Token::SHR:
+			solAssert(false, "");
+		case Token::SAR:
+			result = isSigned ?
+				smtutil::Expression::ashr(bvLeft, bvRight) :
+				bvLeft >> bvRight;
+			break;
+		default:
+			solAssert(false, "");
+	}
+
+	solAssert(result.has_value(), "");
+	return smtutil::Expression::bv2int(*result, isSigned);
+}
+
 void SMTEncoder::compareOperation(BinaryOperation const& _op)
 {
 	auto const& commonType = _op.annotation().commonType;
@@ -1444,39 +1561,12 @@ void SMTEncoder::bitwiseOperation(BinaryOperation const& _op)
 	auto commonType = _op.annotation().commonType;
 	solAssert(commonType, "");
 
-	auto [bvSize, isSigned] = smt::typeBvSizeAndSignedness(commonType);
-
-	auto bvLeft = smtutil::Expression::int2bv(expr(_op.leftExpression(), commonType), bvSize);
-	auto bvRight = smtutil::Expression::int2bv(expr(_op.rightExpression(), commonType), bvSize);
-
-	optional<smtutil::Expression> result;
-	switch (op)
-	{
-	case Token::BitAnd:
-		result = bvLeft & bvRight;
-		break;
-	case Token::BitOr:
-		result = bvLeft | bvRight;
-		break;
-	case Token::BitXor:
-		result = bvLeft ^ bvRight;
-		break;
-	case Token::SHL:
-		result = bvLeft << bvRight;
-		break;
-	case Token::SHR:
-		solAssert(false, "");
-	case Token::SAR:
-		result = isSigned ?
-			smtutil::Expression::ashr(bvLeft, bvRight) :
-			bvLeft >> bvRight;
-		break;
-	default:
-		solAssert(false, "");
-	}
-
-	solAssert(result, "");
-	defineExpr(_op, smtutil::Expression::bv2int(*result, isSigned));
+	defineExpr(_op, bitwiseOperation(
+		_op.getOperator(),
+		expr(_op.leftExpression(), commonType),
+		expr(_op.rightExpression(), commonType),
+		commonType
+	));
 }
 
 void SMTEncoder::bitwiseNotOperation(UnaryOperation const& _op)
@@ -1493,11 +1583,7 @@ smtutil::Expression SMTEncoder::division(smtutil::Expression _left, smtutil::Exp
 {
 	// Signed division in SMTLIB2 rounds differently for negative division.
 	if (_type.isSigned())
-		return (smtutil::Expression::ite(
-			_left >= 0,
-			smtutil::Expression::ite(_right >= 0, _left / _right, 0 - (_left / (0 - _right))),
-			smtutil::Expression::ite(_right >= 0, 0 - ((0 - _left) / _right), (0 - _left) / (0 - _right))
-		));
+		return signedDivisionEVM(_left, _right);
 	else
 		return _left / _right;
 }
@@ -1588,9 +1674,27 @@ smtutil::Expression SMTEncoder::compoundAssignment(Assignment const& _assignment
 		{Token::AssignDiv, Token::Div},
 		{Token::AssignMod, Token::Mod}
 	};
+	static map<Token, Token> const compoundToBitwise{
+		{Token::AssignBitAnd, Token::BitAnd},
+		{Token::AssignBitOr, Token::BitOr},
+		{Token::AssignBitXor, Token::BitXor},
+		{Token::AssignShl, Token::SHL},
+		{Token::AssignShr, Token::SHR},
+		{Token::AssignSar, Token::SAR}
+	};
 	Token op = _assignment.assignmentOperator();
-	solAssert(compoundToArithmetic.count(op), "");
+	solAssert(compoundToArithmetic.count(op) || compoundToBitwise.count(op), "");
+
 	auto decl = identifierToVariable(_assignment.leftHandSide());
+
+	if (compoundToBitwise.count(op))
+		return bitwiseOperation(
+			compoundToBitwise.at(op),
+			decl ? currentValue(*decl) : expr(_assignment.leftHandSide()),
+			expr(_assignment.rightHandSide()),
+			_assignment.annotation().type
+		);
+
 	auto values = arithmeticOperation(
 		compoundToArithmetic.at(op),
 		decl ? currentValue(*decl) : expr(_assignment.leftHandSide()),
@@ -1608,9 +1712,7 @@ void SMTEncoder::assignment(VariableDeclaration const& _variable, Expression con
 	// This is a special case where the SMT sorts are different.
 	// For now we are unaware of other cases where this happens, but if they do appear
 	// we should extract this into an `implicitConversion` function.
-	if (_variable.type()->category() != Type::Category::Array || _value.annotation().type->category() != Type::Category::StringLiteral)
-		assignment(_variable, expr(_value, _variable.type()));
-	// TODO else { store each string literal byte into the array }
+	assignment(_variable, expr(_value, _variable.type()));
 }
 
 void SMTEncoder::assignment(VariableDeclaration const& _variable, smtutil::Expression const& _value)

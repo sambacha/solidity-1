@@ -105,6 +105,8 @@ add_library(yul
 	optimiser/ForLoopInitRewriter.h
 	optimiser/FullInliner.cpp
 	optimiser/FullInliner.h
+	optimiser/FunctionCallFinder.cpp
+	optimiser/FunctionCallFinder.h
 	optimiser/FunctionGrouper.cpp
 	optimiser/FunctionGrouper.h
 	optimiser/FunctionHoister.cpp
@@ -132,6 +134,8 @@ add_library(yul
 	optimiser/OptimiserStep.h
 	optimiser/OptimizerUtilities.cpp
 	optimiser/OptimizerUtilities.h
+	optimiser/ReasoningBasedSimplifier.cpp
+	optimiser/ReasoningBasedSimplifier.h
 	optimiser/RedundantAssignEliminator.cpp
 	optimiser/RedundantAssignEliminator.h
 	optimiser/Rematerialiser.cpp
@@ -148,6 +152,10 @@ add_library(yul
 	optimiser/SimplificationRules.h
 	optimiser/StackCompressor.cpp
 	optimiser/StackCompressor.h
+	optimiser/StackLimitEvader.cpp
+	optimiser/StackLimitEvader.h
+	optimiser/StackToMemoryMover.cpp
+	optimiser/StackToMemoryMover.h
 	optimiser/StructuralSimplifier.cpp
 	optimiser/StructuralSimplifier.h
 	optimiser/Substitution.cpp
@@ -168,4 +176,5 @@ add_library(yul
 	optimiser/VarNameCleaner.cpp
 	optimiser/VarNameCleaner.h
 )
-target_link_libraries(yul PUBLIC evmasm solutil langutil)
+
+target_link_libraries(yul PUBLIC evmasm solutil langutil smtutil)

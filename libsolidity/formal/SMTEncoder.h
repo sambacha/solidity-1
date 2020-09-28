@@ -119,6 +119,14 @@ protected:
 		TypePointer const& _commonType,
 		Expression const& _expression
 	);
+
+	smtutil::Expression bitwiseOperation(
+		Token _op,
+		smtutil::Expression const& _left,
+		smtutil::Expression const& _right,
+		TypePointer const& _commonType
+	);
+
 	void compareOperation(BinaryOperation const& _op);
 	void booleanOperation(BinaryOperation const& _op);
 	void bitwiseOperation(BinaryOperation const& _op);
@@ -129,6 +137,7 @@ protected:
 	void visitAssert(FunctionCall const& _funCall);
 	void visitRequire(FunctionCall const& _funCall);
 	void visitGasLeft(FunctionCall const& _funCall);
+	void visitObjectCreation(FunctionCall const& _funCall);
 	void visitTypeConversion(FunctionCall const& _funCall);
 	void visitFunctionIdentifier(Identifier const& _identifier);
 

@@ -77,7 +77,7 @@ bool NameAndTypeResolver::performImports(SourceUnit& _sourceUnit, map<string, So
 	for (auto const& node: _sourceUnit.nodes())
 		if (auto imp = dynamic_cast<ImportDirective const*>(node.get()))
 		{
-			string const& path = imp->annotation().absolutePath;
+			string const& path = *imp->annotation().absolutePath;
 			if (!_sourceUnits.count(path))
 			{
 				m_errorReporter.declarationError(
@@ -124,6 +124,7 @@ bool NameAndTypeResolver::performImports(SourceUnit& _sourceUnit, map<string, So
 						))
 							error =  true;
 		}
+	_sourceUnit.annotation().exportedSymbols = m_scopes[&_sourceUnit]->declarations();
 	return !error;
 }
 
@@ -522,11 +523,20 @@ bool DeclarationRegistrationHelper::registerDeclaration(
 		else
 		{
 			auto shadowedLocation = shadowedDeclaration->location();
-			_errorReporter.warning(
-				2519_error,
-				_declaration.location(),
-				"This declaration shadows an existing declaration.",
-				SecondarySourceLocation().append("The shadowed declaration is here:", shadowedLocation)
+
+			if (!shadowedDeclaration->isVisibleInContract())
+				_errorReporter.warning(
+					8760_error,
+					_declaration.location(),
+					"This declaration has the same name as another declaration.",
+					SecondarySourceLocation().append("The other declaration is here:", shadowedLocation)
+				);
+			else
+				_errorReporter.warning(
+					2519_error,
+					_declaration.location(),
+					"This declaration shadows an existing declaration.",
+					SecondarySourceLocation().append("The shadowed declaration is here:", shadowedLocation)
 			);
 		}
 	}
@@ -543,7 +553,6 @@ bool DeclarationRegistrationHelper::visit(SourceUnit& _sourceUnit)
 
 void DeclarationRegistrationHelper::endVisit(SourceUnit& _sourceUnit)
 {
-	_sourceUnit.annotation().exportedSymbols = m_scopes[&_sourceUnit]->declarations();
 	ASTVisitor::endVisit(_sourceUnit);
 }
 

@@ -936,7 +936,7 @@ bool ASTBoogieConverter::visit(SourceUnit const& _node)
 	m_context.setCurrentSource(&_node);
 
 	// Boogie programs are flat, source units do not appear explicitly
-	m_context.addGlobalComment("\n------- Source: " + _node.annotation().path + " -------");
+	m_context.addGlobalComment("\n------- Source: " + *_node.annotation().path + " -------");
 	return true; // Simply apply visitor recursively
 }
 
