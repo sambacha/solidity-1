@@ -491,7 +491,7 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 		result.exprStr = exprStr;
 		result.exprSol = expr;
 	}
-	catch (langutil::FatalError const& fe)
+	catch (langutil::FatalError const&)
 	{
 		m_context.reportError(&_node, "Error while parsing annotation.");
 	}
@@ -588,7 +588,7 @@ bool ASTBoogieConverter::parseSpecificationCasesExpr(string exprStr, ASTNode con
 		result.exprStr = exprStr;
 		result.exprSol = nullptr;
 	}
-	catch (langutil::FatalError const& fe)
+	catch (langutil::FatalError const&)
 	{
 		m_context.reportError(&_node, "Error while parsing annotation.");
 	}

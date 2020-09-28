@@ -780,7 +780,7 @@ bg::Expr::Ref ASTBoogieUtils::getTCCforExpr(bg::Expr::Ref expr, TypePointer tp, 
 		auto enumTp = dynamic_cast<EnumType const *>(tp);
 		solAssert(enumTp, "");
 		lowerBound = bg::Expr::lte(bg::Expr::intlit((long)0), expr);
-		upperBound = bg::Expr::lt(expr, bg::Expr::intlit(enumTp->enumDefinition().members().size()));
+		upperBound = bg::Expr::lt(expr, bg::Expr::intlit((unsigned long)enumTp->enumDefinition().members().size()));
 	}
 	// Otherwise get smallest and largest
 	else if (isBitPreciseType(tp))
