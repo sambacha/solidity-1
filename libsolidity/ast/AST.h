@@ -1508,18 +1508,21 @@ public:
 	): Statement(_id, _location, _docString) {}
 };
 
-class WhileStatement: public BreakableStatement
+class WhileStatement: public BreakableStatement, public StructurallyDocumented
 {
 public:
 	WhileStatement(
 		int64_t _id,
 		SourceLocation const& _location,
-		ASTPointer<ASTString> const& _docString,
+		ASTPointer<StructuredDocumentation> const& _documentation,
 		ASTPointer<Expression> _condition,
 		ASTPointer<Statement> _body,
 		bool _isDoWhile
 	):
-		BreakableStatement(_id, _location, _docString), m_condition(std::move(_condition)), m_body(std::move(_body)),
+		BreakableStatement(_id, _location, _documentation ? _documentation->text() : std::make_shared<ASTString>()),
+		StructurallyDocumented(_documentation),
+		m_condition(std::move(_condition)),
+		m_body(std::move(_body)),
 		m_isDoWhile(_isDoWhile) {}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
@@ -1539,19 +1542,20 @@ private:
 /**
  * For loop statement
  */
-class ForStatement: public BreakableStatement, public Scopable, public ScopeOpener
+class ForStatement: public BreakableStatement, public Scopable, public ScopeOpener, public StructurallyDocumented
 {
 public:
 	ForStatement(
 		int64_t _id,
 		SourceLocation const& _location,
-		ASTPointer<ASTString> const& _docString,
+		ASTPointer<StructuredDocumentation> const& _documentation,
 		ASTPointer<Statement> _initExpression,
 		ASTPointer<Expression> _conditionExpression,
 		ASTPointer<ExpressionStatement> _loopExpression,
 		ASTPointer<Statement> _body
 	):
-		BreakableStatement(_id, _location, _docString),
+		BreakableStatement(_id, _location, _documentation ? _documentation->text() : std::make_shared<ASTString>()),
+		StructurallyDocumented(_documentation),
 		m_initExpression(std::move(_initExpression)),
 		m_condExpression(std::move(_conditionExpression)),
 		m_loopExpression(std::move(_loopExpression)),

@@ -45,6 +45,10 @@ private:
 	bool visit(ModifierDefinition const& _modifier) override;
 	bool visit(EventDefinition const& _event) override;
 
+	// [solc-verify] We need these for loop invariants
+	bool visit(WhileStatement const& _event) override;
+	bool visit(ForStatement const& _event) override;
+
 	void checkParameters(
 		CallableDeclaration const& _callable,
 		StructurallyDocumented const& _node,

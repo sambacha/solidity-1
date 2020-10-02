@@ -71,6 +71,22 @@ bool DocStringTagParser::visit(VariableDeclaration const& _variable)
 	return false;
 }
 
+bool DocStringTagParser::visit(WhileStatement const& _loop)
+{
+	static set<string> const validPublicTags = set<string>{"notice"};
+	static set<string> const validNonPublicTags = set<string>{"notice"};
+	parseDocStrings(_loop, _loop.annotation(), validPublicTags, "loop invariants");
+	return false;
+}
+
+bool DocStringTagParser::visit(ForStatement const& _loop)
+{
+	static set<string> const validPublicTags = set<string>{"notice"};
+	static set<string> const validNonPublicTags = set<string>{"notice"};
+	parseDocStrings(_loop, _loop.annotation(), validPublicTags, "loop invariants");
+	return false;
+}
+
 bool DocStringTagParser::visit(ModifierDefinition const& _modifier)
 {
 	handleCallable(_modifier, _modifier, _modifier.annotation());
