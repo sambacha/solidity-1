@@ -1,5 +1,5 @@
 solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
 ArraysPushPop::insert: OK
-ArraysPushPop::[fallback]: OK
+ArraysPushPop::[receive]: OK
 ArraysPushPop::[implicit_constructor]: OK
 No errors found.
