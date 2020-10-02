@@ -639,7 +639,7 @@ ASTPointer<WhileStatement> ASTJsonImporter::createWhileStatement(Json::Value con
 {
 	return createASTNode<WhileStatement>(
 		_node,
-		nullOrASTString(_node, "documentation"),
+		_node["documentation"].isNull() ? nullptr : createDocumentation(member(_node, "documentation")),
 		convertJsonToASTNode<Expression>(member(_node, "condition")),
 		convertJsonToASTNode<Statement>(member(_node, "body")),
 		_isDoWhile
@@ -650,7 +650,7 @@ ASTPointer<ForStatement> ASTJsonImporter::createForStatement(Json::Value const& 
 {
 	return createASTNode<ForStatement>(
 		_node,
-		nullOrASTString(_node, "documentation"),
+		_node["documentation"].isNull() ? nullptr : createDocumentation(member(_node, "documentation")),
 		nullOrCast<Statement>(member(_node, "initializationExpression")),
 		nullOrCast<Expression>(member(_node, "condition")),
 		nullOrCast<ExpressionStatement>(member(_node, "loopExpression")),

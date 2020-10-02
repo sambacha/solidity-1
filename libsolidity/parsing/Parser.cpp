@@ -1208,20 +1208,24 @@ ASTPointer<Statement> Parser::parseStatement()
 	RecursionGuard recursionGuard(*this);
 	ASTPointer<ASTString> docString;
 	ASTPointer<Statement> statement;
+	ASTPointer<StructuredDocumentation> documentation;
 	try
 	{
 		if (m_scanner->currentCommentLiteral() != "")
-			docString = make_shared<ASTString>(m_scanner->currentCommentLiteral());
+		{
+			documentation = parseStructuredDocumentation();
+			docString = documentation->text();
+		}
 		switch (m_scanner->currentToken())
 		{
 		case Token::If:
 			return parseIfStatement(docString);
 		case Token::While:
-			return parseWhileStatement(docString);
+			return parseWhileStatement(documentation);
 		case Token::Do:
-			return parseDoWhileStatement(docString);
+			return parseDoWhileStatement(documentation);
 		case Token::For:
-			return parseForStatement(docString);
+			return parseForStatement(documentation);
 		case Token::LBrace:
 			return parseBlock(docString);
 			// starting from here, all statements must be terminated by a semicolon
@@ -1390,7 +1394,7 @@ ASTPointer<TryCatchClause> Parser::parseCatchClause()
 	return nodeFactory.createNode<TryCatchClause>(errorName, errorParameters, block);
 }
 
-ASTPointer<WhileStatement> Parser::parseWhileStatement(ASTPointer<ASTString> const& _docString)
+ASTPointer<WhileStatement> Parser::parseWhileStatement(ASTPointer<StructuredDocumentation> _documentation)
 {
 	RecursionGuard recursionGuard(*this);
 	ASTNodeFactory nodeFactory(*this);
@@ -1400,10 +1404,10 @@ ASTPointer<WhileStatement> Parser::parseWhileStatement(ASTPointer<ASTString> con
 	expectToken(Token::RParen);
 	ASTPointer<Statement> body = parseStatement();
 	nodeFactory.setEndPositionFromNode(body);
-	return nodeFactory.createNode<WhileStatement>(_docString, condition, body, false);
+	return nodeFactory.createNode<WhileStatement>(_documentation, condition, body, false);
 }
 
-ASTPointer<WhileStatement> Parser::parseDoWhileStatement(ASTPointer<ASTString> const& _docString)
+ASTPointer<WhileStatement> Parser::parseDoWhileStatement(ASTPointer<StructuredDocumentation> _documentation)
 {
 	RecursionGuard recursionGuard(*this);
 	ASTNodeFactory nodeFactory(*this);
@@ -1415,11 +1419,11 @@ ASTPointer<WhileStatement> Parser::parseDoWhileStatement(ASTPointer<ASTString> c
 	expectToken(Token::RParen);
 	nodeFactory.markEndPosition();
 	expectToken(Token::Semicolon);
-	return nodeFactory.createNode<WhileStatement>(_docString, condition, body, true);
+	return nodeFactory.createNode<WhileStatement>(_documentation, condition, body, true);
 }
 
 
-ASTPointer<ForStatement> Parser::parseForStatement(ASTPointer<ASTString> const& _docString)
+ASTPointer<ForStatement> Parser::parseForStatement(ASTPointer<StructuredDocumentation> _documentation)
 {
 	RecursionGuard recursionGuard(*this);
 	ASTNodeFactory nodeFactory(*this);
@@ -1445,7 +1449,7 @@ ASTPointer<ForStatement> Parser::parseForStatement(ASTPointer<ASTString> const& 
 	ASTPointer<Statement> body = parseStatement();
 	nodeFactory.setEndPositionFromNode(body);
 	return nodeFactory.createNode<ForStatement>(
-		_docString,
+		_documentation,
 		initExpression,
 		conditionExpression,
 		loopExpression,
