@@ -1,5 +1,5 @@
 C_positive::add0: ERROR
- - test/solc-verify/specs/Quantifiers.sol:7:3: Invariant 'forall (uint i) !(0 <= i && i < a.length) || (a[i] > 0)' might not hold at end of function.
+ - test/solc-verify/specs/Quantifiers.sol:8:3: Invariant 'forall (uint i) !(0 <= i && i < a.length) || (a[i] > 0)' might not hold at end of function.
 C_positive::add1: OK
 C_positive::[implicit_constructor]: OK
 C_positive::[receive_ether_selfdestruct]: OK
