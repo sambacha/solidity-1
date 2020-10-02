@@ -60,6 +60,10 @@ public:
 	/// @returns true iff all checks passed. Note even if all checks passed, errors() can still contain warnings
 	bool checkTypeRequirements(SourceUnit const& _source, ASTNode const& _node);
 
+	/// Performs type checking on the given node within the given contract
+	/// @returns true iff all checks passed. Note even if all checks passed, errors() can still contain warnings
+	bool checkTypeRequirements(ContractDefinition const& _contract, ASTNode const& _node);
+
 	/// @returns the type of an expression and asserts that it is present.
 	TypePointer const& type(Expression const& _expression) const;
 	/// @returns the type of the given variable and throws if the type is not present

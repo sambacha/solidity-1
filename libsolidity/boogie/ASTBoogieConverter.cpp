@@ -363,7 +363,7 @@ void ASTBoogieConverter::processSpecificationExpression(ASTPointer<Expression> e
 	{
 		// Do type checking
 		TypeChecker typeChecker(m_context.evmVersion(), *m_context.errorReporter());
-		if (typeChecker.checkTypeRequirements(*m_context.currentSource(), *expr))
+		if (typeChecker.checkTypeRequirements(*m_context.currentContract(), *expr))
 		{
 			// Convert expression to Boogie representation
 			auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr, true);

@@ -80,6 +80,14 @@ bool TypeChecker::checkTypeRequirements(SourceUnit const& _source, ASTNode const
 	return Error::containsOnlyWarnings(m_errorReporter.errors());
 }
 
+bool TypeChecker::checkTypeRequirements(ContractDefinition const& _contract, ASTNode const& _node)
+{
+	m_currentContract = &_contract;
+	_node.accept(*this);
+	m_currentContract = nullptr;
+	return Error::containsOnlyWarnings(m_errorReporter.errors());
+}
+
 TypePointer const& TypeChecker::type(Expression const& _expression) const
 {
 	solAssert(!!_expression.annotation().type, "Type requested but not present.");
