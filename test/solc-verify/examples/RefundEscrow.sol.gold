@@ -1,10 +1,13 @@
 solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
+Secondary::[constructor]: OK
 Secondary::primary: OK
 Secondary::transferPrimary: OK
+Escrow::[constructor]: OK
 Escrow::depositsOf: OK
 Escrow::deposit: OK
 Escrow::withdraw: OK
 Escrow::[receive_ether_selfdestruct]: OK
+ConditionalEscrow::[constructor]: OK
 ConditionalEscrow::withdraw: OK
 ConditionalEscrow::[receive_ether_selfdestruct]: OK
 RefundEscrow::[constructor]: OK
