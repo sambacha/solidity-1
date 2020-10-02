@@ -40,6 +40,7 @@ bg::Expr::Ref StoragePtrHelper::packToLocalPtr(Expression const* expr, bg::Expr:
 		// Start with last
 		bg::Expr::Ref result = toWriteExpr(packed.exprs.back(), context);
 		packed.exprs.pop_back();
+		packed.conds.pop_back();
 		// Create if-then-else recursively using the rest
 		while (packed.exprs.size() > 0)
 		{
