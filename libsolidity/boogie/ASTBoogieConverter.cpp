@@ -9,6 +9,7 @@
 #include <libsolidity/boogie/StoragePtrHelper.h>
 #include <libsolidity/analysis/NameAndTypeResolver.h>
 #include <libsolidity/analysis/TypeChecker.h>
+#include <libsolidity/analysis/DeclarationTypeChecker.h>
 #include <libsolidity/ast/TypeProvider.h>
 #include <libsolidity/parsing/Parser.h>
 #include <liblangutil/ErrorReporter.h>
@@ -331,6 +332,7 @@ void ASTBoogieConverter::processSpecificationExpression(ASTPointer<Expression> e
 		if (specInfo.arrayId)
 			m_context.scopes()[specInfo.arrayId.get()] = m_context.scopes()[_scope];
 		NameAndTypeResolver typeResolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
+		DeclarationTypeChecker checker(*m_context.errorReporter(), m_context.evmVersion());
 		if (specInfo.arrayId)
 			typeResolver.resolveNamesAndTypes(*specInfo.arrayId);
 		// Add all the quantified variables to the scope and create Boogie bindings
@@ -347,6 +349,7 @@ void ASTBoogieConverter::processSpecificationExpression(ASTPointer<Expression> e
 				bgQuantifierType.push_back(isForall ? bg::QuantExpr::Forall : bg::QuantExpr::Exists);
 				for (auto varDecl: vars)
 				{
+					checker.check(*varDecl);
 					scopeDecls->registerDeclaration(*varDecl);
 					auto varName = m_context.mapDeclName(*varDecl);
 					auto varType = m_context.toBoogieType(varDecl->type(), varDecl.get());

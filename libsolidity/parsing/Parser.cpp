@@ -1151,7 +1151,7 @@ ASTPointer<VariableDeclaration> Parser::parseSpecificationVariableDeclaration(AS
 		nullptr,
 		isStateVariable,
 		false,
-		VariableDeclaration::Mutability::Immutable
+		VariableDeclaration::Mutability::Mutable
 	);
 }
 
