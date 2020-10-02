@@ -212,7 +212,7 @@ public:
 	int nextId() { return m_nextId++; }
 	boogie::VarDeclRef freshTempVar(boogie::TypeDeclRef type, std::string prefix = "tmp");
 	ContractDefinition const* currentContract() const { return m_currentContract; }
-	void setCurrentContract(ContractDefinition const* contract) { m_currentContract = contract; }
+	void setCurrentContract(ContractDefinition const* contract);
 	SourceUnit const* currentSource() const { return m_currentSource; }
 	void setCurrentSource(SourceUnit const* source) { m_currentSource = source; }
 	void printErrors(std::ostream& out);

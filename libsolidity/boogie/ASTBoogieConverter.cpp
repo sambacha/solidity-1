@@ -959,7 +959,9 @@ bool ASTBoogieConverter::visit(ContractDefinition const& _node)
 {
 	rememberScope(_node);
 
+	// Set current contract (updates this/super)
 	m_context.setCurrentContract(&_node);
+
 	// Boogie programs are flat, contracts do not appear explicitly
 	m_context.addGlobalComment("\n------- Contract: " + _node.name() + " -------");
 
@@ -1000,6 +1002,9 @@ bool ASTBoogieConverter::visit(ContractDefinition const& _node)
 	// Create Ether receiving function (selfdestruct)
 	if (!m_context.currentContractInvars().empty())
 		createEtherReceiveFunc(_node);
+
+	// Rest current contract (removes this, super)
+	m_context.setCurrentContract(nullptr);
 
 	return false;
 }

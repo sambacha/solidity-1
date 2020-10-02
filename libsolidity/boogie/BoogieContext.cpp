@@ -1471,6 +1471,25 @@ std::pair<boogie::Expr::Ref, std::string> BoogieContext::getEventLoopInvariant(E
 	return result;
 }
 
+void BoogieContext::setCurrentContract(ContractDefinition const* contract)
+{
+	if (contract)
+	{
+		m_globalContext.setCurrentContract(*contract);
+		m_scopes[nullptr]->registerDeclaration(*m_globalContext.currentSuper(), nullptr, false, true);
+		m_scopes[nullptr]->registerDeclaration(*m_globalContext.currentThis(), nullptr, false, true);
+	}
+	else
+	{
+		// make "this" and "super" invisible.
+		m_scopes[nullptr]->registerDeclaration(*m_globalContext.currentThis(), nullptr, true, true);
+		m_scopes[nullptr]->registerDeclaration(*m_globalContext.currentSuper(), nullptr, true, true);
+		m_globalContext.resetCurrentContract();
+	}
+	m_currentContract = contract;
+}
+
+
 void ExprConditionStore::addCondition(std::string id, ConditionType type, boogie::Expr::Ref ref)
 {
 	m_conditionsOnVariables[id][type].insert(ref);
