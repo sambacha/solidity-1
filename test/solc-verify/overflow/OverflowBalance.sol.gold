@@ -1,6 +1,6 @@
 solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
-test/solc-verify/overflow/OverflowBalance.sol:6:1: solc-verify warning: Warning(s) while translating annotation for node
-Overflow::[constructor]: OK
-Overflow::receive: OK
-Overflow::[receive_ether_selfdestruct]: OK
+test/solc-verify/overflow/OverflowBalance.sol:7:1: solc-verify warning: Warning(s) while translating annotation for node
+OverflowBalance::[constructor]: OK
+OverflowBalance::[receive]: OK
+OverflowBalance::[receive_ether_selfdestruct]: OK
 No errors found.
