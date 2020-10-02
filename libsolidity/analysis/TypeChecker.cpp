@@ -3118,12 +3118,14 @@ bool TypeChecker::visit(Identifier const& _identifier)
 	)
 		if (magicVar->type()->category() == Type::Category::Integer)
 		{
-			solAssert(_identifier.name() == "now", "");
-			m_errorReporter.typeError(
-				7359_error,
-				_identifier.location(),
-				"\"now\" has been deprecated. Use \"block.timestamp\" instead."
-			);
+			if (_identifier.name() == "now")
+			{
+				m_errorReporter.typeError(
+					7359_error,
+					_identifier.location(),
+					"\"now\" has been deprecated. Use \"block.timestamp\" instead."
+				);
+			}
 		}
 
 	return false;
