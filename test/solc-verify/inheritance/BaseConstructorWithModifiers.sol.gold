@@ -1,4 +1,4 @@
-A::[constructor]: OK
+BCWM_A::[constructor]: OK
 BaseConstructorWithModifiers::[constructor]: OK
-BaseConstructorWithModifiers::[fallback]: OK
+BaseConstructorWithModifiers::[receive]: OK
 No errors found.

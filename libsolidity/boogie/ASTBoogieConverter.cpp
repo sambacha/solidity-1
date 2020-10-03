@@ -9,6 +9,7 @@
 #include <libsolidity/boogie/StoragePtrHelper.h>
 #include <libsolidity/analysis/NameAndTypeResolver.h>
 #include <libsolidity/analysis/TypeChecker.h>
+#include <libsolidity/analysis/DeclarationTypeChecker.h>
 #include <libsolidity/ast/TypeProvider.h>
 #include <libsolidity/parsing/Parser.h>
 #include <liblangutil/ErrorReporter.h>
@@ -331,6 +332,7 @@ void ASTBoogieConverter::processSpecificationExpression(ASTPointer<Expression> e
 		if (specInfo.arrayId)
 			m_context.scopes()[specInfo.arrayId.get()] = m_context.scopes()[_scope];
 		NameAndTypeResolver typeResolver(*m_context.globalContext(), m_context.evmVersion(), m_context.scopes(), *m_context.errorReporter());
+		DeclarationTypeChecker checker(*m_context.errorReporter(), m_context.evmVersion());
 		if (specInfo.arrayId)
 			typeResolver.resolveNamesAndTypes(*specInfo.arrayId);
 		// Add all the quantified variables to the scope and create Boogie bindings
@@ -347,6 +349,7 @@ void ASTBoogieConverter::processSpecificationExpression(ASTPointer<Expression> e
 				bgQuantifierType.push_back(isForall ? bg::QuantExpr::Forall : bg::QuantExpr::Exists);
 				for (auto varDecl: vars)
 				{
+					checker.check(*varDecl);
 					scopeDecls->registerDeclaration(*varDecl);
 					auto varName = m_context.mapDeclName(*varDecl);
 					auto varType = m_context.toBoogieType(varDecl->type(), varDecl.get());
@@ -363,7 +366,7 @@ void ASTBoogieConverter::processSpecificationExpression(ASTPointer<Expression> e
 	{
 		// Do type checking
 		TypeChecker typeChecker(m_context.evmVersion(), *m_context.errorReporter());
-		if (typeChecker.checkTypeRequirements(*m_context.currentSource(), *expr))
+		if (typeChecker.checkTypeRequirements(*m_context.currentContract(), *expr))
 		{
 			// Convert expression to Boogie representation
 			auto convResult = ASTBoogieExpressionConverter(m_context).convert(*expr, true);
@@ -491,7 +494,7 @@ bool ASTBoogieConverter::parseExpr(string exprStr, ASTNode const& _node, ASTNode
 		result.exprStr = exprStr;
 		result.exprSol = expr;
 	}
-	catch (langutil::FatalError const& fe)
+	catch (langutil::FatalError const&)
 	{
 		m_context.reportError(&_node, "Error while parsing annotation.");
 	}
@@ -588,7 +591,7 @@ bool ASTBoogieConverter::parseSpecificationCasesExpr(string exprStr, ASTNode con
 		result.exprStr = exprStr;
 		result.exprSol = nullptr;
 	}
-	catch (langutil::FatalError const& fe)
+	catch (langutil::FatalError const&)
 	{
 		m_context.reportError(&_node, "Error while parsing annotation.");
 	}
@@ -936,7 +939,7 @@ bool ASTBoogieConverter::visit(SourceUnit const& _node)
 	m_context.setCurrentSource(&_node);
 
 	// Boogie programs are flat, source units do not appear explicitly
-	m_context.addGlobalComment("\n------- Source: " + _node.annotation().path + " -------");
+	m_context.addGlobalComment("\n------- Source: " + *_node.annotation().path + " -------");
 	return true; // Simply apply visitor recursively
 }
 
@@ -959,7 +962,9 @@ bool ASTBoogieConverter::visit(ContractDefinition const& _node)
 {
 	rememberScope(_node);
 
+	// Set current contract (updates this/super)
 	m_context.setCurrentContract(&_node);
+
 	// Boogie programs are flat, contracts do not appear explicitly
 	m_context.addGlobalComment("\n------- Contract: " + _node.name() + " -------");
 
@@ -1000,6 +1005,9 @@ bool ASTBoogieConverter::visit(ContractDefinition const& _node)
 	// Create Ether receiving function (selfdestruct)
 	if (!m_context.currentContractInvars().empty())
 		createEtherReceiveFunc(_node);
+
+	// Rest current contract (removes this, super)
+	m_context.setCurrentContract(nullptr);
 
 	return false;
 }
@@ -1227,7 +1235,7 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 	}
 
 	// add invariants as pre/postconditions for: public functions and if explicitly requested
-	if (_node.isPublic() || includeContractInvars(_node.annotation()))
+	if (_node.isConstructor() || _node.isPublic() || includeContractInvars(_node.annotation()))
 	{
 		for (auto invar: m_context.currentContractInvars())
 		{
@@ -1255,7 +1263,7 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 		}
 	}
 
-	if (!_node.isPublic()) // Non-public functions: inline
+	if (!_node.isConstructor() && !_node.isPublic()) // Non-public functions: inline
 		procDecl->addAttr(bg::Attr::attr("inline", 1));
 
 	// Add other pre/postconditions
@@ -1302,6 +1310,8 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 		traceabilityName = "[constructor]";
 	else if (_node.isFallback())
 		traceabilityName = "[fallback]";
+	else if (_node.isReceive())
+		traceabilityName = "[receive]";
 	traceabilityName = m_context.currentContract()->name() + "::" + traceabilityName;
 	procDecl->addAttrs(ASTBoogieUtils::createAttrs(_node.location(), traceabilityName, *m_context.currentScanner()));
 
@@ -1317,8 +1327,10 @@ bool ASTBoogieConverter::visit(FunctionDefinition const& _node)
 					procDecl->getModifies().push_back(m_context.mapDeclName(*sv));
 	}
 
-	string funcType = _node.visibility() == Visibility::External ? "" : " : " + _node.type()->toString();
-	m_context.addGlobalComment("\nFunction: " + _node.name() + funcType);
+	if (!_node.isConstructor() && _node.visibility() != Visibility::External)
+		m_context.addGlobalComment("\nFunction: " + _node.name() + " : " + _node.type()->toString());
+	else
+		m_context.addGlobalComment("\nFunction: " + _node.name());
 	m_context.addDecl(procDecl);
 	return false;
 }

@@ -1,7 +1,7 @@
-A::set: OK
-A::[constructor]: OK
-B1::[constructor]: OK
-B2::[constructor]: OK
+BCO_A::set: OK
+BCO_A::[constructor]: OK
+BCO_B1::[constructor]: OK
+BCO_B2::[constructor]: OK
 BaseConstructorOrder::[constructor]: OK
-BaseConstructorOrder::[fallback]: OK
+BaseConstructorOrder::[receive]: OK
 No errors found.

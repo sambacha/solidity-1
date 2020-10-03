@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract FunctionCall {
     uint x;
@@ -54,7 +55,7 @@ contract FunctionCall {
         sum = x1 + y1;
     }
 
-    function() external payable {
+    receive() external payable {
       a = 0;
       x = 0;
       y = 0;

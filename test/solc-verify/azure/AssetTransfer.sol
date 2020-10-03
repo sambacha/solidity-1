@@ -1,4 +1,5 @@
-pragma solidity >=0.4.25 <0.6.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract AssetTransfer
 {
@@ -13,7 +14,7 @@ contract AssetTransfer
     address public InstanceInspector;
     address public InstanceAppraiser;
 
-    constructor(string memory description, uint256 price) public
+    constructor(string memory description, uint256 price)
     {
         InstanceOwner = msg.sender;
         AskingPrice = price;

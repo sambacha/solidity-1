@@ -1,5 +1,6 @@
 // From https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/payment/escrow
-pragma solidity ^0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 library SafeMath {
     function mul(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -27,7 +28,7 @@ library SafeMath {
     }
 }
 
-contract Secondary {
+abstract contract Secondary {
     address internal _primary;
 
     /**
@@ -44,7 +45,7 @@ contract Secondary {
      *
      * @notice emits PrimaryTransferred
      */
-    constructor () internal {
+    constructor () {
         address msgSender = msg.sender;
         _primary = msgSender;
         emit PrimaryTransferred(msgSender);
@@ -80,7 +81,7 @@ contract Secondary {
 }
 
 /// @notice invariant __verifier_sum_uint(_deposits) <= address(this).balance
-contract Escrow is Secondary {
+abstract contract Escrow is Secondary {
     using SafeMath for uint256;
 
     /// @notice tracks-changes-in _deposits
@@ -92,7 +93,7 @@ contract Escrow is Secondary {
     mapping(address => uint256) internal _deposits;
 
     /** @notice emits PrimaryTransferred */
-    constructor() internal {}
+    constructor() {}
 
     function depositsOf(address payee) public view returns (uint256) {
         return _deposits[payee];
@@ -106,7 +107,7 @@ contract Escrow is Secondary {
      * @notice modifies address(this).balance
      * @notice emits Deposited
      */
-    function deposit(address payee) public onlyPrimary payable {
+    function deposit(address payee) public virtual onlyPrimary payable {
         uint256 amount = msg.value;
         _deposits[payee] = _deposits[payee].add(amount);
 
@@ -122,7 +123,7 @@ contract Escrow is Secondary {
      * @notice modifies payee.balance
      * @notice emits Withdrawn
      */
-    function withdraw(address payable payee) public onlyPrimary {
+    function withdraw(address payable payee) public virtual onlyPrimary {
         uint256 payment = _deposits[payee];
         _deposits[payee] = 0;
         payee.transfer(payment);
@@ -138,17 +139,17 @@ contract Escrow is Secondary {
  *
  * @notice invariant __verifier_sum_uint(_deposits) <= address(this).balance
  */
-contract ConditionalEscrow is Escrow {
+abstract contract ConditionalEscrow is Escrow {
 
     /** @notice emits PrimaryTransferred */
-    constructor() internal {}
+    constructor() {}
 
     /**
      * @dev Returns whether an address is allowed to withdraw their funds. To be
      * implemented by derived contracts.
      * @param payee The destination address of the funds.
      */
-    function withdrawalAllowed(address payee) public view returns (bool);
+    function withdrawalAllowed(address payee) public view virtual returns (bool);
 
     /**
      * @notice emits Withdrawn
@@ -156,7 +157,7 @@ contract ConditionalEscrow is Escrow {
      * @notice modifies address(this).balance
      * @notice modifies payee.balance
      */
-    function withdraw(address payable payee) public {
+    function withdraw(address payable payee) public override {
         require(withdrawalAllowed(payee), "ConditionalEscrow: payee is not allowed to withdraw");
         super.withdraw(payee);
     }
@@ -198,7 +199,7 @@ contract RefundEscrow is ConditionalEscrow {
      * @param beneficiary The beneficiary of the deposits.
      * @notice emits PrimaryTransferred
      */
-    constructor (address payable beneficiary) public {
+    constructor (address payable beneficiary) {
         require(beneficiary != address(0), "RefundEscrow: beneficiary is the zero address");
         _beneficiary = beneficiary;
         _state = State.Active;
@@ -226,7 +227,7 @@ contract RefundEscrow is ConditionalEscrow {
      * @notice modifies _deposits[refundee] if _state == State.Active
      * @notice modifies address(this).balance
      */
-    function deposit(address refundee) public payable {
+    function deposit(address refundee) public override payable {
         require(_state == State.Active, "RefundEscrow: can only deposit while active");
         super.deposit(refundee);
     }
@@ -272,7 +273,7 @@ contract RefundEscrow is ConditionalEscrow {
      *
      * @notice postcondition allowed == (_state == State.Refunding)
      */
-    function withdrawalAllowed(address) public view returns (bool allowed) {
+    function withdrawalAllowed(address) public view override returns (bool allowed) {
         return _state == State.Refunding;
     }
 }

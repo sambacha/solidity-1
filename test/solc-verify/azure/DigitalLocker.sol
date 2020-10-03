@@ -1,4 +1,5 @@
-pragma solidity >=0.4.25 <0.6.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract DigitalLocker
 {
@@ -16,7 +17,7 @@ contract DigitalLocker
     string public RejectionReason;
     StateType public State;
 
-    constructor(string memory lockerFriendlyName, address bankAgent) public
+    constructor(string memory lockerFriendlyName, address bankAgent)
     {
         Owner = msg.sender;
         LockerFriendlyName = lockerFriendlyName;

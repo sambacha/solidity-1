@@ -1,4 +1,5 @@
-pragma solidity >=0.4.25 <0.6.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract SimpleMarketplace
 {
@@ -16,7 +17,7 @@ contract SimpleMarketplace
     address public InstanceBuyer;
     int public OfferPrice;
 
-    constructor(string memory description, int price) public
+    constructor(string memory description, int price)
     {
         InstanceOwner = msg.sender;
         AskingPrice = price;

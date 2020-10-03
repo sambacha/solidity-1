@@ -1,4 +1,5 @@
-pragma solidity>=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract LocalStorageRepack {
     struct P {
@@ -19,7 +20,7 @@ contract LocalStorageRepack {
     P p;
     S[] s_arr;
 
-    function() external payable {
+    receive() external payable {
         s1.x = 1;
         s1.t.z = 11;
         s2.x = 2;

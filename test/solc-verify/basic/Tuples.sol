@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Tuples {
 
@@ -54,7 +55,7 @@ contract Tuples {
       }
     }
 
-    function() external payable {
+    receive() external payable {
       int x = 10;
       int y = 20;
       (int min, int max) = minMax(x, y);

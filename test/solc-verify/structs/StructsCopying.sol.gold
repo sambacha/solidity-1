@@ -8,6 +8,6 @@ StructsCopying::locToLoc: OK
 StructsCopying::locToStor: OK
 StructsCopying::locToMem: OK
 StructsCopying::nestedMemToMem: OK
-StructsCopying::[fallback]: OK
+StructsCopying::[receive]: OK
 StructsCopying::[implicit_constructor]: OK
 No errors found.

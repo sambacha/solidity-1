@@ -6,6 +6,7 @@
 #include <libsolidity/boogie/BoogieAstExpr.h>
 #include <libsolidity/boogie/BoogieAstStmt.h>
 #include <liblangutil/Scanner.h>
+#include <list>
 #include <string>
 
 namespace solidity

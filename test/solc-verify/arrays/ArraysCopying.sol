@@ -1,9 +1,10 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract ArraysCopying {
     int[] x;
 
-    function() external payable {
+    receive() external payable {
         int[] memory m = new int[](2);
         m[0] = 1;
         m[1] = 2;

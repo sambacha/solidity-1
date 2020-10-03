@@ -434,7 +434,7 @@ bool ASTBoogieExpressionConverter::visit(BinaryOperation const& _node)
 bool ASTBoogieExpressionConverter::visit(FunctionCall const& _node)
 {
 	// Check for conversions
-	if (_node.annotation().kind == FunctionCallKind::TypeConversion)
+	if (*_node.annotation().kind == FunctionCallKind::TypeConversion)
 	{
 		functionCallConversion(_node);
 		return false;

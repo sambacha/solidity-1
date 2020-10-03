@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract ArraysPushPop {
 
@@ -14,7 +15,7 @@ contract ArraysPushPop {
 
     /// @notice modifies x
     /// @notice modifies address(this).balance
-    function() external payable {
+    receive() external payable {
         require(x.length == 0);
         x.push(4);
         assert(x.length == 1);

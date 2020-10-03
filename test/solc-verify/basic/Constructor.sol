@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Constr {
     uint value;
@@ -15,7 +16,7 @@ contract Constr {
 
     S2 s;
 
-    constructor(uint init) public {
+    constructor(uint init) {
         // Value should be initialize to 0 here
         assert(value == 0);
         value = init;

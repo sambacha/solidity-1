@@ -1,6 +1,6 @@
 ErrorHandling::abs_sound: OK
 ErrorHandling::abs_unsound: ERROR
- - test/solc-verify/basic/ErrorHandling.sol:17:9: Assertion might not hold.
+ - test/solc-verify/basic/ErrorHandling.sol:18:9: Assertion might not hold.
 ErrorHandling::add: OK
 ErrorHandling::add2: OK
 ErrorHandling::[implicit_constructor]: OK

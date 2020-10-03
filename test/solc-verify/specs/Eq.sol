@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 pragma experimental ABIEncoderV2;
 
 /// @notice invariant __verifier_eq(x, y)
@@ -16,7 +17,7 @@ contract MapsEq {
         y[address(this)] = v;
     }
 
-    constructor() public {}
+    constructor() {}
 }
 
 /// @notice invariant __verifier_eq(s1, s2)

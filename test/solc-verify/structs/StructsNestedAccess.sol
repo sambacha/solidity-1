@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract StructsNestedAccess {
     struct S {
@@ -18,7 +19,7 @@ contract StructsNestedAccess {
 
     mapping(address=>S) ss;
 
-    function() external payable {
+    receive() external payable {
         ss[msg.sender].x = 1;
         ss[msg.sender].y = true;
         ss[msg.sender].t.z = 2;

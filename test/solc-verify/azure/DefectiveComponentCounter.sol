@@ -1,4 +1,5 @@
-pragma solidity >=0.4.25 <0.6.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract DefectiveComponentCounter {
 
@@ -12,7 +13,7 @@ contract DefectiveComponentCounter {
     int public Total;
 
     // constructor function
-    constructor(int[12] memory defectiveComponentsCount) public
+    constructor(int[12] memory defectiveComponentsCount)
     {
         Manufacturer = msg.sender;
         DefectiveComponentsCount = defectiveComponentsCount;

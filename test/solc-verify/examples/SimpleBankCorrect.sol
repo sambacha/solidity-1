@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 /**
  * @notice invariant __verifier_sum_uint(balances) <= address(this).balance
@@ -14,7 +15,7 @@ contract SimpleBank {
         require(balances[msg.sender] > amount);
         balances[msg.sender] -= amount;
         bool ok;
-        (ok, ) = msg.sender.call.value(amount)(""); // No reentrancy attack
+        (ok, ) = msg.sender.call{value: amount}(""); // No reentrancy attack
         if (!ok) revert();
     }
 }

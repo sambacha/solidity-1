@@ -1,11 +1,12 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Simple {
     mapping(address=>int) xs;
     address owner;
     int counter;
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
     }
 

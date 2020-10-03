@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 library L {
     function msgsender() internal view returns(address) {
@@ -10,7 +11,7 @@ library L {
 }
 
 contract Issue025 {
-    function() external payable {
+    receive() external payable {
         assert(L.msgsender() == msg.sender);
         assert(L.msgvalue() == msg.value);
     }

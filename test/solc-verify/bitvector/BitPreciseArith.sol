@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract BitPreciseArith {
     function add8u(uint8 x, uint8 y) private pure returns (uint8) { return x + y; }
@@ -41,7 +42,7 @@ contract BitPreciseArith {
     function bitxor8u(uint8 x, uint8 y) private pure returns (uint8) { return x ^ y; }
     function bitshl8u(uint8 x, uint8 y) private pure returns (uint8) { return x << y; }
     function bitsar8u(uint8 x, uint8 y) private pure returns (uint8) { return x >> y; }
-    function bitsar8s(int8 x, int8 y) private pure returns (int8) { return x >> y; }
+    function bitsar8s(int8 x, uint8 y) private pure returns (int8) { return x >> y; }
 
     function eq8u(uint8 x, uint8 y) private pure returns (bool) { return x == y; }
     function ne8u(uint8 x, uint8 y) private pure returns (bool) { return x != y; }
@@ -50,7 +51,7 @@ contract BitPreciseArith {
     function gt8u(uint8 x, uint8 y) private pure returns (bool) { return x > y; }
     function ge8u(uint8 x, uint8 y) private pure returns (bool) { return x >= y; }
 
-    function() external payable {
+    receive() external payable {
         assert(add8u(128, 127) == 255);
         assert(add8u(128, 128) == 0);
         assert(sub8u(5, 3) == 2);

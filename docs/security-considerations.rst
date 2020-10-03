@@ -201,7 +201,7 @@ Never use tx.origin for authorization. Let's say you have a wallet contract like
 ::
 
     // SPDX-License-Identifier: GPL-3.0
-    pragma solidity >0.6.99 <0.8.0;
+    pragma solidity ^0.7.0;
 
     // THIS CONTRACT CONTAINS A BUG - DO NOT USE
     contract TxUserWallet {
@@ -222,7 +222,7 @@ Now someone tricks you into sending Ether to the address of this attack wallet:
 ::
 
     // SPDX-License-Identifier: GPL-3.0
-    pragma solidity >0.6.99 <0.8.0;
+    pragma solidity ^0.7.0;
 
     interface TxUserWallet {
         function transferTo(address payable dest, uint amount) external;
@@ -259,7 +259,7 @@ more special edge cases for signed numbers.
 
 Try to use ``require`` to limit the size of inputs to a reasonable range and use the
 :ref:`SMT checker<smt_checker>` to find potential overflows, or use a library like
-`SafeMath <https://github.com/OpenZeppelin/openzeppelin-solidity/blob/master/contracts/math/SafeMath.sol>`_
+`SafeMath <https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/math/SafeMath.sol>`_
 if you want all overflows to cause a revert.
 
 Code such as ``require((balanceOf[_to] + _value) >= balanceOf[_to])`` can also help you check if values are what you expect.

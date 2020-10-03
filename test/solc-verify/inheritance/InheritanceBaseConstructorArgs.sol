@@ -1,18 +1,19 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract C {
     int x;
-    constructor(int _x) public { x = _x; }
+    constructor(int _x) { x = _x; }
 }
 
 contract D is C(1) {
-    constructor() public {
+    constructor() {
         assert(x == 1);
     }
 }
 
 contract E is C {
-    constructor() C(1) public {
+    constructor() C(1) {
         assert(x == 1);
     }
 }

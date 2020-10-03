@@ -1,4 +1,3 @@
-test/solc-verify/arrays/PushBeforeLocal.sol:13:9: solc-verify warning: Array elements are not set to default value when resizing with length
 PushBeforeLocal::[constructor]: OK
-PushBeforeLocal::[fallback]: OK
+PushBeforeLocal::[receive]: OK
 No errors found.

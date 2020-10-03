@@ -1,6 +1,7 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
-contract A {
+abstract contract A {
     int x;
     int y;
 
@@ -18,5 +19,5 @@ contract A {
 
     /// @notice modifies x
     /// @notice postcondition x == 0
-    function g() public;
+    function g() public virtual;
 }

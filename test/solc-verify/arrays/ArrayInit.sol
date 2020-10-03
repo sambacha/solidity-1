@@ -1,4 +1,5 @@
-pragma solidity ^0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract ArrayInit {
 
@@ -11,7 +12,7 @@ contract ArrayInit {
 
     int[2][3] ma;
 
-    constructor() public {
+    constructor() {
         assert(a.length == 2);
         assert(a[0] == 0);
         assert(a[1] == 0);
@@ -26,6 +27,6 @@ contract ArrayInit {
     }
 
     // This is here to be run by truffle
-    function() external payable {
+    receive() external payable {
     }
 }

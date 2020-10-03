@@ -1,13 +1,13 @@
 solc-verify warning: Balance modifications due to gas consumption or miner rewards are not modeled
-test/solc-verify/specs/ModifiesBalance.sol:6:5: solc-verify warning: Warning(s) while translating annotation for node
+test/solc-verify/specs/ModifiesBalance.sol:7:5: solc-verify warning: Warning(s) while translating annotation for node
 C::correct1: OK
 C::incorrect1: ERROR
- - test/solc-verify/specs/ModifiesBalance.sol:9:5: Function might modify balances illegally
+ - test/solc-verify/specs/ModifiesBalance.sol:10:5: Function might modify balances illegally
 C::correct2: OK
 C::incorrect2: ERROR
- - test/solc-verify/specs/ModifiesBalance.sol:20:5: Function might modify balances illegally
+ - test/solc-verify/specs/ModifiesBalance.sol:21:5: Function might modify balances illegally
 C::correct3: OK
 C::incorrect3: ERROR
- - test/solc-verify/specs/ModifiesBalance.sol:35:5: Function might modify balances illegally
+ - test/solc-verify/specs/ModifiesBalance.sol:36:5: Function might modify balances illegally
 C::[implicit_constructor]: OK
 Errors were found by the verifier.

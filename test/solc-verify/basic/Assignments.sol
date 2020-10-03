@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Assignments {
     uint contractVar;
@@ -52,7 +53,7 @@ contract Assignments {
         return (++x) + (x++);
     }
 
-    function() external payable {
+    receive() external payable {
         init();
         assert(doSomething(20) == 35);
         assert(doSomething(10) == 50);

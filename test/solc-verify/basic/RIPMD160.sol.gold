@@ -1,4 +1,4 @@
 RIPMD160::hashTwice: OK
-RIPMD160::[fallback]: OK
+RIPMD160::[receive]: OK
 RIPMD160::[implicit_constructor]: OK
 No errors found.

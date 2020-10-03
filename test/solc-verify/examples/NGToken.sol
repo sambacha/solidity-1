@@ -2,7 +2,8 @@
  *Submitted for verification at Etherscan.io on 2018-02-11
 */
 
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 interface ERC20 {
 	//ERC-20 Token Standard https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
@@ -29,11 +30,11 @@ interface ERC223Receiver {
   function tokenFallback(address _from, uint256 _value, bytes calldata _data) external;
 }
 
-contract ERC223 is ERC20 {
+abstract contract ERC223 is ERC20 {
 	//ERC223 token standard https://github.com/Dexaran/ERC223-token-standard
 
-	function transfer(address _to, uint256 _value, bytes memory _data) public returns (bool success);
-	function transfer(address _to, uint256 _value, bytes memory _data, string memory _customFallback) public returns (bool success);
+	function transfer(address _to, uint256 _value, bytes memory _data) public virtual returns (bool success);
+	function transfer(address _to, uint256 _value, bytes memory _data, string memory _customFallback) public virtual returns (bool success);
 
 	event Transfer(address indexed _from, address indexed _to, uint256 _value, bytes _data);
 }
@@ -47,32 +48,32 @@ contract NGToken is ERC223 {
 	mapping(address => uint256) private balances;
 	mapping(address => mapping(address => uint256)) private allowed;
 
-	constructor() public {
+	constructor() {
 	  balances[msg.sender] = INITIAL_SUPPLY;
 	}
 
 	//ERC20
-	function name() public view returns (string memory) {
+	function name() public pure override returns (string memory) {
 		return NAME;
 	}
 
-	function symbol() public view returns (string memory) {
+	function symbol() public pure override returns (string memory) {
 		return SYMBOL;
 	}
 
-	function decimals() public view returns (uint8) {
+	function decimals() public pure override returns (uint8) {
 		return DECIMALS;
 	}
 
-	function totalSupply() public view returns (uint256) {
+	function totalSupply() public view override returns (uint256) {
 		return INITIAL_SUPPLY - totalBurned;
 	}
 
-	function balanceOf(address _owner) public view returns (uint256) {
+	function balanceOf(address _owner) public view override returns (uint256) {
 		return balances[_owner];
 	}
 
-	function transfer(address _to, uint256 _value) public returns (bool success) {
+	function transfer(address _to, uint256 _value) public override returns (bool success) {
 		if (isContract(_to)) {
 			bytes memory empty;
 			return transferToContract(_to, _value, empty);
@@ -113,7 +114,7 @@ contract NGToken is ERC223 {
 		return true;
 	}
 
-	function transferFrom(address _from, address _to, uint256 _value) public returns (bool success) {
+	function transferFrom(address _from, address _to, uint256 _value) public override returns (bool success) {
 		require(_to != address(0x0));
     require(balances[_from] >= _value && allowed[_from][msg.sender] >= _value);
     balances[_from] -= _value;
@@ -125,7 +126,7 @@ contract NGToken is ERC223 {
     return true;
 	}
 
-	function approve(address _spender, uint256 _value) public returns (bool success) {
+	function approve(address _spender, uint256 _value) public override returns (bool success) {
 		//https://docs.google.com/document/d/1YLPtQxZu1UAvO9cZ1O2RPXBbT0mooh4DYKjA_jp-RLM/
 		//force to 0 before calling "approve" again
 		require((_value == 0) || (allowed[msg.sender][_spender] == 0));
@@ -160,12 +161,12 @@ contract NGToken is ERC223 {
 		return true;
 	}
 
-	function allowance(address _owner, address _spender) public view returns (uint256) {
+	function allowance(address _owner, address _spender) public view override returns (uint256) {
 		return allowed[_owner][_spender];
 	}
 
 	//ERC233
-	function transfer(address _to, uint256 _value, bytes memory _data) public returns (bool success) {
+	function transfer(address _to, uint256 _value, bytes memory _data) public override returns (bool success) {
 		if (isContract(_to)) {
 			return transferToContract(_to, _value, _data);
 		} else {
@@ -173,13 +174,13 @@ contract NGToken is ERC223 {
 		}
 	}
 
-	function transfer(address _to, uint256 _value, bytes memory _data, string memory _customFallback) public returns (bool success) {
+	function transfer(address _to, uint256 _value, bytes memory _data, string memory _customFallback) public override returns (bool success) {
 		if (isContract(_to)) {
 			require(_to != address(0x0));
 			require(balances[msg.sender] >= _value);
 			balances[msg.sender] -= _value;
 			balances[_to] += _value;
-      (bool ok,) = _to.call.value(0)(abi.encode(bytes4(keccak256(abi.encode(_customFallback))), msg.sender, _value, _data));
+      (bool ok,) = _to.call{value: 0}(abi.encode(bytes4(keccak256(abi.encode(_customFallback))), msg.sender, _value, _data));
 			assert(ok);
 			emit Transfer(msg.sender, _to, _value);
 			emit Transfer(msg.sender, _to, _value, _data);
@@ -248,7 +249,7 @@ contract NGToken is ERC223 {
 	}
 
 	//Stop
-	function () external {
+	receive () external payable {
     require(false);
   }
 }

@@ -277,6 +277,10 @@ public:
 	/// @returns runtime contract assembly items
 	evmasm::AssemblyItems const* runtimeAssemblyItems(std::string const& _contractName) const;
 
+	/// @returns an array containing all utility sources generated during compilation.
+	/// Format: [ { name: string, id: number, language: "Yul", contents: string }, ... ]
+	Json::Value generatedSources(std::string const& _contractName, bool _runtime = false) const;
+
 	/// @returns the string that provides a mapping between bytecode and sourcecode or a nullptr
 	/// if the contract does not (yet) have bytecode.
 	std::string const* sourceMapping(std::string const& _contractName) const;
@@ -325,6 +329,10 @@ public:
 
 	/// Overwrites the release/prerelease flag. Should only be used for testing.
 	void overwriteReleaseFlag(bool release) { m_release = release; }
+
+	// [solc-verify] Needed for pushing the scopes forward
+	std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>> getScopes() const { return m_scopes; }
+
 private:
 	/// The state per source unit. Filled gradually during parsing.
 	struct Source
@@ -356,6 +364,8 @@ private:
 		util::LazyInit<Json::Value const> storageLayout;
 		util::LazyInit<Json::Value const> userDocumentation;
 		util::LazyInit<Json::Value const> devDocumentation;
+		util::LazyInit<Json::Value const> generatedSources;
+		util::LazyInit<Json::Value const> runtimeGeneratedSources;
 		mutable std::optional<std::string const> sourceMapping;
 		mutable std::optional<std::string const> runtimeSourceMapping;
 	};
@@ -457,6 +467,8 @@ private:
 	std::map<util::h256, std::string> m_smtlib2Responses;
 	std::shared_ptr<GlobalContext> m_globalContext;
 	std::vector<Source const*> m_sourceOrder;
+	/// This is updated during compilation. [solc-verify] needed for passing scopes forward to analysis
+	std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>> m_scopes;
 	std::map<std::string const, Contract> m_contracts;
 	langutil::ErrorList m_errorList;
 	langutil::ErrorReporter m_errorReporter;

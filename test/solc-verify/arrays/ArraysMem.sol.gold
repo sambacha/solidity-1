@@ -1,4 +1,4 @@
 ArraysMem::returnArray: OK
-ArraysMem::[fallback]: OK
+ArraysMem::[receive]: OK
 ArraysMem::[implicit_constructor]: OK
 No errors found.

@@ -1,11 +1,12 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract StructsMemAliasing {
     struct S {
         int x;
     }
 
-    function() external payable {
+    receive() external payable {
         S memory sm1 = S(1);
         S memory sm2 = S(2);
         S memory sm3 = sm1;

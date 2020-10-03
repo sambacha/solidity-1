@@ -1,6 +1,6 @@
-test/solc-verify/basic/ExtCallBalance.sol:9:9: Warning: Return value of low-level calls not used.
+test/solc-verify/basic/ExtCallBalance.sol:10:9: Warning: Return value of low-level calls not used.
 ExtCallBalance::g: OK
 ExtCallBalance::f: ERROR
- - test/solc-verify/basic/ExtCallBalance.sol:12:9: Assertion might not hold.
+ - test/solc-verify/basic/ExtCallBalance.sol:13:9: Assertion might not hold.
 ExtCallBalance::[implicit_constructor]: OK
 Errors were found by the verifier.

@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Casts {
     function literalCast() private pure returns (uint256) {
@@ -8,7 +9,7 @@ contract Casts {
         return x;
     }
 
-    function() external payable {
+    receive() external payable {
         assert(literalCast() == 123);
     }
 }

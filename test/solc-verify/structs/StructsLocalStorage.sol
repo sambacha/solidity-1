@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract StructsLocalStorage {
     struct S {
@@ -164,7 +165,7 @@ contract StructsLocalStorage {
         assert(s_map[1].t.z == 4);
     }
 
-    function() external payable {
+    receive() external payable {
         testSimple();
         testMember();
         testConditional(true);

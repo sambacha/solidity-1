@@ -1,6 +1,7 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
-contract A {
+contract BCWM_A {
     int public x;
 
     modifier m(int _m) {
@@ -8,14 +9,14 @@ contract A {
         _;
     }
 
-    constructor(int _x) public m(_x) { x++; }
+    constructor(int _x) m(_x) { x++; }
 }
 
-contract BaseConstructorWithModifiers is A {
+contract BaseConstructorWithModifiers is BCWM_A {
 
-    constructor() A(1) m(2) public {
+    constructor() BCWM_A(1) m(2) {
         assert(x == 4);
     }
 
-    function() external payable { } // Needed for detecting as a truffle test case
+    receive() external payable { } // Needed for detecting as a truffle test case
 }

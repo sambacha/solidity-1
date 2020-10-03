@@ -1,4 +1,5 @@
-pragma solidity ^0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 /// @notice invariant m[0] == 0
 /// @notice invariant nested[0][0] == 0
@@ -12,7 +13,7 @@ contract MappingInit {
     mapping(int => mapping(int => int)) nested;
     mapping(int => S) ms;
 
-    constructor() public {
+    constructor() {
         assert(m[0] == 0);
         assert(nested[0][0] == 0);
         assert(ms[0].x == 0);
@@ -21,6 +22,6 @@ contract MappingInit {
     }
 
     // This is here to be run by truffle
-    function() external payable {
+    receive() external payable {
     }
 }

@@ -1,6 +1,7 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
-contract A {
+contract Aliasing_A {
     int x;
 
     /** @notice postcondition x == 0 */
@@ -10,17 +11,17 @@ contract A {
     function get() public view returns (int r) { return x; }
 }
 
-contract Aliasing is A {
+contract Aliasing is Aliasing_A {
 
-    A a1;
-    A a2;
+    Aliasing_A a1;
+    Aliasing_A a2;
 
-    constructor() public {
-        a1 = new A();
-        a2 = new A();
+    constructor() {
+        a1 = new Aliasing_A();
+        a2 = new Aliasing_A();
     }
 
-    function() external payable {
+    receive() external payable {
         require(a1 != a2);
         a1.reset();
         assert(a1.get() == 0); // Should hold

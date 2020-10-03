@@ -1,4 +1,4 @@
 MappingInit::[constructor]: OK
-MappingInit::[fallback]: OK
+MappingInit::[receive]: OK
 MappingInit::[receive_ether_selfdestruct]: OK
 No errors found.

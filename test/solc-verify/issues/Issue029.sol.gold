@@ -1,9 +1,9 @@
-test/solc-verify/issues/Issue029.sol:5:9: Warning: This declaration shadows a builtin symbol.
 test/solc-verify/issues/Issue029.sol:6:9: Warning: This declaration shadows a builtin symbol.
-test/solc-verify/issues/Issue029.sol:9:5: Warning: This declaration shadows a builtin symbol.
-test/solc-verify/issues/Issue029.sol:23:5: Warning: This declaration shadows a builtin symbol.
-test/solc-verify/issues/Issue029.sol:5:9: Warning: Unused local variable.
+test/solc-verify/issues/Issue029.sol:7:9: Warning: This declaration shadows a builtin symbol.
+test/solc-verify/issues/Issue029.sol:10:5: Warning: This declaration shadows a builtin symbol.
+test/solc-verify/issues/Issue029.sol:24:5: Warning: This declaration shadows a builtin symbol.
 test/solc-verify/issues/Issue029.sol:6:9: Warning: Unused local variable.
+test/solc-verify/issues/Issue029.sol:7:9: Warning: Unused local variable.
 C::f: OK
 C::super: OK
 C::g: OK

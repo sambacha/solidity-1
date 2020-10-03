@@ -1,4 +1,5 @@
-pragma solidity ^0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 // A simple storage example, where each user can set, update
 // or clear their data (represented as an integer) in the
@@ -12,7 +13,7 @@ contract Storage {
     mapping(address=>Record) records;
     address owner;
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
     }
 

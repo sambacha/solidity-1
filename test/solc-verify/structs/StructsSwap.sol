@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract StructsSwap {
 
@@ -17,7 +18,7 @@ contract StructsSwap {
 
   B b;
 
-  function() external payable {
+  receive() external payable {
     a1.x = 1;
     a2.x = 2;
     a3.x = 3;

@@ -6,6 +6,9 @@
 ./test/externalTests/zeppelin.sh
 ./test/externalTests/colony.sh
 ./test/externalTests/solc-js/solc-js.sh
+./test/solc-verify/test_syntax_with_boogie.sh
+./test/solc-verify/test_with_boogie.sh
+./test/solc-verify/test_with_truffle.sh
 ./scripts/common.sh
 ./scripts/isoltest.sh
 ./scripts/get_version.sh
@@ -32,6 +35,7 @@
 ./scripts/install_static_z3.sh
 ./scripts/install_obsolete_jsoncpp_1_7_4.sh
 ./scripts/install_deps.sh
+./scripts/install_solc_verify_deps.sh
 ./scripts/build.sh
 ./scripts/check_style.sh
 ./scripts/run_proofs.sh
@@ -45,6 +49,7 @@
 ./scripts/release_emscripten.sh
 ./scripts/create_source_tarball.sh
 ./scripts/docs.sh
+./docker/runsv.sh
 ./.circleci/soltest.sh
 ./.circleci/osx_install_dependencies.sh
 ./.circleci/soltest_all.sh

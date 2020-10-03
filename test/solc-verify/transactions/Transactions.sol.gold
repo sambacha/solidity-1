@@ -1,5 +1,5 @@
 Base::f: OK
 Base::[implicit_constructor]: OK
-Transactions::[fallback]: OK
+Transactions::[receive]: OK
 Transactions::[implicit_constructor]: OK
 No errors found.

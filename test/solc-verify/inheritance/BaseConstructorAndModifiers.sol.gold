@@ -1,4 +1,4 @@
-A::[constructor]: OK
+BCAM_A::[constructor]: OK
 BaseConstructorAndModifiers::[constructor]: OK
-BaseConstructorAndModifiers::[fallback]: OK
+BaseConstructorAndModifiers::[receive]: OK
 No errors found.

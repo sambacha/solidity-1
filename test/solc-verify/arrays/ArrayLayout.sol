@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract ArrayLayout {
 
@@ -8,7 +9,7 @@ contract ArrayLayout {
 
   S[] m_a; // No aliasing inside
 
-  function() external payable {
+  receive() external payable {
     S[] memory a; // Memory array can have pointers inside
     S memory f = S(1);
 

@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 // Example for sum function over an integer member of a mapping of structs.
 // Use '__verifier_idx_address' as a placeholder when indexing into the mapping.

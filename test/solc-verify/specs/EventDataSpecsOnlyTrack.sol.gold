@@ -1,5 +1,5 @@
 EventDataSpecsOnlyTrack::f_ok: OK
 EventDataSpecsOnlyTrack::f_incorrect1: ERROR
- - test/solc-verify/specs/EventDataSpecsOnlyTrack.sol:7:5: Function can end without triggering event
+ - test/solc-verify/specs/EventDataSpecsOnlyTrack.sol:8:5: Function can end without triggering event
 EventDataSpecsOnlyTrack::[implicit_constructor]: OK
 Errors were found by the verifier.

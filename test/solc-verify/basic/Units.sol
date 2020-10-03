@@ -1,7 +1,8 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Units {
-    function() external payable {
+    receive() external payable {
         assert(1 seconds == 1);
         assert(1 minutes == 60 seconds);
         assert(1 hours == 3600 seconds);
@@ -10,8 +11,6 @@ contract Units {
         assert(1 weeks == 7 days);
 
         assert(1 wei == 1);
-        assert(1 szabo == 1e12);
-        assert(1 finney == 1e15);
         assert(1 ether == 1e18);
     }
 }

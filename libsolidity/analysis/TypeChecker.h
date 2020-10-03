@@ -56,9 +56,13 @@ public:
 	/// @returns true iff all checks passed. Note even if all checks passed, errors() can still contain warnings
 	bool checkTypeRequirements(SourceUnit const& _source);
 
-	/// Performs type checking on the given node withing the given source
+	/// Performs type checking on the given node within the given source
 	/// @returns true iff all checks passed. Note even if all checks passed, errors() can still contain warnings
 	bool checkTypeRequirements(SourceUnit const& _source, ASTNode const& _node);
+
+	/// Performs type checking on the given node within the given contract
+	/// @returns true iff all checks passed. Note even if all checks passed, errors() can still contain warnings
+	bool checkTypeRequirements(ContractDefinition const& _contract, ASTNode const& _node);
 
 	/// @returns the type of an expression and asserts that it is present.
 	TypePointer const& type(Expression const& _expression) const;
@@ -147,6 +151,7 @@ private:
 	bool visit(Identifier const& _identifier) override;
 	void endVisit(ElementaryTypeNameExpression const& _expr) override;
 	void endVisit(Literal const& _literal) override;
+	void endVisit(UsingForDirective const& _usingForDirective) override;
 
 	bool contractDependenciesAreCyclic(
 		ContractDefinition const& _contract,
@@ -170,6 +175,16 @@ private:
 	void requireLValue(Expression const& _expression, bool _ordinaryAssignment);
 
 	bool experimentalFeatureActive(ExperimentalFeature _feature) const;
+
+	/// @returns the current scope that can have function or type definitions.
+	/// This is either a contract or a source unit.
+	ASTNode const* currentDefinitionScope() const
+	{
+		if (m_currentContract)
+			return m_currentContract;
+		else
+			return m_currentSourceUnit;
+	}
 
 	SourceUnit const* m_currentSourceUnit = nullptr;
 	ContractDefinition const* m_currentContract = nullptr;

@@ -38,6 +38,8 @@
 #include <libyul/Dialect.h>
 #include <libyul/optimiser/ASTCopier.h>
 
+#include <liblangutil/Exceptions.h>
+
 #include <libsolutil/Whiskers.h>
 #include <libsolutil/StringUtils.h>
 #include <libsolutil/Keccak256.h>
@@ -75,18 +77,30 @@ struct CopyTranslate: public yul::ASTCopier
 			{
 				solAssert(reference.isOffset != reference.isSlot, "");
 
-				pair<u256, unsigned> slot_offset = m_context.storageLocationOfVariable(*varDecl);
+				string value;
+				if (varDecl->isStateVariable())
+					value =
+						reference.isSlot ?
+							m_context.storageLocationOfStateVariable(*varDecl).first.str() :
+							to_string(m_context.storageLocationOfStateVariable(*varDecl).second);
+				else
+				{
+					solAssert(varDecl->isLocalVariable(), "");
+					if (reference.isSlot)
+						value = IRVariable{*varDecl}.part("slot").name();
+					else if (varDecl->type()->isValueType())
+						value = IRVariable{*varDecl}.part("offset").name();
+					else
+					{
+						solAssert(!IRVariable{*varDecl}.hasPart("offset"), "");
+						value = "0";
+					}
+				}
 
-				string const value = reference.isSlot ?
-					slot_offset.first.str() :
-					to_string(slot_offset.second);
-
-				return yul::Literal{
-					_identifier.location,
-					yul::LiteralKind::Number,
-					yul::YulString{value},
-					{}
-				};
+				if (isdigit(value.front()))
+					return yul::Literal{_identifier.location, yul::LiteralKind::Number, yul::YulString{value}, {}};
+				else
+					return yul::Identifier{_identifier.location, yul::YulString{value}};
 			}
 		}
 		return ASTCopier::operator()(_identifier);
@@ -140,70 +154,130 @@ string IRGeneratorForStatements::code() const
 	return m_code.str();
 }
 
+void IRGeneratorForStatements::generate(Block const& _block)
+{
+	try
+	{
+		_block.accept(*this);
+	}
+	catch (langutil::UnimplementedFeatureError const& _error)
+	{
+		if (!boost::get_error_info<langutil::errinfo_sourceLocation>(_error))
+			_error << langutil::errinfo_sourceLocation(m_currentLocation);
+		throw _error;
+	}
+}
+
 void IRGeneratorForStatements::initializeStateVar(VariableDeclaration const& _varDecl)
 {
-	solAssert(_varDecl.immutable() || m_context.isStateVariable(_varDecl), "Must be immutable or a state variable.");
-	solAssert(!_varDecl.isConstant(), "");
-	if (!_varDecl.value())
-		return;
+	try
+	{
+		setLocation(_varDecl);
 
-	_varDecl.value()->accept(*this);
-	writeToLValue(
-		_varDecl.immutable() ?
-		IRLValue{*_varDecl.annotation().type, IRLValue::Immutable{&_varDecl}} :
-		IRLValue{*_varDecl.annotation().type, IRLValue::Storage{
-			util::toCompactHexWithPrefix(m_context.storageLocationOfVariable(_varDecl).first),
-			m_context.storageLocationOfVariable(_varDecl).second
-		}},
-		*_varDecl.value()
-	);
+		solAssert(_varDecl.immutable() || m_context.isStateVariable(_varDecl), "Must be immutable or a state variable.");
+		solAssert(!_varDecl.isConstant(), "");
+		if (!_varDecl.value())
+			return;
+
+		_varDecl.value()->accept(*this);
+		writeToLValue(
+			_varDecl.immutable() ?
+			IRLValue{*_varDecl.annotation().type, IRLValue::Immutable{&_varDecl}} :
+			IRLValue{*_varDecl.annotation().type, IRLValue::Storage{
+				util::toCompactHexWithPrefix(m_context.storageLocationOfStateVariable(_varDecl).first),
+				m_context.storageLocationOfStateVariable(_varDecl).second
+			}},
+			*_varDecl.value()
+		);
+	}
+	catch (langutil::UnimplementedFeatureError const& _error)
+	{
+		if (!boost::get_error_info<langutil::errinfo_sourceLocation>(_error))
+			_error << langutil::errinfo_sourceLocation(m_currentLocation);
+		throw _error;
+	}
 }
 
 void IRGeneratorForStatements::initializeLocalVar(VariableDeclaration const& _varDecl)
 {
-	solAssert(m_context.isLocalVariable(_varDecl), "Must be a local variable.");
+	try
+	{
+		setLocation(_varDecl);
 
-	auto const* type = _varDecl.type();
-	if (auto const* refType = dynamic_cast<ReferenceType const*>(type))
-		if (refType->dataStoredIn(DataLocation::Storage) && refType->isPointer())
-			return;
+		solAssert(m_context.isLocalVariable(_varDecl), "Must be a local variable.");
 
-	IRVariable zero = zeroValue(*type);
-	assign(m_context.localVariable(_varDecl), zero);
+		auto const* type = _varDecl.type();
+		if (auto const* refType = dynamic_cast<ReferenceType const*>(type))
+			if (refType->dataStoredIn(DataLocation::Storage) && refType->isPointer())
+				return;
+
+		IRVariable zero = zeroValue(*type);
+		assign(m_context.localVariable(_varDecl), zero);
+	}
+	catch (langutil::UnimplementedFeatureError const& _error)
+	{
+		if (!boost::get_error_info<langutil::errinfo_sourceLocation>(_error))
+			_error << langutil::errinfo_sourceLocation(m_currentLocation);
+		throw _error;
+	}
 }
 
 IRVariable IRGeneratorForStatements::evaluateExpression(Expression const& _expression, Type const& _targetType)
 {
-	_expression.accept(*this);
-	IRVariable variable{m_context.newYulVariable(), _targetType};
-	define(variable, _expression);
-	return variable;
+	try
+	{
+		setLocation(_expression);
+
+		_expression.accept(*this);
+		IRVariable variable{m_context.newYulVariable(), _targetType};
+		define(variable, _expression);
+		return variable;
+	}
+	catch (langutil::UnimplementedFeatureError const& _error)
+	{
+		if (!boost::get_error_info<langutil::errinfo_sourceLocation>(_error))
+			_error << langutil::errinfo_sourceLocation(m_currentLocation);
+		throw _error;
+	}
 }
 
 string IRGeneratorForStatements::constantValueFunction(VariableDeclaration const& _constant)
 {
-	string functionName = IRNames::constantValueFunction(_constant);
-	return m_context.functionCollector().createFunction(functionName, [&] {
-		Whiskers templ(R"(
-			function <functionName>() -> <ret> {
-				<code>
-				<ret> := <value>
-			}
-		)");
-		templ("functionName", functionName);
-		IRGeneratorForStatements generator(m_context, m_utils);
-		solAssert(_constant.value(), "");
-		Type const& constantType = *_constant.type();
-		templ("value", generator.evaluateExpression(*_constant.value(), constantType).commaSeparatedList());
-		templ("code", generator.code());
-		templ("ret", IRVariable("ret", constantType).commaSeparatedList());
+	try
+	{
+		setLocation(_constant);
 
-		return templ.render();
-	});
+		string functionName = IRNames::constantValueFunction(_constant);
+		return m_context.functionCollector().createFunction(functionName, [&] {
+			Whiskers templ(R"(
+				function <functionName>() -> <ret> {
+					<code>
+					<ret> := <value>
+				}
+			)");
+			templ("functionName", functionName);
+			IRGeneratorForStatements generator(m_context, m_utils);
+			solAssert(_constant.value(), "");
+			Type const& constantType = *_constant.type();
+			templ("value", generator.evaluateExpression(*_constant.value(), constantType).commaSeparatedList());
+			templ("code", generator.code());
+			templ("ret", IRVariable("ret", constantType).commaSeparatedList());
+
+			return templ.render();
+		});
+	}
+	catch (langutil::UnimplementedFeatureError const& _error)
+	{
+		if (!boost::get_error_info<langutil::errinfo_sourceLocation>(_error))
+			_error << langutil::errinfo_sourceLocation(m_currentLocation);
+		throw _error;
+	}
 }
 
 void IRGeneratorForStatements::endVisit(VariableDeclarationStatement const& _varDeclStatement)
 {
+	setLocation(_varDeclStatement);
+
 	if (Expression const* expression = _varDeclStatement.initialValue())
 	{
 		if (_varDeclStatement.declarations().size() > 1)
@@ -237,14 +311,22 @@ bool IRGeneratorForStatements::visit(Conditional const& _conditional)
 {
 	_conditional.condition().accept(*this);
 
+	setLocation(_conditional);
+
 	string condition = expressionAsType(_conditional.condition(), *TypeProvider::boolean());
 	declare(_conditional);
 
 	m_code << "switch " << condition << "\n" "case 0 {\n";
+
 	_conditional.falseExpression().accept(*this);
+	setLocation(_conditional);
+
 	assign(_conditional, _conditional.falseExpression());
 	m_code << "}\n" "default {\n";
+
 	_conditional.trueExpression().accept(*this);
+	setLocation(_conditional);
+
 	assign(_conditional, _conditional.trueExpression());
 	m_code << "}\n";
 
@@ -254,6 +336,7 @@ bool IRGeneratorForStatements::visit(Conditional const& _conditional)
 bool IRGeneratorForStatements::visit(Assignment const& _assignment)
 {
 	_assignment.rightHandSide().accept(*this);
+	setLocation(_assignment);
 
 	Token assignmentOperator = _assignment.assignmentOperator();
 	Token binaryOperator =
@@ -271,12 +354,14 @@ bool IRGeneratorForStatements::visit(Assignment const& _assignment)
 	IRVariable value = convert(_assignment.rightHandSide(), *rightIntermediateType);
 	_assignment.leftHandSide().accept(*this);
 	solAssert(!!m_currentLValue, "LValue not retrieved.");
+	setLocation(_assignment);
 
 	if (assignmentOperator != Token::Assign)
 	{
 		solAssert(type(_assignment.leftHandSide()).isValueType(), "Compound operators only available for value types.");
 		solAssert(rightIntermediateType->isValueType(), "Compound operators only available for value types.");
 		IRVariable leftIntermediate = readFromLValue(*m_currentLValue);
+		solAssert(binaryOperator != Token::Exp, "");
 		if (TokenTraits::isShiftOp(binaryOperator))
 		{
 			solAssert(type(_assignment) == leftIntermediate.type(), "");
@@ -301,15 +386,17 @@ bool IRGeneratorForStatements::visit(Assignment const& _assignment)
 
 	writeToLValue(*m_currentLValue, value);
 
-	m_currentLValue.reset();
-	if (*_assignment.annotation().type != *TypeProvider::emptyTuple())
+	if (m_currentLValue->type.category() != Type::Category::Struct && *_assignment.annotation().type != *TypeProvider::emptyTuple())
 		define(_assignment, value);
+	m_currentLValue.reset();
 
 	return false;
 }
 
 bool IRGeneratorForStatements::visit(TupleExpression const& _tuple)
 {
+	setLocation(_tuple);
+
 	if (_tuple.isInlineArray())
 	{
 		auto const& arrayType = dynamic_cast<ArrayType const&>(*_tuple.annotation().type);
@@ -326,6 +413,7 @@ bool IRGeneratorForStatements::visit(TupleExpression const& _tuple)
 		{
 			Expression const& component = *_tuple.components()[i];
 			component.accept(*this);
+			setLocation(_tuple);
 			IRVariable converted = convert(component, baseType);
 			m_code <<
 				m_utils.writeToMemoryFunction(baseType) <<
@@ -345,6 +433,7 @@ bool IRGeneratorForStatements::visit(TupleExpression const& _tuple)
 		{
 			solAssert(_tuple.components().front(), "");
 			_tuple.components().front()->accept(*this);
+			setLocation(_tuple);
 			if (willBeWrittenTo)
 				solAssert(!!m_currentLValue, "");
 			else
@@ -357,6 +446,7 @@ bool IRGeneratorForStatements::visit(TupleExpression const& _tuple)
 				if (auto const& component = _tuple.components()[i])
 				{
 					component->accept(*this);
+					setLocation(_tuple);
 					if (willBeWrittenTo)
 					{
 						solAssert(!!m_currentLValue, "");
@@ -382,17 +472,20 @@ bool IRGeneratorForStatements::visit(TupleExpression const& _tuple)
 bool IRGeneratorForStatements::visit(IfStatement const& _ifStatement)
 {
 	_ifStatement.condition().accept(*this);
+	setLocation(_ifStatement);
 	string condition = expressionAsType(_ifStatement.condition(), *TypeProvider::boolean());
 
 	if (_ifStatement.falseStatement())
 	{
 		m_code << "switch " << condition << "\n" "case 0 {\n";
 		_ifStatement.falseStatement()->accept(*this);
+		setLocation(_ifStatement);
 		m_code << "}\n" "default {\n";
 	}
 	else
 		m_code << "if " << condition << " {\n";
 	_ifStatement.trueStatement().accept(*this);
+	setLocation(_ifStatement);
 	m_code << "}\n";
 
 	return false;
@@ -400,6 +493,7 @@ bool IRGeneratorForStatements::visit(IfStatement const& _ifStatement)
 
 bool IRGeneratorForStatements::visit(ForStatement const& _forStatement)
 {
+	setLocation(_forStatement);
 	generateLoop(
 		_forStatement.body(),
 		_forStatement.condition(),
@@ -412,6 +506,7 @@ bool IRGeneratorForStatements::visit(ForStatement const& _forStatement)
 
 bool IRGeneratorForStatements::visit(WhileStatement const& _whileStatement)
 {
+	setLocation(_whileStatement);
 	generateLoop(
 		_whileStatement.body(),
 		&_whileStatement.condition(),
@@ -423,20 +518,23 @@ bool IRGeneratorForStatements::visit(WhileStatement const& _whileStatement)
 	return false;
 }
 
-bool IRGeneratorForStatements::visit(Continue const&)
+bool IRGeneratorForStatements::visit(Continue const& _continue)
 {
+	setLocation(_continue);
 	m_code << "continue\n";
 	return false;
 }
 
-bool IRGeneratorForStatements::visit(Break const&)
+bool IRGeneratorForStatements::visit(Break const& _break)
 {
+	setLocation(_break);
 	m_code << "break\n";
 	return false;
 }
 
 void IRGeneratorForStatements::endVisit(Return const& _return)
 {
+	setLocation(_return);
 	if (Expression const* value = _return.expression())
 	{
 		solAssert(_return.annotation().functionReturnParameters, "Invalid return parameters pointer.");
@@ -453,6 +551,7 @@ void IRGeneratorForStatements::endVisit(Return const& _return)
 
 void IRGeneratorForStatements::endVisit(UnaryOperation const& _unaryOperation)
 {
+	setLocation(_unaryOperation);
 	Type const& resultType = type(_unaryOperation);
 	Token const op = _unaryOperation.getOperator();
 
@@ -538,6 +637,8 @@ void IRGeneratorForStatements::endVisit(UnaryOperation const& _unaryOperation)
 
 bool IRGeneratorForStatements::visit(BinaryOperation const& _binOp)
 {
+	setLocation(_binOp);
+
 	solAssert(!!_binOp.annotation().commonType, "");
 	TypePointer commonType = _binOp.annotation().commonType;
 	langutil::Token op = _binOp.getOperator();
@@ -557,6 +658,7 @@ bool IRGeneratorForStatements::visit(BinaryOperation const& _binOp)
 
 	_binOp.leftExpression().accept(*this);
 	_binOp.rightExpression().accept(*this);
+	setLocation(_binOp);
 
 	if (TokenTraits::isCompareOp(op))
 	{
@@ -593,11 +695,17 @@ bool IRGeneratorForStatements::visit(BinaryOperation const& _binOp)
 			solAssert(false, "Unknown comparison operator.");
 		define(_binOp) << expr << "\n";
 	}
-	else if (TokenTraits::isShiftOp(op))
+	else if (TokenTraits::isShiftOp(op) || op == Token::Exp)
 	{
 		IRVariable left = convert(_binOp.leftExpression(), *commonType);
 		IRVariable right = convert(_binOp.rightExpression(), *type(_binOp.rightExpression()).mobileType());
-		define(_binOp) << shiftOperation(_binOp.getOperator(), left, right) << "\n";
+		if (op == Token::Exp)
+			define(_binOp) << m_utils.overflowCheckedIntExpFunction(
+				dynamic_cast<IntegerType const&>(left.type()),
+				dynamic_cast<IntegerType const&>(right.type())
+			) << "(" << left.name() << ", " << right.name() << ")\n";
+		else
+			define(_binOp) << shiftOperation(_binOp.getOperator(), left, right) << "\n";
 	}
 	else
 	{
@@ -610,6 +718,7 @@ bool IRGeneratorForStatements::visit(BinaryOperation const& _binOp)
 
 bool IRGeneratorForStatements::visit(FunctionCall const& _functionCall)
 {
+	setLocation(_functionCall);
 	FunctionTypePointer functionType = dynamic_cast<FunctionType const*>(&type(_functionCall.expression()));
 	if (
 		functionType &&
@@ -624,12 +733,10 @@ bool IRGeneratorForStatements::visit(FunctionCall const& _functionCall)
 
 void IRGeneratorForStatements::endVisit(FunctionCall const& _functionCall)
 {
-	solUnimplementedAssert(
-		_functionCall.annotation().kind != FunctionCallKind::Unset,
-		"This type of function call is not yet implemented"
-	);
+	setLocation(_functionCall);
+	auto functionCallKind = *_functionCall.annotation().kind;
 
-	if (_functionCall.annotation().kind == FunctionCallKind::TypeConversion)
+	if (functionCallKind == FunctionCallKind::TypeConversion)
 	{
 		solAssert(
 			_functionCall.expression().annotation().type->category() == Type::Category::TypeType,
@@ -641,7 +748,7 @@ void IRGeneratorForStatements::endVisit(FunctionCall const& _functionCall)
 	}
 
 	FunctionTypePointer functionType = nullptr;
-	if (_functionCall.annotation().kind == FunctionCallKind::StructConstructorCall)
+	if (functionCallKind == FunctionCallKind::StructConstructorCall)
 	{
 		auto const& type = dynamic_cast<TypeType const&>(*_functionCall.expression().annotation().type);
 		auto const& structType = dynamic_cast<StructType const&>(*type.actualType());
@@ -672,7 +779,7 @@ void IRGeneratorForStatements::endVisit(FunctionCall const& _functionCall)
 			arguments.push_back(callArguments[static_cast<size_t>(std::distance(callArgumentNames.begin(), it))]);
 		}
 
-	if (_functionCall.annotation().kind == FunctionCallKind::StructConstructorCall)
+	if (functionCallKind == FunctionCallKind::StructConstructorCall)
 	{
 		TypeType const& type = dynamic_cast<TypeType const&>(*_functionCall.expression().annotation().type);
 		auto const& structType = dynamic_cast<StructType const&>(*type.actualType());
@@ -733,8 +840,18 @@ void IRGeneratorForStatements::endVisit(FunctionCall const& _functionCall)
 
 			if (identifier)
 				functionDef = &functionDef->resolveVirtual(m_context.mostDerivedContract());
+			else
+			{
+				ContractType const* type = dynamic_cast<ContractType const*>(memberAccess->expression().annotation().type);
+				if (type && type->isSuper())
+				{
+					ContractDefinition const* super = type->contractDefinition().superContract(m_context.mostDerivedContract());
+					solAssert(super, "Super contract not available.");
+					functionDef = &functionDef->resolveVirtual(m_context.mostDerivedContract(), super);
+				}
+			}
 
-			solAssert(functionDef->isImplemented(), "");
+			solAssert(functionDef && functionDef->isImplemented(), "");
 		}
 
 		solAssert(!functionType->takesArbitraryParameters(), "");
@@ -1130,8 +1247,10 @@ void IRGeneratorForStatements::endVisit(FunctionCall const& _functionCall)
 
 		IRVariable modulus(m_context.newYulVariable(), *(parameterTypes[2]));
 		define(modulus, *arguments[2]);
-		Whiskers templ("if iszero(<modulus>) { invalid() }\n");
-		m_code << templ("modulus", modulus.name()).render();
+		Whiskers templ("if iszero(<modulus>) { <panic>() }\n");
+		templ("modulus", modulus.name());
+		templ("panic", m_utils.panicFunction());
+		m_code << templ.render();
 
 		string args;
 		for (size_t i = 0; i < 2; ++i)
@@ -1208,7 +1327,7 @@ void IRGeneratorForStatements::endVisit(FunctionCall const& _functionCall)
 		Whiskers t(R"(
 			let <memPos> := <allocateTemporaryMemory>()
 			let <memEnd> := add(<memPos>, datasize("<object>"))
-			if or(gt(<memEnd>, 0xffffffffffffffff), lt(<memEnd>, <memPos>)) { revert(0, 0) }
+			if or(gt(<memEnd>, 0xffffffffffffffff), lt(<memEnd>, <memPos>)) { <panic>() }
 			datacopy(<memPos>, dataoffset("<object>"), datasize("<object>"))
 			<memEnd> := <abiEncode>(<memEnd><constructorParams>)
 			<?saltSet>
@@ -1223,6 +1342,7 @@ void IRGeneratorForStatements::endVisit(FunctionCall const& _functionCall)
 		t("allocateTemporaryMemory", m_utils.allocationTemporaryMemoryFunction());
 		t("releaseTemporaryMemory", m_utils.releaseTemporaryMemoryFunction());
 		t("object", IRNames::creationObject(*contract));
+		t("panic", m_utils.panicFunction());
 		t("abiEncode",
 			m_context.abiFunctions().tupleEncoder(argumentTypes, functionType->parameterTypes(), false)
 		);
@@ -1334,6 +1454,7 @@ void IRGeneratorForStatements::endVisit(FunctionCall const& _functionCall)
 
 void IRGeneratorForStatements::endVisit(FunctionCallOptions const& _options)
 {
+	setLocation(_options);
 	FunctionType const& previousType = dynamic_cast<FunctionType const&>(*_options.expression().annotation().type);
 
 	solUnimplementedAssert(!previousType.bound(), "");
@@ -1353,6 +1474,7 @@ void IRGeneratorForStatements::endVisit(FunctionCallOptions const& _options)
 
 void IRGeneratorForStatements::endVisit(MemberAccess const& _memberAccess)
 {
+	setLocation(_memberAccess);
 	ASTString const& member = _memberAccess.memberName();
 	auto memberFunctionType = dynamic_cast<FunctionType const*>(_memberAccess.annotation().type);
 	Type::Category objectCategory = _memberAccess.expression().annotation().type->category();
@@ -1381,7 +1503,17 @@ void IRGeneratorForStatements::endVisit(MemberAccess const& _memberAccess)
 		ContractType const& type = dynamic_cast<ContractType const&>(*_memberAccess.expression().annotation().type);
 		if (type.isSuper())
 		{
-			solUnimplementedAssert(false, "");
+			solAssert(!!_memberAccess.annotation().referencedDeclaration, "Referenced declaration not resolved.");
+			ContractDefinition const* super = type.contractDefinition().superContract(m_context.mostDerivedContract());
+			solAssert(super, "Super contract not available.");
+			FunctionDefinition const& resolvedFunctionDef = dynamic_cast<FunctionDefinition const&>(
+				*_memberAccess.annotation().referencedDeclaration
+			).resolveVirtual(m_context.mostDerivedContract(), super);
+
+			define(_memberAccess) << to_string(resolvedFunctionDef.id()) << "\n";
+			solAssert(resolvedFunctionDef.functionType(true), "");
+			solAssert(resolvedFunctionDef.functionType(true)->kind() == FunctionType::Kind::Internal, "");
+			m_context.internalFunctionAccessed(_memberAccess, resolvedFunctionDef);
 		}
 		// ordinary contract type
 		else if (Declaration const* declaration = _memberAccess.annotation().referencedDeclaration)
@@ -1513,10 +1645,7 @@ void IRGeneratorForStatements::endVisit(MemberAccess const& _memberAccess)
 		{
 			TypePointer arg = dynamic_cast<MagicType const&>(*_memberAccess.expression().annotation().type).typeArgument();
 			ContractDefinition const& contract = dynamic_cast<ContractType const&>(*arg).contractDefinition();
-			uint64_t result{0};
-			for (auto const& function: contract.interfaceFunctionList(false))
-				result ^= fromBigEndian<uint64_t>(function.first.ref());
-			define(_memberAccess) << formatNumber(u256{result} << (256 - 32)) << "\n";
+			define(_memberAccess) << formatNumber(u256{contract.interfaceId()} << (256 - 32)) << "\n";
 		}
 		else if (member == "min" || member == "max")
 		{
@@ -1731,6 +1860,8 @@ void IRGeneratorForStatements::endVisit(MemberAccess const& _memberAccess)
 
 bool IRGeneratorForStatements::visit(InlineAssembly const& _inlineAsm)
 {
+	setLocation(_inlineAsm);
+	m_context.setInlineAssemblySeen();
 	CopyTranslate bodyCopier{_inlineAsm.dialect(), m_context, _inlineAsm.annotation().externalReferences};
 
 	yul::Statement modified = bodyCopier(_inlineAsm.operations());
@@ -1745,6 +1876,7 @@ bool IRGeneratorForStatements::visit(InlineAssembly const& _inlineAsm)
 
 void IRGeneratorForStatements::endVisit(IndexAccess const& _indexAccess)
 {
+	setLocation(_indexAccess);
 	Type const& baseType = *_indexAccess.baseExpression().annotation().type;
 
 	if (baseType.category() == Type::Category::Mapping)
@@ -1858,11 +1990,12 @@ void IRGeneratorForStatements::endVisit(IndexAccess const& _indexAccess)
 		IRVariable index{m_context.newYulVariable(), *TypeProvider::uint256()};
 		define(index, *_indexAccess.indexExpression());
 		m_code << Whiskers(R"(
-			if iszero(lt(<index>, <length>)) { invalid() }
+			if iszero(lt(<index>, <length>)) { <panic>() }
 			let <result> := <shl248>(byte(<index>, <array>))
 		)")
 		("index", index.name())
 		("length", to_string(fixedBytesType.numBytes()))
+		("panic", m_utils.panicFunction())
 		("array", IRVariable(_indexAccess.baseExpression()).name())
 		("shl248", m_utils.shiftLeftFunction(256 - 8))
 		("result", IRVariable(_indexAccess).name())
@@ -1880,6 +2013,7 @@ void IRGeneratorForStatements::endVisit(IndexAccess const& _indexAccess)
 
 void IRGeneratorForStatements::endVisit(IndexRangeAccess const& _indexRangeAccess)
 {
+	setLocation(_indexRangeAccess);
 	Type const& baseType = *_indexRangeAccess.baseExpression().annotation().type;
 	solAssert(
 		baseType.category() == Type::Category::Array || baseType.category() == Type::Category::ArraySlice,
@@ -1926,6 +2060,7 @@ void IRGeneratorForStatements::endVisit(IndexRangeAccess const& _indexRangeAcces
 
 void IRGeneratorForStatements::endVisit(Identifier const& _identifier)
 {
+	setLocation(_identifier);
 	Declaration const* declaration = _identifier.annotation().referencedDeclaration;
 	if (MagicVariableDeclaration const* magicVar = dynamic_cast<MagicVariableDeclaration const*>(declaration))
 	{
@@ -1984,6 +2119,7 @@ void IRGeneratorForStatements::endVisit(Identifier const& _identifier)
 
 bool IRGeneratorForStatements::visit(Literal const& _literal)
 {
+	setLocation(_literal);
 	Type const& literalType = type(_literal);
 
 	switch (literalType.category())
@@ -2006,6 +2142,7 @@ void IRGeneratorForStatements::handleVariableReference(
 	Expression const& _referencingExpression
 )
 {
+	setLocation(_referencingExpression);
 	if (_variable.isStateVariable() && _variable.isConstant())
 		define(_referencingExpression) << constantValueFunction(_variable) << "()\n";
 	else if (_variable.isStateVariable() && _variable.immutable())
@@ -2022,8 +2159,8 @@ void IRGeneratorForStatements::handleVariableReference(
 		setLValue(_referencingExpression, IRLValue{
 			*_variable.annotation().type,
 			IRLValue::Storage{
-				toCompactHexWithPrefix(m_context.storageLocationOfVariable(_variable).first),
-				m_context.storageLocationOfVariable(_variable).second
+				toCompactHexWithPrefix(m_context.storageLocationOfStateVariable(_variable).first),
+				m_context.storageLocationOfStateVariable(_variable).second
 			}
 		});
 	else
@@ -2447,6 +2584,7 @@ void IRGeneratorForStatements::appendAndOrOperatorCode(BinaryOperation const& _b
 	solAssert(op == Token::Or || op == Token::And, "");
 
 	_binOp.leftExpression().accept(*this);
+	setLocation(_binOp);
 
 	IRVariable value(_binOp);
 	define(value, _binOp.leftExpression());
@@ -2455,6 +2593,7 @@ void IRGeneratorForStatements::appendAndOrOperatorCode(BinaryOperation const& _b
 	else
 		m_code << "if " << value.name() << " {\n";
 	_binOp.rightExpression().accept(*this);
+	setLocation(_binOp);
 	assign(value, _binOp.rightExpression());
 	m_code << "}\n";
 }
@@ -2470,7 +2609,7 @@ void IRGeneratorForStatements::writeToLValue(IRLValue const& _lvalue, IRVariable
 					offset = std::get<unsigned>(_storage.offset);
 
 				m_code <<
-					m_utils.updateStorageValueFunction(_lvalue.type, offset) <<
+					m_utils.updateStorageValueFunction(_value.type(), _lvalue.type, offset) <<
 					"(" <<
 					_storage.slot <<
 					(
@@ -2654,6 +2793,7 @@ bool IRGeneratorForStatements::visit(TryStatement const& _tryStatement)
 {
 	Expression const& externalCall = _tryStatement.externalCall();
 	externalCall.accept(*this);
+	setLocation(_tryStatement);
 
 	m_code << "switch iszero(" << IRNames::trySuccessConditionVariable(externalCall) << ")\n";
 
@@ -2674,6 +2814,7 @@ bool IRGeneratorForStatements::visit(TryStatement const& _tryStatement)
 	}
 
 	successClause.block().accept(*this);
+	setLocation(_tryStatement);
 	m_code << "}\n";
 
 	m_code << "default { // failure case\n";
@@ -2763,4 +2904,9 @@ bool IRGeneratorForStatements::visit(TryCatchClause const& _clause)
 {
 	_clause.block().accept(*this);
 	return false;
+}
+
+void IRGeneratorForStatements::setLocation(ASTNode const& _node)
+{
+	m_currentLocation = _node.location();
 }

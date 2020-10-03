@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 pragma experimental ABIEncoderV2;
 
 contract Structs {
@@ -18,7 +19,7 @@ contract Structs {
   S1 f_s1;
   S1 f_s1_other;
 
-  constructor() public {
+  constructor() {
     // Initialize something
     S2 storage owner_entry = m[msg.sender];
     owner_entry.flag = true;
@@ -33,7 +34,7 @@ contract Structs {
     f_s1_other = s1_stor;
   }
 
-  function() external payable {
+  receive() external payable {
     // Copy from memory to storage
     S1 memory s1_mem = S1(1, true);
     f_s1 = s1_mem;

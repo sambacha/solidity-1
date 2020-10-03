@@ -404,7 +404,7 @@ void ContractCompiler::appendFunctionSelector(ContractDefinition const& _contrac
 	solAssert(!_contract.isLibrary() || !fallback, "Libraries can't have fallback functions");
 
 	FunctionDefinition const* etherReceiver = _contract.receiveFunction();
-	solAssert(!_contract.isLibrary() || !fallback, "Libraries can't have ether receiver functions");
+	solAssert(!_contract.isLibrary() || !etherReceiver, "Libraries can't have ether receiver functions");
 
 	bool needToAddCallvalueCheck = true;
 	if (!hasPayableFunctions(_contract) && !interfaceFunctions.empty() && !_contract.isLibrary())
@@ -1272,15 +1272,7 @@ void ContractCompiler::appendMissingFunctions()
 		solAssert(m_context.nextFunctionToCompile() != function, "Compiled the wrong function?");
 	}
 	m_context.appendMissingLowLevelFunctions();
-	auto [yulFunctions, externallyUsedYulFunctions] = m_context.requestedYulFunctions();
-	if (!yulFunctions.empty())
-		m_context.appendInlineAssembly(
-			"{" + move(yulFunctions) + "}",
-			{},
-			externallyUsedYulFunctions,
-			true,
-			m_optimiserSettings
-		);
+	m_context.appendYulUtilityFunctions(m_optimiserSettings);
 }
 
 void ContractCompiler::appendModifierOrFunctionCode()

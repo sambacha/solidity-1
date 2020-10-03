@@ -511,22 +511,6 @@ BOOST_AUTO_TEST_CASE(contract_multiple_inheritance_with_arguments)
 	BOOST_CHECK(successParse(text));
 }
 
-BOOST_AUTO_TEST_CASE(multiple_visibility_specifiers)
-{
-	char const* text = R"(
-		contract c {
-			uint private internal a;
-		}
-	)";
-	CHECK_PARSE_ERROR(text, "Visibility already specified as \"private\".");
-	text = R"(
-		contract c {
-			function f() private external {}
-		}
-	)";
-	CHECK_PARSE_ERROR(text, "Visibility already specified as \"private\".");
-}
-
 BOOST_AUTO_TEST_CASE(keyword_is_reserved)
 {
 	auto keywords = {
@@ -613,42 +597,6 @@ BOOST_AUTO_TEST_CASE(complex_import)
 		contract x {}
 	)";
 	BOOST_CHECK(successParse(text));
-}
-
-BOOST_AUTO_TEST_CASE(recursion_depth1)
-{
-	string text("contract C { bytes");
-	for (size_t i = 0; i < 30000; i++)
-		text += "[";
-	CHECK_PARSE_ERROR(text.c_str(), "Maximum recursion depth reached during parsing");
-}
-
-BOOST_AUTO_TEST_CASE(recursion_depth2)
-{
-	string text("contract C { function f() {");
-	for (size_t i = 0; i < 30000; i++)
-		text += "{";
-	CHECK_PARSE_ERROR(text, "Maximum recursion depth reached during parsing");
-}
-
-BOOST_AUTO_TEST_CASE(recursion_depth3)
-{
-	string text("contract C { function f() { uint x = f(");
-	for (size_t i = 0; i < 30000; i++)
-		text += "(";
-	CHECK_PARSE_ERROR(text, "Maximum recursion depth reached during parsing");
-}
-
-BOOST_AUTO_TEST_CASE(recursion_depth4)
-{
-	string text("contract C { function f() { uint a;");
-	for (size_t i = 0; i < 30000; i++)
-		text += "(";
-	text += "a";
-	for (size_t i = 0; i < 30000; i++)
-		text += "++)";
-	text += "}}";
-	CHECK_PARSE_ERROR(text, "Maximum recursion depth reached during parsing");
 }
 
 BOOST_AUTO_TEST_CASE(inline_asm_end_location)

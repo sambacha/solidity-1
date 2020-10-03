@@ -208,6 +208,14 @@ vector<pair<util::FixedHash<4>, FunctionTypePointer>> const& ContractDefinition:
 	});
 }
 
+uint64_t ContractDefinition::interfaceId() const
+{
+	uint64_t result{0};
+	for (auto const& function: interfaceFunctionList(false))
+		result ^= util::fromBigEndian<uint64_t>(function.first.ref());
+	return result;
+}
+
 TypePointer ContractDefinition::type() const
 {
 	return TypeProvider::typeType(TypeProvider::contract(*this));
@@ -292,7 +300,7 @@ bool FunctionDefinition::libraryFunction() const
 Visibility FunctionDefinition::defaultVisibility() const
 {
 	solAssert(!isConstructor(), "");
-	return Declaration::defaultVisibility();
+	return isFree() ? Visibility::Internal : Declaration::defaultVisibility();
 }
 
 FunctionTypePointer FunctionDefinition::functionType(bool _internal) const
@@ -338,7 +346,7 @@ TypePointer FunctionDefinition::type() const
 
 TypePointer FunctionDefinition::typeViaContractName() const
 {
-	if (annotation().contract->isLibrary())
+	if (libraryFunction())
 	{
 		if (isPublic())
 			return FunctionType(*this).asExternallyCallableFunction(true);
@@ -374,7 +382,9 @@ FunctionDefinition const& FunctionDefinition::resolveVirtual(
 	if (_searchStart == nullptr && !virtualSemantics())
 		return *this;
 
-	solAssert(!dynamic_cast<ContractDefinition const&>(*scope()).isLibrary(), "");
+	solAssert(!isFree(), "");
+	solAssert(isOrdinary(), "");
+	solAssert(!libraryFunction(), "");
 
 	FunctionType const* functionType = TypeProvider::function(*this)->asExternallyCallableFunction(false);
 
@@ -482,7 +492,7 @@ CallableDeclaration const* Scopable::functionOrModifierDefinition() const
 
 string Scopable::sourceUnitName() const
 {
-	return sourceUnit().annotation().path;
+	return *sourceUnit().annotation().path;
 }
 
 DeclarationAnnotation& Declaration::annotation() const
@@ -603,9 +613,8 @@ bool VariableDeclaration::isLibraryFunctionParameter() const
 	if (!isCallableOrCatchParameter())
 		return false;
 	if (auto const* funDef = dynamic_cast<FunctionDefinition const*>(scope()))
-		return dynamic_cast<ContractDefinition const&>(*funDef->scope()).isLibrary();
-	else
-		return false;
+		return funDef->libraryFunction();
+	return false;
 }
 
 bool VariableDeclaration::isEventParameter() const

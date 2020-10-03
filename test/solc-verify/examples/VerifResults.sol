@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 // Example demonstrating possible outcomes of verification
 contract VerifResults {
@@ -6,7 +7,7 @@ contract VerifResults {
 
     // Constructor: OK
     /// @notice postcondition x == 0
-    constructor() public {
+    constructor() {
     }
 
     // Setting a value: OK
@@ -26,7 +27,7 @@ contract VerifResults {
     // Unsupported feature, but can be specified
     /// @notice modifies x
     /// @notice postcondition x == 0
-    function unsupported() public {
+    function unsupported() public pure {
         assembly {
             // ... set x to 0
         }
@@ -35,7 +36,7 @@ contract VerifResults {
     // Relies on specification of unsupported
     // function to prove assertion
     /// @notice modifies x
-    function use_unsupported() public {
+    function use_unsupported() public view {
         unsupported();
         assert(x == 0);
     }

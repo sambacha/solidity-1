@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract StructsStorage {
     struct S {
@@ -15,7 +16,7 @@ contract StructsStorage {
     S s2;
     mapping(int=>S) ss;
 
-    function() external payable {
+    receive() external payable {
         // Set values, no aliasing, asserts should hold
         s1.x = 1;
         s2.x = 2;

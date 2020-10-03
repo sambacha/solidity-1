@@ -1,9 +1,10 @@
-pragma solidity>=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract DeleteStorageArray {
     int[] arr;
 
-    constructor() public {
+    constructor() {
         arr.push(1);
         arr.push(2);
         assert(arr.length == 2);
@@ -13,6 +14,6 @@ contract DeleteStorageArray {
         assert(arr.length == 0);
     }
 
-    function() external payable {
+    receive() external payable {
     }
 }

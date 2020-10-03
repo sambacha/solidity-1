@@ -153,9 +153,18 @@ std::vector<T const*> ASTNode::filteredNodes(std::vector<ASTPointer<ASTNode>> co
 }
 
 /**
+ * Abstract marker class that specifies that this AST node opens a scope.
+ */
+class ScopeOpener
+{
+public:
+	virtual ~ScopeOpener() = default;
+};
+
+/**
  * Source unit containing import directives and contract definitions.
  */
-class SourceUnit: public ASTNode
+class SourceUnit: public ASTNode, public ScopeOpener
 {
 public:
 	SourceUnit(
@@ -455,7 +464,7 @@ protected:
  * document order. It first visits all struct declarations, then all variable declarations and
  * finally all function declarations.
  */
-class ContractDefinition: public Declaration, public StructurallyDocumented
+class ContractDefinition: public Declaration, public StructurallyDocumented, public ScopeOpener
 {
 public:
 	ContractDefinition(
@@ -500,6 +509,8 @@ public:
 	/// as intended for use by the ABI.
 	std::map<util::FixedHash<4>, FunctionTypePointer> interfaceFunctions(bool _includeInheritedFunctions = true) const;
 	std::vector<std::pair<util::FixedHash<4>, FunctionTypePointer>> const& interfaceFunctionList(bool _includeInheritedFunctions = true) const;
+	/// @returns the EIP-165 compatible interface identifier. This will exclude inherited functions.
+	uint64_t interfaceId() const;
 
 	/// @returns a list of all declarations in this contract
 	std::vector<Declaration const*> declarations() const { return filteredNodes<Declaration>(m_subNodes); }
@@ -593,7 +604,7 @@ private:
 	ASTPointer<TypeName> m_typeName;
 };
 
-class StructDefinition: public Declaration
+class StructDefinition: public Declaration, public ScopeOpener
 {
 public:
 	StructDefinition(
@@ -620,7 +631,7 @@ private:
 	std::vector<ASTPointer<VariableDeclaration>> m_members;
 };
 
-class EnumDefinition: public Declaration
+class EnumDefinition: public Declaration, public ScopeOpener
 {
 public:
 	EnumDefinition(
@@ -765,7 +776,7 @@ protected:
 	std::vector<ASTPointer<UserDefinedTypeName>> m_overrides;
 };
 
-class FunctionDefinition: public CallableDeclaration, public StructurallyDocumented, public ImplementationOptional
+class FunctionDefinition: public CallableDeclaration, public StructurallyDocumented, public ImplementationOptional, public ScopeOpener
 {
 public:
 	FunctionDefinition(
@@ -774,6 +785,7 @@ public:
 		ASTPointer<ASTString> const& _name,
 		Visibility _visibility,
 		StateMutability _stateMutability,
+		bool _free,
 		Token _kind,
 		bool _isVirtual,
 		ASTPointer<OverrideSpecifier> const& _overrides,
@@ -787,6 +799,7 @@ public:
 		StructurallyDocumented(_documentation),
 		ImplementationOptional(_body != nullptr),
 		m_stateMutability(_stateMutability),
+		m_free(_free),
 		m_kind(_kind),
 		m_functionModifiers(std::move(_modifiers)),
 		m_body(_body)
@@ -804,6 +817,7 @@ public:
 	bool isConstructor() const { return m_kind == Token::Constructor; }
 	bool isFallback() const { return m_kind == Token::Fallback; }
 	bool isReceive() const { return m_kind == Token::Receive; }
+	bool isFree() const { return m_free; }
 	Token kind() const { return m_kind; }
 	bool isPayable() const { return m_stateMutability == StateMutability::Payable; }
 	std::vector<ASTPointer<ModifierInvocation>> const& modifiers() const { return m_functionModifiers; }
@@ -815,6 +829,7 @@ public:
 	}
 	bool isVisibleViaContractTypeAccess() const override
 	{
+		solAssert(!isFree(), "");
 		return isOrdinary() && visibility() >= Visibility::Public;
 	}
 	bool isPartOfExternalInterface() const override { return isOrdinary() && isPublic(); }
@@ -850,6 +865,7 @@ public:
 
 private:
 	StateMutability m_stateMutability;
+	bool m_free;
 	Token const m_kind;
 	std::vector<ASTPointer<ModifierInvocation>> m_functionModifiers;
 	ASTPointer<Block> m_body;
@@ -984,7 +1000,7 @@ private:
 /**
  * Definition of a function modifier.
  */
-class ModifierDefinition: public CallableDeclaration, public StructurallyDocumented, public ImplementationOptional
+class ModifierDefinition: public CallableDeclaration, public StructurallyDocumented, public ImplementationOptional, public ScopeOpener
 {
 public:
 	ModifierDefinition(
@@ -1056,7 +1072,7 @@ private:
 /**
  * Definition of a (loggable) event.
  */
-class EventDefinition: public CallableDeclaration, public StructurallyDocumented
+class EventDefinition: public CallableDeclaration, public StructurallyDocumented, public ScopeOpener
 {
 public:
 	EventDefinition(
@@ -1194,7 +1210,7 @@ private:
 /**
  * A literal function type. Its source form is "function (paramType1, paramType2) internal / external returns (retType1, retType2)"
  */
-class FunctionTypeName: public TypeName
+class FunctionTypeName: public TypeName, public ScopeOpener
 {
 public:
 	FunctionTypeName(
@@ -1329,7 +1345,7 @@ private:
 /**
  * Brace-enclosed block containing zero or more statements.
  */
-class Block: public Statement, public Scopable
+class Block: public Statement, public Scopable, public ScopeOpener
 {
 public:
 	Block(
@@ -1406,7 +1422,7 @@ private:
  * unsuccessful cases.
  * Names are only allowed for the unsuccessful cases.
  */
-class TryCatchClause: public ASTNode, public Scopable
+class TryCatchClause: public ASTNode, public Scopable, public ScopeOpener
 {
 public:
 	TryCatchClause(
@@ -1492,18 +1508,21 @@ public:
 	): Statement(_id, _location, _docString) {}
 };
 
-class WhileStatement: public BreakableStatement
+class WhileStatement: public BreakableStatement, public StructurallyDocumented
 {
 public:
 	WhileStatement(
 		int64_t _id,
 		SourceLocation const& _location,
-		ASTPointer<ASTString> const& _docString,
+		ASTPointer<StructuredDocumentation> const& _documentation,
 		ASTPointer<Expression> _condition,
 		ASTPointer<Statement> _body,
 		bool _isDoWhile
 	):
-		BreakableStatement(_id, _location, _docString), m_condition(std::move(_condition)), m_body(std::move(_body)),
+		BreakableStatement(_id, _location, _documentation ? _documentation->text() : std::make_shared<ASTString>()),
+		StructurallyDocumented(_documentation),
+		m_condition(std::move(_condition)),
+		m_body(std::move(_body)),
 		m_isDoWhile(_isDoWhile) {}
 	void accept(ASTVisitor& _visitor) override;
 	void accept(ASTConstVisitor& _visitor) const override;
@@ -1523,19 +1542,20 @@ private:
 /**
  * For loop statement
  */
-class ForStatement: public BreakableStatement, public Scopable
+class ForStatement: public BreakableStatement, public Scopable, public ScopeOpener, public StructurallyDocumented
 {
 public:
 	ForStatement(
 		int64_t _id,
 		SourceLocation const& _location,
-		ASTPointer<ASTString> const& _docString,
+		ASTPointer<StructuredDocumentation> const& _documentation,
 		ASTPointer<Statement> _initExpression,
 		ASTPointer<Expression> _conditionExpression,
 		ASTPointer<ExpressionStatement> _loopExpression,
 		ASTPointer<Statement> _body
 	):
-		BreakableStatement(_id, _location, _docString),
+		BreakableStatement(_id, _location, _documentation ? _documentation->text() : std::make_shared<ASTString>()),
+		StructurallyDocumented(_documentation),
 		m_initExpression(std::move(_initExpression)),
 		m_condExpression(std::move(_conditionExpression)),
 		m_loopExpression(std::move(_loopExpression)),

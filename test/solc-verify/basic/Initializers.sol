@@ -1,10 +1,11 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Initializers {
     int b;
     int c;
 
-    constructor(int b0) public {
+    constructor(int b0) {
         assert(a == 5);
         assert(b == 0);
         assert(c == 0);

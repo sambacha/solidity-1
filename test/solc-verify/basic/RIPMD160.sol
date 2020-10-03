@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract RIPMD160 {
 
@@ -9,7 +10,7 @@ contract RIPMD160 {
     ok = (h1 == h2);
   }
 
-  function() external payable {
+  receive() external payable {
     assert(hashTwice("test"));
   }
 }

@@ -29,6 +29,7 @@
 #include <libsolutil/CommonData.h>
 #include <test/Metadata.h>
 
+#include <algorithm>
 #include <set>
 
 using namespace std;
@@ -428,9 +429,9 @@ BOOST_AUTO_TEST_CASE(basic_compilation)
 	BOOST_CHECK(result["sources"]["fileA"]["legacyAST"].isObject());
 	BOOST_CHECK_EQUAL(
 		util::jsonCompactPrint(result["sources"]["fileA"]["legacyAST"]),
-		"{\"attributes\":{\"absolutePath\":\"fileA\",\"exportedSymbols\":{\"A\":[1]},\"license\":null},\"children\":"
+		"{\"attributes\":{\"absolutePath\":\"fileA\",\"exportedSymbols\":{\"A\":[1]}},\"children\":"
 		"[{\"attributes\":{\"abstract\":false,\"baseContracts\":[null],\"contractDependencies\":[null],\"contractKind\":\"contract\","
-		"\"documentation\":null,\"fullyImplemented\":true,\"linearizedBaseContracts\":[1],\"name\":\"A\",\"nodes\":[null],\"scope\":2},"
+		"\"fullyImplemented\":true,\"linearizedBaseContracts\":[1],\"name\":\"A\",\"nodes\":[null],\"scope\":2},"
 		"\"id\":1,\"name\":\"ContractDefinition\",\"src\":\"0:14:0\"}],\"id\":2,\"name\":\"SourceUnit\",\"src\":\"0:14:0\"}"
 	);
 }
@@ -1235,9 +1236,16 @@ BOOST_AUTO_TEST_CASE(use_stack_optimization)
 	BOOST_REQUIRE(contract["evm"]["bytecode"]["object"].isString());
 	BOOST_CHECK(contract["evm"]["bytecode"]["object"].asString().length() > 20);
 
-	// Now disable stack optimizations
+	// Now disable stack optimizations and UnusedFunctionParameterPruner (p)
 	// results in "stack too deep"
+	string optimiserSteps = OptimiserSettings::DefaultYulOptimiserSteps;
+	optimiserSteps.erase(
+		remove_if(optimiserSteps.begin(), optimiserSteps.end(), [](char ch) { return ch == 'p'; }),
+		optimiserSteps.end()
+	);
 	parsedInput["settings"]["optimizer"]["details"]["yulDetails"]["stackAllocation"] = false;
+	parsedInput["settings"]["optimizer"]["details"]["yulDetails"]["optimizerSteps"] = optimiserSteps;
+
 	result = compiler.compile(parsedInput);
 	BOOST_REQUIRE(result["errors"].isArray());
 	BOOST_CHECK(result["errors"][0]["severity"] == "error");

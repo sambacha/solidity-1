@@ -80,6 +80,14 @@ bool TypeChecker::checkTypeRequirements(SourceUnit const& _source, ASTNode const
 	return Error::containsOnlyWarnings(m_errorReporter.errors());
 }
 
+bool TypeChecker::checkTypeRequirements(ContractDefinition const& _contract, ASTNode const& _node)
+{
+	m_currentContract = &_contract;
+	_node.accept(*this);
+	m_currentContract = nullptr;
+	return Error::containsOnlyWarnings(m_errorReporter.errors());
+}
+
 TypePointer const& TypeChecker::type(Expression const& _expression) const
 {
 	solAssert(!!_expression.annotation().type, "Type requested but not present.");
@@ -279,6 +287,7 @@ void TypeChecker::endVisit(InheritanceSpecifier const& _inheritance)
 {
 	auto base = dynamic_cast<ContractDefinition const*>(&dereference(_inheritance.name()));
 	solAssert(base, "Base contract not available.");
+	solAssert(m_currentContract, "");
 
 	if (m_currentContract->isInterface() && !base->isInterface())
 		m_errorReporter.typeError(6536_error, _inheritance.location(), "Interfaces can only inherit from other interfaces.");
@@ -327,6 +336,15 @@ void TypeChecker::endVisit(InheritanceSpecifier const& _inheritance)
 
 void TypeChecker::endVisit(ModifierDefinition const& _modifier)
 {
+	if (_modifier.virtualSemantics())
+		if (auto const* contractDef = dynamic_cast<ContractDefinition const*>(_modifier.scope()))
+			if (contractDef->isLibrary())
+				m_errorReporter.typeError(
+					3275_error,
+					_modifier.location(),
+					"Modifiers in a library cannot be virtual."
+				);
+
 	if (!_modifier.isImplemented() && !_modifier.virtualSemantics())
 		m_errorReporter.typeError(8063_error, _modifier.location(), "Modifiers without implementation must be marked virtual.");
 }
@@ -335,7 +353,9 @@ bool TypeChecker::visit(FunctionDefinition const& _function)
 {
 	if (_function.markedVirtual())
 	{
-		if (_function.isConstructor())
+		if (_function.isFree())
+			m_errorReporter.syntaxError(4493_error, _function.location(), "Free functions cannot be virtual.");
+		else if (_function.isConstructor())
 			m_errorReporter.typeError(7001_error, _function.location(), "Constructors cannot be virtual.");
 		else if (_function.annotation().contract->isInterface())
 			m_errorReporter.warning(5815_error, _function.location(), "Interface functions are implicitly \"virtual\"");
@@ -344,12 +364,16 @@ bool TypeChecker::visit(FunctionDefinition const& _function)
 		else if (_function.libraryFunction())
 			m_errorReporter.typeError(7801_error, _function.location(), "Library functions cannot be \"virtual\".");
 	}
+	if (_function.overrides() && _function.isFree())
+		m_errorReporter.syntaxError(1750_error, _function.location(), "Free functions cannot override.");
 
 	if (_function.isPayable())
 	{
 		if (_function.libraryFunction())
 			m_errorReporter.typeError(7708_error, _function.location(), "Library functions cannot be payable.");
-		if (_function.isOrdinary() && !_function.isPartOfExternalInterface())
+		else if (_function.isFree())
+			m_errorReporter.typeError(9559_error, _function.location(), "Free functions cannot be payable.");
+		else if (_function.isOrdinary() && !_function.isPartOfExternalInterface())
 			m_errorReporter.typeError(5587_error, _function.location(), "\"internal\" and \"private\" functions cannot be payable.");
 	}
 
@@ -423,9 +447,13 @@ bool TypeChecker::visit(FunctionDefinition const& _function)
 	set<Declaration const*> modifiers;
 	for (ASTPointer<ModifierInvocation> const& modifier: _function.modifiers())
 	{
-		auto baseContracts = dynamic_cast<ContractDefinition const&>(*_function.scope()).annotation().linearizedBaseContracts;
-		// Delete first base which is just the main contract itself
-		baseContracts.erase(baseContracts.begin());
+		vector<ContractDefinition const*> baseContracts;
+		if (auto contract = dynamic_cast<ContractDefinition const*>(_function.scope()))
+		{
+			baseContracts = contract->annotation().linearizedBaseContracts;
+			// Delete first base which is just the main contract itself
+			baseContracts.erase(baseContracts.begin());
+		}
 
 		visitManually(
 			*modifier,
@@ -440,7 +468,15 @@ bool TypeChecker::visit(FunctionDefinition const& _function)
 		else
 			modifiers.insert(decl);
 	}
-	if (m_currentContract->isInterface())
+
+	solAssert(_function.isFree() == !m_currentContract, "");
+	if (!m_currentContract)
+	{
+		solAssert(!_function.isConstructor(), "");
+		solAssert(!_function.isFallback(), "");
+		solAssert(!_function.isReceive(), "");
+	}
+	else if (m_currentContract->isInterface())
 	{
 		if (_function.isImplemented())
 			m_errorReporter.typeError(4726_error, _function.location(), "Functions in interfaces cannot have an implementation.");
@@ -453,6 +489,7 @@ bool TypeChecker::visit(FunctionDefinition const& _function)
 	else if (m_currentContract->contractKind() == ContractKind::Library)
 		if (_function.isConstructor())
 			m_errorReporter.typeError(7634_error, _function.location(), "Constructor cannot be defined in libraries.");
+
 	if (_function.isImplemented())
 		_function.body().accept(*this);
 	else if (_function.isConstructor())
@@ -460,7 +497,12 @@ bool TypeChecker::visit(FunctionDefinition const& _function)
 	else if (_function.libraryFunction())
 		m_errorReporter.typeError(9231_error, _function.location(), "Library functions must be implemented if declared.");
 	else if (!_function.virtualSemantics())
-		m_errorReporter.typeError(5424_error, _function.location(), "Functions without implementation must be marked virtual.");
+	{
+		if (_function.isFree())
+			solAssert(m_errorReporter.hasErrors(), "");
+		else
+			m_errorReporter.typeError(5424_error, _function.location(), "Functions without implementation must be marked virtual.");
+	}
 
 
 	if (_function.isFallback())
@@ -512,7 +554,7 @@ bool TypeChecker::visit(VariableDeclaration const& _variable)
 
 		if (!_variable.value())
 			m_errorReporter.typeError(4266_error, _variable.location(), "Uninitialized \"constant\" variable.");
-		else if (!_variable.value()->annotation().isPure)
+		else if (!*_variable.value()->annotation().isPure)
 			m_errorReporter.typeError(
 				8349_error,
 				_variable.value()->location(),
@@ -581,29 +623,6 @@ bool TypeChecker::visit(VariableDeclaration const& _variable)
 			m_errorReporter.typeError(1534_error, _variable.location(), result.message());
 			return false;
 		}
-	}
-
-	if (varType->dataStoredIn(DataLocation::Storage))
-	{
-		auto collisionMessage = [&](string const& variableOrType, bool isVariable) -> string {
-			return
-				(isVariable ? "Variable " : "Type ") +
-				util::escapeAndQuoteString(variableOrType) +
-				" covers a large part of storage and thus makes collisions likely."
-				" Either use mappings or dynamic arrays and allow their size to be increased only"
-				" in small quantities per transaction.";
-		};
-
-		if (varType->storageSizeUpperBound() >= bigint(1) << 64)
-		{
-			if (_variable.isStateVariable())
-				m_errorReporter.warning(3408_error, _variable.location(), collisionMessage(_variable.name(), true));
-			else
-				m_errorReporter.warning(2332_error, _variable.typeName().location(), collisionMessage(varType->canonicalName(), false));
-		}
-		vector<Type const*> oversizedSubtypes = frontend::oversizedSubtypes(*varType);
-		for (Type const* subtype: oversizedSubtypes)
-			m_errorReporter.warning(7325_error, _variable.typeName().location(), collisionMessage(subtype->canonicalName(), false));
 	}
 
 	return false;
@@ -893,7 +912,7 @@ bool TypeChecker::visit(IfStatement const& _ifStatement)
 void TypeChecker::endVisit(TryStatement const& _tryStatement)
 {
 	FunctionCall const* externalCall = dynamic_cast<FunctionCall const*>(&_tryStatement.externalCall());
-	if (!externalCall || externalCall->annotation().kind != FunctionCallKind::FunctionCall)
+	if (!externalCall || *externalCall->annotation().kind != FunctionCallKind::FunctionCall)
 	{
 		m_errorReporter.typeError(
 			5347_error,
@@ -1103,7 +1122,7 @@ void TypeChecker::endVisit(Return const& _return)
 void TypeChecker::endVisit(EmitStatement const& _emit)
 {
 	if (
-		_emit.eventCall().annotation().kind != FunctionCallKind::FunctionCall ||
+		*_emit.eventCall().annotation().kind != FunctionCallKind::FunctionCall ||
 		type(_emit.eventCall().expression())->category() != Type::Category::Function ||
 		dynamic_cast<FunctionType const&>(*type(_emit.eventCall().expression())).kind() != FunctionType::Kind::Event
 	)
@@ -1293,11 +1312,14 @@ bool TypeChecker::visit(Conditional const& _conditional)
 		}
 	}
 
+	_conditional.annotation().isConstant = false;
 	_conditional.annotation().type = commonType;
 	_conditional.annotation().isPure =
-		_conditional.condition().annotation().isPure &&
-		_conditional.trueExpression().annotation().isPure &&
-		_conditional.falseExpression().annotation().isPure;
+		*_conditional.condition().annotation().isPure &&
+		*_conditional.trueExpression().annotation().isPure &&
+		*_conditional.falseExpression().annotation().isPure;
+
+	_conditional.annotation().isLValue = false;
 
 	if (_conditional.annotation().willBeWrittenTo)
 		m_errorReporter.typeError(
@@ -1351,6 +1373,9 @@ bool TypeChecker::visit(Assignment const& _assignment)
 	);
 	TypePointer t = type(_assignment.leftHandSide());
 	_assignment.annotation().type = t;
+	_assignment.annotation().isPure = false;
+	_assignment.annotation().isLValue = false;
+	_assignment.annotation().isConstant = false;
 
 	checkExpressionAssignment(*t, _assignment.leftHandSide());
 
@@ -1398,6 +1423,7 @@ bool TypeChecker::visit(Assignment const& _assignment)
 
 bool TypeChecker::visit(TupleExpression const& _tuple)
 {
+	_tuple.annotation().isConstant = false;
 	vector<ASTPointer<Expression>> const& components = _tuple.components();
 	TypePointers types;
 
@@ -1410,7 +1436,7 @@ bool TypeChecker::visit(TupleExpression const& _tuple)
 			{
 				requireLValue(
 					*component,
-					_tuple.annotation().lValueOfOrdinaryAssignment
+					*_tuple.annotation().lValueOfOrdinaryAssignment
 				);
 				types.push_back(type(*component));
 			}
@@ -1422,6 +1448,7 @@ bool TypeChecker::visit(TupleExpression const& _tuple)
 			_tuple.annotation().type = TypeProvider::tuple(move(types));
 		// If some of the components are not LValues, the error is reported above.
 		_tuple.annotation().isLValue = true;
+		_tuple.annotation().isPure = false;
 	}
 	else
 	{
@@ -1461,7 +1488,7 @@ bool TypeChecker::visit(TupleExpression const& _tuple)
 				else if (inlineArrayType)
 					inlineArrayType = Type::commonType(inlineArrayType, types[i]);
 			}
-			if (!components[i]->annotation().isPure)
+			if (!*components[i]->annotation().isPure)
 				isPure = false;
 		}
 		_tuple.annotation().isPure = isPure;
@@ -1492,6 +1519,7 @@ bool TypeChecker::visit(TupleExpression const& _tuple)
 				_tuple.annotation().type = TypeProvider::tuple(move(types));
 		}
 
+		_tuple.annotation().isLValue = false;
 	}
 	return false;
 }
@@ -1519,7 +1547,9 @@ bool TypeChecker::visit(UnaryOperation const& _operation)
 		t = subExprType;
 	}
 	_operation.annotation().type = t;
-	_operation.annotation().isPure = !modifying && _operation.subExpression().annotation().isPure;
+	_operation.annotation().isConstant = false;
+	_operation.annotation().isPure = !modifying && *_operation.subExpression().annotation().isPure;
+	_operation.annotation().isLValue = false;
 	return false;
 }
 
@@ -1550,8 +1580,10 @@ void TypeChecker::endVisit(BinaryOperation const& _operation)
 		TypeProvider::boolean() :
 		commonType;
 	_operation.annotation().isPure =
-		_operation.leftExpression().annotation().isPure &&
-		_operation.rightExpression().annotation().isPure;
+		*_operation.leftExpression().annotation().isPure &&
+		*_operation.rightExpression().annotation().isPure;
+	_operation.annotation().isLValue = false;
+	_operation.annotation().isConstant = false;
 
 	if (_operation.getOperator() == Token::Exp || _operation.getOperator() == Token::SHL)
 	{
@@ -1599,7 +1631,7 @@ TypePointer TypeChecker::typeCheckTypeConversionAndRetrieveReturnType(
 	FunctionCall const& _functionCall
 )
 {
-	solAssert(_functionCall.annotation().kind == FunctionCallKind::TypeConversion, "");
+	solAssert(*_functionCall.annotation().kind == FunctionCallKind::TypeConversion, "");
 	TypePointer const& expressionType = type(_functionCall.expression());
 
 	vector<ASTPointer<Expression const>> const& arguments = _functionCall.arguments();
@@ -1629,7 +1661,8 @@ TypePointer TypeChecker::typeCheckTypeConversionAndRetrieveReturnType(
 			dataLoc = argRefType->location();
 		if (auto type = dynamic_cast<ReferenceType const*>(resultType))
 			resultType = TypeProvider::withLocation(type, dataLoc, type->isPointer());
-		if (argType->isExplicitlyConvertibleTo(*resultType))
+		BoolResult result = argType->isExplicitlyConvertibleTo(*resultType);
+		if (result)
 		{
 			if (auto argArrayType = dynamic_cast<ArrayType const*>(argType))
 			{
@@ -1700,14 +1733,15 @@ TypePointer TypeChecker::typeCheckTypeConversionAndRetrieveReturnType(
 					"you can use the .address member of the function."
 				);
 			else
-				m_errorReporter.typeError(
+				m_errorReporter.typeErrorConcatenateDescriptions(
 					9640_error,
 					_functionCall.location(),
 					"Explicit type conversion not allowed from \"" +
 					argType->toString() +
 					"\" to \"" +
 					resultType->toString() +
-					"\"."
+					"\".",
+					result.message()
 				);
 		}
 		if (auto addressType = dynamic_cast<AddressType const*>(resultType))
@@ -1734,7 +1768,9 @@ void TypeChecker::typeCheckFunctionCall(
 
 	if (_functionType->kind() == FunctionType::Kind::Declaration)
 	{
+		solAssert(_functionType->declaration().annotation().contract, "");
 		if (
+			m_currentContract &&
 			m_currentContract->derivesFrom(*_functionType->declaration().annotation().contract) &&
 			!dynamic_cast<FunctionDefinition const&>(_functionType->declaration()).isImplemented()
 		)
@@ -1964,8 +2000,10 @@ void TypeChecker::typeCheckFunctionGeneralChecks(
 	bool const isPositionalCall = _functionCall.names().empty();
 	bool const isVariadic = _functionType->takesArbitraryParameters();
 
+	auto functionCallKind = *_functionCall.annotation().kind;
+
 	solAssert(
-		!isVariadic || _functionCall.annotation().kind == FunctionCallKind::FunctionCall,
+		!isVariadic || functionCallKind == FunctionCallKind::FunctionCall,
 		"Struct constructor calls cannot be variadic."
 	);
 
@@ -1980,7 +2018,7 @@ void TypeChecker::typeCheckFunctionGeneralChecks(
 	)
 	{
 		bool const isStructConstructorCall =
-			_functionCall.annotation().kind == FunctionCallKind::StructConstructorCall;
+			functionCallKind == FunctionCallKind::StructConstructorCall;
 
 		auto [errorId, description] = [&]() -> tuple<ErrorId, string> {
 			string msg = isVariadic ?
@@ -2084,18 +2122,17 @@ void TypeChecker::typeCheckFunctionGeneralChecks(
 		{
 			bool not_all_mapped = false;
 
-			for (size_t i = 0; i < paramArgMap.size(); i++)
+			for (size_t i = 0; i < argumentNames.size(); i++)
 			{
 				size_t j;
-				for (j = 0; j < argumentNames.size(); j++)
-					if (parameterNames[i] == *argumentNames[j])
+				for (j = 0; j < parameterNames.size(); j++)
+					if (parameterNames[j] == *argumentNames[i])
 						break;
 
-				if (j < argumentNames.size())
-					paramArgMap[i] = arguments[j].get();
+				if (j < parameterNames.size())
+					paramArgMap[j] = arguments[i].get();
 				else
 				{
-					paramArgMap[i] = nullptr;
 					not_all_mapped = true;
 					m_errorReporter.typeError(
 						4974_error,
@@ -2168,7 +2205,7 @@ bool TypeChecker::visit(FunctionCall const& _functionCall)
 	for (ASTPointer<Expression const> const& argument: arguments)
 	{
 		argument->accept(*this);
-		if (!argument->annotation().isPure)
+		if (!*argument->annotation().isPure)
 			argumentsArePure = false;
 	}
 
@@ -2191,6 +2228,9 @@ bool TypeChecker::visit(FunctionCall const& _functionCall)
 	// Determine function call kind and function type for this FunctionCall node
 	FunctionCallAnnotation& funcCallAnno = _functionCall.annotation();
 	FunctionTypePointer functionType = nullptr;
+	funcCallAnno.isConstant = false;
+
+	bool isLValue = false;
 
 	// Determine and assign function call kind, lvalue, purity and function type for this FunctionCall node
 	switch (expressionType->category())
@@ -2202,7 +2242,7 @@ bool TypeChecker::visit(FunctionCall const& _functionCall)
 		// Purity for function calls also depends upon the callee and its FunctionType
 		funcCallAnno.isPure =
 			argumentsArePure &&
-			_functionCall.expression().annotation().isPure &&
+			*_functionCall.expression().annotation().isPure &&
 			functionType &&
 			functionType->isPure();
 
@@ -2210,7 +2250,7 @@ bool TypeChecker::visit(FunctionCall const& _functionCall)
 			functionType->kind() == FunctionType::Kind::ArrayPush ||
 			functionType->kind() == FunctionType::Kind::ByteArrayPush
 		)
-			funcCallAnno.isLValue = functionType->parameterTypes().empty();
+			isLValue = functionType->parameterTypes().empty();
 
 		break;
 
@@ -2230,26 +2270,27 @@ bool TypeChecker::visit(FunctionCall const& _functionCall)
 				);
 			functionType = dynamic_cast<StructType const&>(*actualType).constructorType();
 			funcCallAnno.kind = FunctionCallKind::StructConstructorCall;
-			funcCallAnno.isPure = argumentsArePure;
 		}
 		else
-		{
 			funcCallAnno.kind = FunctionCallKind::TypeConversion;
-			funcCallAnno.isPure = argumentsArePure;
-		}
+
+		funcCallAnno.isPure = argumentsArePure;
 
 		break;
 	}
 
 	default:
 		m_errorReporter.fatalTypeError(5704_error, _functionCall.location(), "Type is not callable");
-		funcCallAnno.kind = FunctionCallKind::Unset;
+		// Unreachable, because fatalTypeError throws. We don't set kind, but that's okay because the switch below
+		// is never reached. And, even if it was, SetOnce would trigger an assertion violation and not UB.
 		funcCallAnno.isPure = argumentsArePure;
 		break;
 	}
 
+	funcCallAnno.isLValue = isLValue;
+
 	// Determine return types
-	switch (funcCallAnno.kind)
+	switch (*funcCallAnno.kind)
 	{
 	case FunctionCallKind::TypeConversion:
 		funcCallAnno.type = typeCheckTypeConversionAndRetrieveReturnType(_functionCall);
@@ -2299,7 +2340,6 @@ bool TypeChecker::visit(FunctionCall const& _functionCall)
 		break;
 	}
 
-	case FunctionCallKind::Unset: // fall-through
 	default:
 		// for non-callables, ensure error reported and annotate node to void function
 		solAssert(m_errorReporter.hasErrors(), "");
@@ -2318,6 +2358,9 @@ bool TypeChecker::visit(FunctionCallOptions const& _functionCallOptions)
 	_functionCallOptions.expression().annotation().arguments = _functionCallOptions.annotation().arguments;
 
 	_functionCallOptions.expression().accept(*this);
+
+	_functionCallOptions.annotation().isPure = false;
+	_functionCallOptions.annotation().isConstant = false;
 
 	auto expressionFunctionType = dynamic_cast<FunctionType const*>(type(_functionCallOptions.expression()));
 	if (!expressionFunctionType)
@@ -2449,6 +2492,8 @@ void TypeChecker::endVisit(NewExpression const& _newExpression)
 	TypePointer type = _newExpression.typeName().annotation().type;
 	solAssert(!!type, "Type name not resolved.");
 
+	_newExpression.annotation().isConstant = false;
+
 	if (auto contractName = dynamic_cast<UserDefinedTypeName const*>(&_newExpression.typeName()))
 	{
 		auto contract = dynamic_cast<ContractDefinition const*>(&dereference(*contractName));
@@ -2460,20 +2505,26 @@ void TypeChecker::endVisit(NewExpression const& _newExpression)
 		if (contract->abstract())
 			m_errorReporter.typeError(4614_error, _newExpression.location(), "Cannot instantiate an abstract contract.");
 
-		solAssert(!!m_currentContract, "");
-		m_currentContract->annotation().contractDependencies.insert(contract);
-		solAssert(
-			!contract->annotation().linearizedBaseContracts.empty(),
-			"Linearized base contracts not yet available."
-		);
-		if (contractDependenciesAreCyclic(*m_currentContract))
-			m_errorReporter.typeError(
-				4579_error,
-				_newExpression.location(),
-				"Circular reference for contract creation (cannot create instance of derived or same contract)."
+		if (m_currentContract)
+		{
+			// TODO this is not properly detecting creation-cycles if they go through
+			// internal library functions or free functions. It will be caught at
+			// code generation time, but it would of course be better to catch it here.
+			m_currentContract->annotation().contractDependencies.insert(contract);
+			solAssert(
+				!contract->annotation().linearizedBaseContracts.empty(),
+				"Linearized base contracts not yet available."
 			);
+			if (contractDependenciesAreCyclic(*m_currentContract))
+				m_errorReporter.typeError(
+					4579_error,
+					_newExpression.location(),
+					"Circular reference for contract creation (cannot create instance of derived or same contract)."
+				);
+		}
 
 		_newExpression.annotation().type = FunctionType::newExpressionType(*contract);
+		_newExpression.annotation().isPure = false;
 	}
 	else if (type->category() == Type::Category::Array)
 	{
@@ -2513,7 +2564,7 @@ bool TypeChecker::visit(MemberAccess const& _memberAccess)
 
 	// Retrieve the types of the arguments if this is used to call a function.
 	auto const& arguments = _memberAccess.annotation().arguments;
-	MemberList::MemberMap possibleMembers = exprType->members(m_currentContract).membersByName(memberName);
+	MemberList::MemberMap possibleMembers = exprType->members(currentDefinitionScope()).membersByName(memberName);
 	size_t const initialMemberCount = possibleMembers.size();
 	if (initialMemberCount > 1 && arguments)
 	{
@@ -2530,6 +2581,8 @@ bool TypeChecker::visit(MemberAccess const& _memberAccess)
 
 	auto& annotation = _memberAccess.annotation();
 
+	annotation.isConstant = false;
+
 	if (possibleMembers.empty())
 	{
 		if (initialMemberCount == 0 && !dynamic_cast<ArraySliceType const*>(exprType))
@@ -2539,7 +2592,7 @@ bool TypeChecker::visit(MemberAccess const& _memberAccess)
 				DataLocation::Storage,
 				exprType
 			);
-			if (!storageType->members(m_currentContract).membersByName(memberName).empty())
+			if (!storageType->members(currentDefinitionScope()).membersByName(memberName).empty())
 				m_errorReporter.fatalTypeError(
 					4994_error,
 					_memberAccess.location(),
@@ -2662,11 +2715,16 @@ bool TypeChecker::visit(MemberAccess const& _memberAccess)
 				functionType &&
 				functionType->kind() == FunctionType::Kind::Declaration
 			)
-				annotation.isPure = _memberAccess.expression().annotation().isPure;
+				annotation.isPure = *_memberAccess.expression().annotation().isPure;
 		}
 	}
 	else if (exprType->category() == Type::Category::Module)
-		annotation.isPure = _memberAccess.expression().annotation().isPure;
+	{
+		annotation.isPure = *_memberAccess.expression().annotation().isPure;
+		annotation.isLValue = false;
+	}
+	else
+		annotation.isLValue = false;
 
 	// TODO some members might be pure, but for example `address(0x123).balance` is not pure
 	// although every subexpression is, so leaving this limited for now.
@@ -2682,11 +2740,14 @@ bool TypeChecker::visit(MemberAccess const& _memberAccess)
 	)
 		if (auto const* parentAccess = dynamic_cast<MemberAccess const*>(&_memberAccess.expression()))
 		{
-			annotation.isPure = parentAccess->expression().annotation().isPure;
+			bool isPure = *parentAccess->expression().annotation().isPure;
 			if (auto const* exprInt = dynamic_cast<Identifier const*>(&parentAccess->expression()))
 				if (exprInt->name() == "this" || exprInt->name() == "super")
-					annotation.isPure = true;
+					isPure = true;
+
+			annotation.isPure = isPure;
 		}
+
 	if (auto magicType = dynamic_cast<MagicType const*>(exprType))
 	{
 		if (magicType->kind() == MagicType::Kind::ABI)
@@ -2697,8 +2758,6 @@ bool TypeChecker::visit(MemberAccess const& _memberAccess)
 		{
 			annotation.isPure = true;
 			ContractType const& accessedContractType = dynamic_cast<ContractType const&>(*magicType->typeArgument());
-			m_currentContract->annotation().contractDependencies.insert(&accessedContractType.contractDefinition());
-
 			if (
 				memberName == "runtimeCode" &&
 				!accessedContractType.immutableVariables().empty()
@@ -2709,12 +2768,21 @@ bool TypeChecker::visit(MemberAccess const& _memberAccess)
 					"\"runtimeCode\" is not available for contracts containing immutable variables."
 				);
 
-			if (contractDependenciesAreCyclic(*m_currentContract))
-				m_errorReporter.typeError(
-					4224_error,
-					_memberAccess.location(),
-					"Circular reference for contract code access."
-				);
+			if (m_currentContract)
+			{
+				// TODO in the same way as with ``new``,
+				// this is not properly detecting creation-cycles if they go through
+				// internal library functions or free functions. It will be caught at
+				// code generation time, but it would of course be better to catch it here.
+
+				m_currentContract->annotation().contractDependencies.insert(&accessedContractType.contractDefinition());
+				if (contractDependenciesAreCyclic(*m_currentContract))
+					m_errorReporter.typeError(
+						4224_error,
+						_memberAccess.location(),
+						"Circular reference for contract code access."
+					);
+			}
 		}
 		else if (magicType->kind() == MagicType::Kind::MetaType && memberName == "name")
 			annotation.isPure = true;
@@ -2727,16 +2795,20 @@ bool TypeChecker::visit(MemberAccess const& _memberAccess)
 			annotation.isPure = true;
 	}
 
+	if (!annotation.isPure.set())
+		annotation.isPure = false;
+
 	return false;
 }
 
 bool TypeChecker::visit(IndexAccess const& _access)
 {
+	_access.annotation().isConstant = false;
 	_access.baseExpression().accept(*this);
 	TypePointer baseType = type(_access.baseExpression());
 	TypePointer resultType = nullptr;
 	bool isLValue = false;
-	bool isPure = _access.baseExpression().annotation().isPure;
+	bool isPure = *_access.baseExpression().annotation().isPure;
 	Expression const* index = _access.indexExpression();
 	switch (baseType->category())
 	{
@@ -2838,7 +2910,7 @@ bool TypeChecker::visit(IndexAccess const& _access)
 	}
 	_access.annotation().type = resultType;
 	_access.annotation().isLValue = isLValue;
-	if (index && !index->annotation().isPure)
+	if (index && !*index->annotation().isPure)
 		isPure = false;
 	_access.annotation().isPure = isPure;
 
@@ -2847,23 +2919,27 @@ bool TypeChecker::visit(IndexAccess const& _access)
 
 bool TypeChecker::visit(IndexRangeAccess const& _access)
 {
+	_access.annotation().isConstant = false;
 	_access.baseExpression().accept(*this);
 
 	bool isLValue = false; // TODO: set this correctly when implementing slices for memory and storage arrays
-	bool isPure = _access.baseExpression().annotation().isPure;
+	bool isPure = *_access.baseExpression().annotation().isPure;
 
 	if (Expression const* start = _access.startExpression())
 	{
 		expectType(*start, *TypeProvider::uint256());
-		if (!start->annotation().isPure)
+		if (!*start->annotation().isPure)
 			isPure = false;
 	}
 	if (Expression const* end = _access.endExpression())
 	{
 		expectType(*end, *TypeProvider::uint256());
-		if (!end->annotation().isPure)
+		if (!*end->annotation().isPure)
 			isPure = false;
 	}
+
+	_access.annotation().isLValue = isLValue;
+	_access.annotation().isPure = isPure;
 
 	TypePointer exprType = type(_access.baseExpression());
 	if (exprType->category() == Type::Category::TypeType)
@@ -2879,14 +2955,11 @@ bool TypeChecker::visit(IndexRangeAccess const& _access)
 	else if (!(arrayType = dynamic_cast<ArrayType const*>(exprType)))
 		m_errorReporter.fatalTypeError(4781_error, _access.location(), "Index range access is only possible for arrays and array slices.");
 
-
 	if (arrayType->location() != DataLocation::CallData || !arrayType->isDynamicallySized())
 		m_errorReporter.typeError(1227_error, _access.location(), "Index range access is only supported for dynamic calldata arrays.");
 	else if (arrayType->baseType()->isDynamicallyEncoded())
 		m_errorReporter.typeError(2148_error, _access.location(), "Index range access is not supported for arrays with dynamically encoded base types.");
 	_access.annotation().type = TypeProvider::arraySlice(*arrayType);
-	_access.annotation().isLValue = isLValue;
-	_access.annotation().isPure = isPure;
 
 	return false;
 }
@@ -3004,20 +3077,22 @@ bool TypeChecker::visit(Identifier const& _identifier)
 		!!annotation.referencedDeclaration,
 		"Referenced declaration is null after overload resolution."
 	);
+	bool isConstant = false;
 	annotation.isLValue = annotation.referencedDeclaration->isLValue();
 	annotation.type = annotation.referencedDeclaration->type();
 	solAssert(annotation.type, "Declaration referenced before type could be determined.");
 	if (auto variableDeclaration = dynamic_cast<VariableDeclaration const*>(annotation.referencedDeclaration))
-		annotation.isPure = annotation.isConstant = variableDeclaration->isConstant();
+		annotation.isPure = isConstant = variableDeclaration->isConstant();
 	else if (dynamic_cast<MagicVariableDeclaration const*>(annotation.referencedDeclaration))
-	{
-		if (dynamic_cast<FunctionType const*>(annotation.type))
-			annotation.isPure = true;
-	}
+		annotation.isPure = dynamic_cast<FunctionType const*>(annotation.type);
 	else if (dynamic_cast<TypeType const*>(annotation.type))
 		annotation.isPure = true;
 	else if (dynamic_cast<ModuleType const*>(annotation.type))
 		annotation.isPure = true;
+	else
+		annotation.isPure = false;
+
+	annotation.isConstant = isConstant;
 
 	// Check for deprecated function names.
 	// The check is done here for the case without an actual function call.
@@ -3043,12 +3118,14 @@ bool TypeChecker::visit(Identifier const& _identifier)
 	)
 		if (magicVar->type()->category() == Type::Category::Integer)
 		{
-			solAssert(_identifier.name() == "now", "");
-			m_errorReporter.typeError(
-				7359_error,
-				_identifier.location(),
-				"\"now\" has been deprecated. Use \"block.timestamp\" instead."
-			);
+			if (_identifier.name() == "now")
+			{
+				m_errorReporter.typeError(
+					7359_error,
+					_identifier.location(),
+					"\"now\" has been deprecated. Use \"block.timestamp\" instead."
+				);
+			}
 		}
 
 	return false;
@@ -3058,6 +3135,8 @@ void TypeChecker::endVisit(ElementaryTypeNameExpression const& _expr)
 {
 	_expr.annotation().type = TypeProvider::typeType(TypeProvider::fromElementaryTypeName(_expr.type().typeName(), _expr.type().stateMutability()));
 	_expr.annotation().isPure = true;
+	_expr.annotation().isLValue = false;
+	_expr.annotation().isConstant = false;
 }
 
 void TypeChecker::endVisit(Literal const& _literal)
@@ -3113,6 +3192,18 @@ void TypeChecker::endVisit(Literal const& _literal)
 		m_errorReporter.fatalTypeError(2826_error, _literal.location(), "Invalid literal value.");
 
 	_literal.annotation().isPure = true;
+	_literal.annotation().isLValue = false;
+	_literal.annotation().isConstant = false;
+}
+
+void TypeChecker::endVisit(UsingForDirective const& _usingFor)
+{
+	if (m_currentContract->isInterface())
+		m_errorReporter.typeError(
+			9088_error,
+			_usingFor.location(),
+			"The \"using for\" directive is not allowed inside interfaces."
+		);
 }
 
 bool TypeChecker::contractDependenciesAreCyclic(
@@ -3146,7 +3237,8 @@ Declaration const& TypeChecker::dereference(UserDefinedTypeName const& _typeName
 bool TypeChecker::expectType(Expression const& _expression, Type const& _expectedType)
 {
 	_expression.accept(*this);
-	if (!type(_expression)->isImplicitlyConvertibleTo(_expectedType))
+	BoolResult result = type(_expression)->isImplicitlyConvertibleTo(_expectedType);
+	if (!result)
 	{
 		auto errorMsg = "Type " +
 			type(_expression)->toString() +
@@ -3165,17 +3257,23 @@ bool TypeChecker::expectType(Expression const& _expression, Type const& _expecte
 					errorMsg + ", but it can be explicitly converted."
 				);
 			else
-				m_errorReporter.typeError(
+				m_errorReporter.typeErrorConcatenateDescriptions(
 					2326_error,
 					_expression.location(),
 					errorMsg +
 					". Try converting to type " +
 					type(_expression)->mobileType()->toString() +
-					" or use an explicit conversion."
+					" or use an explicit conversion.",
+					result.message()
 				);
 		}
 		else
-			m_errorReporter.typeError(7407_error, _expression.location(), errorMsg + ".");
+			m_errorReporter.typeErrorConcatenateDescriptions(
+				7407_error,
+				_expression.location(),
+				errorMsg + ".",
+				result.message()
+			);
 		return false;
 	}
 	return true;
@@ -3187,11 +3285,11 @@ void TypeChecker::requireLValue(Expression const& _expression, bool _ordinaryAss
 	_expression.annotation().lValueOfOrdinaryAssignment = _ordinaryAssignment;
 	_expression.accept(*this);
 
-	if (_expression.annotation().isLValue)
+	if (*_expression.annotation().isLValue)
 		return;
 
 	auto [errorId, description] = [&]() -> tuple<ErrorId, string> {
-		if (_expression.annotation().isConstant)
+		if (*_expression.annotation().isConstant)
 			return { 6520_error, "Cannot assign to a constant variable." };
 
 		if (auto indexAccess = dynamic_cast<IndexAccess const*>(&_expression))

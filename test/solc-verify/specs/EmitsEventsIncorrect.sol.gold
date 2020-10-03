@@ -1,14 +1,15 @@
 Error while running compiler, details:
 Warning: This is a pre-release compiler version, please do not use it in production.
 
+
 ======= Converting to Boogie IVL =======
-test/solc-verify/specs/EmitsEventsIncorrect.sol:9:5: solc-verify error: Function possibly emits 'Increased' without specifying
+test/solc-verify/specs/EmitsEventsIncorrect.sol:10:5: solc-verify error: Function possibly emits 'Increased' without specifying
     function increase() public {
     ^ (Relevant source part starts here and spans across multiple lines).
-test/solc-verify/specs/EmitsEventsIncorrect.sol:9:5: solc-verify warning: Function specifies 'Decreased' but never emits.
+test/solc-verify/specs/EmitsEventsIncorrect.sol:10:5: solc-verify warning: Function specifies 'Decreased' but never emits.
     function increase() public {
     ^ (Relevant source part starts here and spans across multiple lines).
-test/solc-verify/specs/EmitsEventsIncorrect.sol:19:5: solc-verify error: Function possibly emits 'Increased' (via modifier increases_x) without specifying
+test/solc-verify/specs/EmitsEventsIncorrect.sol:20:5: solc-verify error: Function possibly emits 'Increased' (via modifier increases_x) without specifying
     function increase_with_modifier() public increases_x {
     ^ (Relevant source part starts here and spans across multiple lines).
 

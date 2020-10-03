@@ -1,8 +1,7 @@
-test/solc-verify/issues/Issue137.sol:5:9: solc-verify error: Inline assembly is not supported
-test/solc-verify/issues/Issue137.sol:5:9: solc-verify error: Inline assembly is not supported
-test/solc-verify/issues/Issue137.sol:4:5: solc-verify warning: Errors while translating function body, will be skipped
-test/solc-verify/issues/Issue137.sol:9:1: solc-verify warning: Errors while inlining base constructor(s) into implicit constructor, will be skipped
+test/solc-verify/issues/Issue137.sol:6:9: solc-verify error: Inline assembly is not supported
+test/solc-verify/issues/Issue137.sol:6:9: solc-verify error: Inline assembly is not supported
+test/solc-verify/issues/Issue137.sol:5:5: solc-verify warning: Errors while translating function body, will be skipped
+test/solc-verify/issues/Issue137.sol:10:1: solc-verify warning: Errors while inlining base constructor(s) into implicit constructor, will be skipped
 Base::[constructor]: SKIPPED
 Derived::[implicit_constructor]: SKIPPED
-Some functions were skipped. Use --show-warnings to see details.
 No errors found.

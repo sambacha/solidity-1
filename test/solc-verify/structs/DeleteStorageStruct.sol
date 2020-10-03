@@ -1,4 +1,5 @@
-pragma solidity>=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract DeleteStorageStruct {
     struct T {
@@ -11,7 +12,7 @@ contract DeleteStorageStruct {
 
     S s;
 
-    constructor() public {
+    constructor() {
         assert(s.t.z == 0);
         assert(s.x == 0);
         s.t.z = 1;
@@ -23,6 +24,6 @@ contract DeleteStorageStruct {
         assert(s.x == 0);
     }
 
-    function() external payable {
+    receive() external payable {
     }
 }

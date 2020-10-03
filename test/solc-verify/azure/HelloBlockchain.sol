@@ -1,4 +1,5 @@
-pragma solidity >=0.4.25 <0.6.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract HelloBlockchain
 {
@@ -14,7 +15,7 @@ contract HelloBlockchain
     string public ResponseMessage;
 
     // constructor function
-    constructor(string memory message) public
+    constructor(string memory message)
     {
         Requestor = msg.sender;
         RequestMessage = message;

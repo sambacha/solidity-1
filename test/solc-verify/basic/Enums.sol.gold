@@ -4,6 +4,6 @@ Enums::setDir: OK
 Enums::goUp: OK
 Enums::conversion: OK
 Enums::conversion2: ERROR
- - test/solc-verify/basic/Enums.sol:32:15: Conversion to enum might be out of range
-Enums::[fallback]: OK
+ - test/solc-verify/basic/Enums.sol:33:15: Conversion to enum might be out of range
+Enums::[receive]: OK
 Errors were found by the verifier.

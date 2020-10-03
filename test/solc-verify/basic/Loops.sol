@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Loops {
 
@@ -85,7 +86,7 @@ contract Loops {
         return x;
     }
 
-    function() external payable {
+    receive() external payable {
         assert(whileLoopFunc(5) == 15);
         assert(doWhileLoopFunc(5) == 15);
         assert(forLoopFunc(9) == 19);

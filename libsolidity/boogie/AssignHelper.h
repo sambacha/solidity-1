@@ -3,6 +3,7 @@
 #include <libsolidity/boogie/BoogieAstDecl.h>
 #include <libsolidity/boogie/BoogieAstExpr.h>
 #include <libsolidity/boogie/BoogieAstStmt.h>
+#include <list>
 
 namespace solidity
 {

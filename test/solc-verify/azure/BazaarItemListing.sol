@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract ItemListing
 {
@@ -15,7 +16,7 @@ contract ItemListing
     address public PartyB;
 
 
-    constructor(string memory itemName, int itemPrice, address seller, address parentContractAddress, address partyA, address partyB) public {
+    constructor(string memory itemName, int itemPrice, address seller, address parentContractAddress, address partyA, address partyB) {
         Seller = seller;
         ParentContract = parentContractAddress;
         ItemName = itemName;
@@ -71,7 +72,7 @@ contract Bazaar
     ItemListing currentItemListing;
     address public CurrentContractAddress;
 
-    constructor(address partyA, int balanceA, address partyB, int balanceB) public {
+    constructor(address partyA, int balanceA, address partyB, int balanceB) {
         InstanceBazaarMaintainer = msg.sender;
 
         // ensure the two parties are different

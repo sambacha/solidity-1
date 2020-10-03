@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract A {
     int public x;
@@ -12,7 +13,7 @@ contract B {
     A a;
     int y;
 
-    constructor() public {
+    constructor() {
         y = 0;
         a.setX(y);
     }

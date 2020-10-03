@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract StructsStorMemCopy {
     struct S {
@@ -12,7 +13,7 @@ contract StructsStorMemCopy {
 
     S st = S(1, T(2));
 
-    constructor() public {
+    constructor() {
         assert(st.x == 1);
         assert(st.t.z == 2);
     }
@@ -92,7 +93,7 @@ contract StructsStorMemCopy {
         assert(sm.x == 1);
     }
 
-    function() external payable {
+    receive() external payable {
         storToMem();
         memToStor();
         checkReturnMem();

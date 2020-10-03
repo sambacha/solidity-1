@@ -142,5 +142,7 @@ then
     exit 0
 else
 	for i in "${!FAILED_TESTS[@]}"; do echo "$((i+1)). ${FAILED_TESTS[$i]}"; done
+    echo "----- Summary -----"
+    echo "$PASS passed, $UNKN unknown, $FAIL failed"
     exit 1
 fi

@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 library MathLib {
     function add(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -18,7 +19,7 @@ contract Library {
         return MathLib.add(1, 2);
     }
 
-    function() external payable {
+    receive() external payable {
         assert(someFunc() == 15);
         assert(otherFunc() == 3);
     }

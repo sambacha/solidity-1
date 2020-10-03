@@ -1,4 +1,5 @@
-pragma solidity >=0.4.25 <0.6.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract FrequentFlyerRewardsCalculator
 {
@@ -15,7 +16,7 @@ contract FrequentFlyerRewardsCalculator
     uint public TotalRewards;
 
     // constructor function
-    constructor(address flyer, int rewardsPerMile) public
+    constructor(address flyer, int rewardsPerMile)
     {
         AirlineRepresentative = msg.sender;
         Flyer = flyer;

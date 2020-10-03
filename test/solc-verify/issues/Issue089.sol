@@ -1,4 +1,6 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
+
 contract Issue089 {
     function sign(int x) public pure returns (string memory result) {
         result = x > 0 ? "pos" : "neg";

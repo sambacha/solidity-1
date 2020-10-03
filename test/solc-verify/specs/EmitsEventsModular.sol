@@ -1,10 +1,11 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Base {
     event Created();
 
     /// @notice emits Created
-    constructor() public {
+    constructor() {
         emit Created();
     }
 }
@@ -21,7 +22,7 @@ contract EmitsEventsModular is Base {
     }
 
     /// @notice emits Created
-    constructor() public Base() {}
+    constructor() Base() {}
 
     /// @notice emits Increased
     function inc() public increases_x {

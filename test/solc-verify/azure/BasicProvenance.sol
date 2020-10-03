@@ -1,4 +1,5 @@
-pragma solidity >=0.4.25 <0.6.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract BasicProvenance
 {
@@ -14,7 +15,7 @@ contract BasicProvenance
     address public  SupplyChainOwner;
     address public  SupplyChainObserver;
 
-    constructor(address supplyChainOwner, address supplyChainObserver) public
+    constructor(address supplyChainOwner, address supplyChainObserver)
     {
         InitiatingCounterparty = msg.sender;
         Counterparty = InitiatingCounterparty;

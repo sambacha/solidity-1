@@ -2,6 +2,6 @@ BecTokenSimplified::[constructor]: OK
 BecTokenSimplified::balanceOf: OK
 BecTokenSimplified::transfer: OK
 BecTokenSimplified::batchTransfer: ERROR
- - test/solc-verify/examples/BecTokenSimplifiedOverflow.sol:65:32: An overflow can occur before calling function
+ - test/solc-verify/examples/BecTokenSimplifiedOverflow.sol:66:32: An overflow can occur before calling function
 BecTokenSimplified::[receive_ether_selfdestruct]: OK
 Errors were found by the verifier.

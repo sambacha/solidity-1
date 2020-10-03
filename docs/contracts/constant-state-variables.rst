@@ -21,12 +21,12 @@ is copied to all the places in the code where they are accessed. For these value
 can sometimes be cheaper than immutable values.
 
 Not all types for constants and immutables are implemented at this time. The only supported types are
-`strings <strings>`_ (only for constants) and `value types <value-types>`_.
+:ref:`strings <strings>` (only for constants) and :ref:`value types <value-types>`.
 
 ::
 
     // SPDX-License-Identifier: GPL-3.0
-    pragma solidity >0.6.99 <0.8.0;
+    pragma solidity ^0.7.0;
 
     contract C {
         uint constant X = 32**22 + 8;

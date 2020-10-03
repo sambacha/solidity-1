@@ -78,6 +78,7 @@ template <class U, class... T> std::set<T...>& operator+=(std::set<T...>& _a, U&
 		_a.insert(std::move(x));
 	return _a;
 }
+
 /// Concatenate two vectors of elements.
 template <class T>
 inline std::vector<T> operator+(std::vector<T> const& _a, std::vector<T> const& _b)
@@ -86,6 +87,7 @@ inline std::vector<T> operator+(std::vector<T> const& _a, std::vector<T> const& 
 	ret += _b;
 	return ret;
 }
+
 /// Concatenate two vectors of elements, moving them.
 template <class T>
 inline std::vector<T> operator+(std::vector<T>&& _a, std::vector<T>&& _b)
@@ -97,6 +99,7 @@ inline std::vector<T> operator+(std::vector<T>&& _a, std::vector<T>&& _b)
 		ret += std::move(_b);
 	return ret;
 }
+
 /// Concatenate something to a sets of elements.
 template <class T, class U>
 inline std::set<T> operator+(std::set<T> const& _a, U&& _b)
@@ -105,6 +108,7 @@ inline std::set<T> operator+(std::set<T> const& _a, U&& _b)
 	ret += std::forward<U>(_b);
 	return ret;
 }
+
 /// Concatenate something to a sets of elements, move variant.
 template <class T, class U>
 inline std::set<T> operator+(std::set<T>&& _a, U&& _b)
@@ -203,6 +207,13 @@ std::map<V, K> invertMap(std::map<K, V> const& originalMap)
 	}
 
 	return inverseMap;
+}
+
+/// Returns a set of keys of a map.
+template <typename K, typename V>
+std::set<K> keys(std::map<K, V> const& _map)
+{
+	return applyMap(_map, [](auto const& _elem) { return _elem.first; }, std::set<K>{});
 }
 
 // String conversion functions, mainly to/from hex/nibble/byte representations.

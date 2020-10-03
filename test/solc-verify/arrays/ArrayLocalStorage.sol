@@ -1,11 +1,12 @@
-pragma solidity>=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract ArrayLocalStorage {
     int[] x1;
     int[] x2;
     bool[] b;
 
-    constructor() public {
+    constructor() {
         x1.push(0);
         x2.push(0);
     }
@@ -83,7 +84,7 @@ contract ArrayLocalStorage {
         assert(m[0] == 1);
     }
 
-    function() external payable {
+    receive() external payable {
         testSimple();
         testReassign();
         testAssignToStorage();

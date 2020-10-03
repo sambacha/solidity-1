@@ -1,9 +1,10 @@
-pragma solidity>=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract EvalOrder {
     uint[] x;
 
-    constructor() public {
+    constructor() {
         x.push(3);
         x.push(0);
         x.push(2);
@@ -14,6 +15,6 @@ contract EvalOrder {
         assert(x[2] == 2);
     }
 
-    function() external payable {
+    receive() external payable {
     }
 }

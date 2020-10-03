@@ -116,7 +116,7 @@ private:
 	ASTPointer<OverrideSpecifier> parseOverrideSpecifier();
 	StateMutability parseStateMutability();
 	FunctionHeaderParserResult parseFunctionHeader(bool _isStateVariable);
-	ASTPointer<ASTNode> parseFunctionDefinition();
+	ASTPointer<ASTNode> parseFunctionDefinition(bool _freeFunction = false);
 	ASTPointer<StructDefinition> parseStructDefinition();
 	ASTPointer<EnumDefinition> parseEnumDefinition();
 	ASTPointer<EnumValue> parseEnumValue();
@@ -146,9 +146,9 @@ private:
 	ASTPointer<IfStatement> parseIfStatement(ASTPointer<ASTString> const& _docString);
 	ASTPointer<TryStatement> parseTryStatement(ASTPointer<ASTString> const& _docString);
 	ASTPointer<TryCatchClause> parseCatchClause();
-	ASTPointer<WhileStatement> parseWhileStatement(ASTPointer<ASTString> const& _docString);
-	ASTPointer<WhileStatement> parseDoWhileStatement(ASTPointer<ASTString> const& _docString);
-	ASTPointer<ForStatement> parseForStatement(ASTPointer<ASTString> const& _docString);
+	ASTPointer<WhileStatement> parseWhileStatement(ASTPointer<StructuredDocumentation> _documentation);
+	ASTPointer<WhileStatement> parseDoWhileStatement(ASTPointer<StructuredDocumentation> _documentation);
+	ASTPointer<ForStatement> parseForStatement(ASTPointer<StructuredDocumentation> _documentation);
 	ASTPointer<EmitStatement> parseEmitStatement(ASTPointer<ASTString> const& docString);
 	/// A "simple statement" can be a variable declaration statement or an expression statement.
 	ASTPointer<Statement> parseSimpleStatement(ASTPointer<ASTString> const& _docString);

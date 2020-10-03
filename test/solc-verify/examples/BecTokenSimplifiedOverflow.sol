@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 /**
  * @title SafeMath
@@ -39,7 +40,7 @@ contract BecTokenSimplified {
     uint256 public totalSupply;
     mapping(address => uint256) balances;
 
-    constructor() public {
+    constructor() {
         totalSupply = 7000000000 * (10**18);
         balances[msg.sender] = totalSupply; // Give the creator all initial tokens
     }

@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Issue065 {
     /// @notice postcondition r == 1
@@ -6,7 +7,7 @@ contract Issue065 {
         return 1;
     }
 
-    function() external payable {
+    receive() external payable {
         assert(Issue065(this).value() == 1);
     }
 }

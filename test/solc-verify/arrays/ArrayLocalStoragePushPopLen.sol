@@ -1,9 +1,10 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract ArrayLocalStoragePushPopLen {
     int[] arr;
 
-    function() external payable {
+    receive() external payable {
         require(arr.length == 0);
 
         int[] storage s = arr;

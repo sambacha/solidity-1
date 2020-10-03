@@ -47,7 +47,7 @@ popd
 cp truffle-config.js truffle
 
 # Copy the contracts to the truffle
-CONTRACTS_WITH_MAIN=`grep -r -l --include '*.sol' 'function() external payable' .`
+CONTRACTS_WITH_MAIN=$(grep -r -l --include '*.sol' 'receive() external payable' .)
 cp $CONTRACTS_WITH_MAIN truffle/contracts/
 
 # Add to migrations
@@ -55,7 +55,7 @@ DEPLOY=truffle/migrations/2_deploy_contracts.js
 (
 for c in $CONTRACTS_WITH_MAIN
 do
-  c_basename=`basename $c`
+  c_basename=$(basename $c)
   c_name=${c_basename%.*}
   echo "var $c_name = artifacts.require('./$c_basename');"
 done
@@ -63,7 +63,7 @@ echo
 echo "module.exports = function(deployer) {"
 for c in $CONTRACTS_WITH_MAIN
 do
-  c_basename=`basename $c`
+  c_basename=$(basename $c)
   c_name=${c_basename%.*}
   echo "  deployer.deploy($c_name);"
 done
@@ -75,7 +75,7 @@ TEST=truffle/test/All.js
 (
 for c in $CONTRACTS_WITH_MAIN
 do
-  c_basename=`basename $c`
+  c_basename=$(basename $c)
   c_name=${c_basename%.*}
   echo "var $c_name = artifacts.require('$c_name');"
 done
@@ -86,7 +86,7 @@ echo "  var user = accounts[0]"
 echo
 for c in $CONTRACTS_WITH_MAIN
 do
-  c_basename=`basename $c`
+  c_basename=$(basename $c)
   c_name=${c_basename%.*}
   echo "  it('$c_name', function() {"
   echo "    return $c_name.deployed().then(function(instance) {"
@@ -103,5 +103,5 @@ echo "});"
 export PATH="$SOLC_BIN:$PATH"
 
 # Now actually test
-cd truffle
+cd truffle || exit 1
 truffle test

@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Base {
     mapping(address=>int) public m;
@@ -11,7 +12,7 @@ contract Base {
 
 contract Transactions is Base {
 
-    function() external payable {
+    receive() external payable {
         require(msg.sender != address(this));
 
         f(4); // Internal

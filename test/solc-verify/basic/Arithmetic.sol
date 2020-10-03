@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Arithmetic {
     function and(bool a, bool b) private pure returns (bool) {
@@ -78,7 +79,7 @@ contract Arithmetic {
         return a >= b;
     }
 
-    function() external payable {
+    receive() external payable {
         assert(and(true, true) == true);
         assert(and(true, false) == false);
         assert(and(false, true) == false);

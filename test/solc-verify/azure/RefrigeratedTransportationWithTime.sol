@@ -1,4 +1,5 @@
-pragma solidity >=0.4.25 <0.6.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract RefrigeratedTransportationWithTime
 {
@@ -25,7 +26,7 @@ contract RefrigeratedTransportationWithTime
     string public  ComplianceDetail;
     uint public  LastSensorUpdateTimestamp;
 
-    constructor(address device, address supplyChainOwner, address supplyChainObserver, int minHumidity, int maxHumidity, int minTemperature, int maxTemperature) public
+    constructor(address device, address supplyChainOwner, address supplyChainObserver, int minHumidity, int maxHumidity, int minTemperature, int maxTemperature)
     {
         ComplianceStatus = true;
         ComplianceSensorReading = -1;

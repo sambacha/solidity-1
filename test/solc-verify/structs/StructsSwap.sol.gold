@@ -1,5 +1,5 @@
-test/solc-verify/structs/StructsSwap.sol:28:5: Warning: This assignment performs two copies to storage. Since storage copies do not first copy to a temporary location, one of them might be overwritten before the second is executed and thus may have unexpected effects. It is safer to perform the copies separately or assign to storage pointers first.
-test/solc-verify/structs/StructsSwap.sol:51:5: Warning: This assignment performs two copies to storage. Since storage copies do not first copy to a temporary location, one of them might be overwritten before the second is executed and thus may have unexpected effects. It is safer to perform the copies separately or assign to storage pointers first.
-StructsSwap::[fallback]: OK
+test/solc-verify/structs/StructsSwap.sol:29:5: Warning: This assignment performs two copies to storage. Since storage copies do not first copy to a temporary location, one of them might be overwritten before the second is executed and thus may have unexpected effects. It is safer to perform the copies separately or assign to storage pointers first.
+test/solc-verify/structs/StructsSwap.sol:52:5: Warning: This assignment performs two copies to storage. Since storage copies do not first copy to a temporary location, one of them might be overwritten before the second is executed and thus may have unexpected effects. It is safer to perform the copies separately or assign to storage pointers first.
+StructsSwap::[receive]: OK
 StructsSwap::[implicit_constructor]: OK
 No errors found.

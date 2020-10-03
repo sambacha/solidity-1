@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 /** @notice invariant x >= 0 */
 contract A {
@@ -14,7 +15,7 @@ contract B {
     // This reference can be trusted as it is only assigned with 'new' internally
     A a;
 
-    constructor() public {
+    constructor() {
         a = new A(); // Calling the constsructor will establish invariant
         a.incr();
         assert(a.getX() >= 0); // Should hold
@@ -29,7 +30,7 @@ contract B {
 contract C {
     A a; // Cannot (always) be trusted
 
-    constructor() public {
+    constructor() {
         a = new A(); // Calling the constsructor will establish invariant
         assert(a.getX() >= 0); // Should hold
     }

@@ -1,6 +1,3 @@
-test/solc-verify/issues/Issue097.sol:7:9: solc-verify warning: Array elements are not set to default value when resizing with length
-test/solc-verify/issues/Issue097.sol:12:9: solc-verify warning: Array elements are not set to default value when resizing with length
 Issue097::[constructor]: OK
-Issue097::[fallback]: ERROR
- - test/solc-verify/issues/Issue097.sol:13:9: Assertion might not hold.
-Errors were found by the verifier.
+Issue097::[receive]: OK
+No errors found.

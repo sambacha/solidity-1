@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract StructsArrays {
 
@@ -10,7 +11,7 @@ contract StructsArrays {
   A a1;
   A a2;
 
-  function() external payable {
+  receive() external payable {
     // Conditions established by constructor
     require(a1.x == 0);
     require(a2.x == 0);
@@ -23,7 +24,9 @@ contract StructsArrays {
     assert(a2.x == 0);
     assert(ma.x == 1);
 
-    a1.m.length = 3;
+    a1.m.push(0);
+    a1.m.push(0);
+    a1.m.push(0);
     ma.x = 2;
     a2.x = 3;
 

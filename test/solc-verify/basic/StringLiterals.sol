@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract StringLiterals {
 
@@ -8,13 +9,13 @@ contract StringLiterals {
 
     mapping(string=>int) m;
 
-    constructor() public {
+    constructor() {
         m[s1] = 1;
         m[s2] = 2;
         assert(m[s3] == 1); // s1 is the same as s3
     }
 
     // Just for truffle tests
-    function() external payable {
+    receive() external payable {
     }
 }

@@ -1,4 +1,5 @@
-pragma solidity >=0.5.0;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0;
 
 contract Starter
 {
@@ -11,7 +12,7 @@ contract Starter
     address public GamePlayer;
     int public PingPongTimes;
 
-    constructor (string memory gameName) public{
+    constructor (string memory gameName) {
         PingPongGameName = gameName;
         GameStarter = msg.sender;
 
@@ -63,7 +64,7 @@ contract Player
     address public GameStarter;
     string public PingPongGameName;
 
-    constructor (string memory pingPongGameName) public {
+    constructor (string memory pingPongGameName) {
         GameStarter = msg.sender;
         PingPongGameName = pingPongGameName;
 
